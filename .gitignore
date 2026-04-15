@@ -1,0 +1,5 @@
+build/
+*.exe
+pcode-editor
+.DS_Store
+Thumbs.db
