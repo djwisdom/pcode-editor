@@ -89,7 +89,7 @@ void EditorApp::init() {
     // Set up text editor language (C++ default)
     TextEditor* editor = static_cast<TextEditor*>(text_editor_);
     editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
-    editor->SetText("// Welcome to Code Editor\n// Open a file with Ctrl+O or File > Open\n\n");
+    editor->SetText("// Welcome to pCode Editor\n// Open a file with Ctrl+O or File > Open\n\n");
 }
 
 void EditorApp::shutdown() {
