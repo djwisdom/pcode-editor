@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
