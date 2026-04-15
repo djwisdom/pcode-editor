@@ -29,7 +29,9 @@ struct AppSettings {
     bool show_status_bar = true;
     bool word_wrap = false;
     bool show_line_numbers = true;
+    int tab_size = 4;          // Tab size in spaces
     int font_size = 16;
+    std::string font_name = ""; // Font family name (empty = default)
     std::vector<std::string> recent_files;  // Last 10
     std::string last_open_dir;
 };
@@ -66,6 +68,7 @@ private:
     void render_goto_dialog();
     void render_command_palette();
     void render_font_dialog();
+    void render_spaces_dialog();
 
     // File operations
     void new_tab();
@@ -91,6 +94,8 @@ private:
     void toggle_word_wrap();
     void toggle_line_numbers();
     void toggle_theme();
+    void set_tab_size(int size);
+    void rebuild_fonts();
 
     // Helpers
     void apply_theme(bool dark);
@@ -130,6 +135,11 @@ private:
 
     // Font state
     int font_size_temp_ = 16;
+    std::string font_name_temp_ = "";
+
+    // Spaces submenu state
+    bool show_spaces_dialog_ = false;
+    int tab_size_temp_ = 4;
 
     // Command palette
     char cmd_buf_[256] = {0};

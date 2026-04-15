@@ -48,7 +48,9 @@ static void settings_save(const AppSettings& s, const std::string& path) {
     f << "  \"show_status_bar\": " << (s.show_status_bar ? "true" : "false") << ",\n";
     f << "  \"word_wrap\": " << (s.word_wrap ? "true" : "false") << ",\n";
     f << "  \"show_line_numbers\": " << (s.show_line_numbers ? "true" : "false") << ",\n";
+    f << "  \"tab_size\": " << s.tab_size << ",\n";
     f << "  \"font_size\": " << s.font_size << ",\n";
+    f << "  \"font_name\": \"" << json_escape(s.font_name) << "\",\n";
     f << "  \"last_open_dir\": \"" << json_escape(s.last_open_dir) << "\",\n";
     f << "  \"recent_files\": [";
     for (size_t i = 0; i < s.recent_files.size(); i++) {
@@ -96,7 +98,9 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.show_status_bar = get_bool("show_status_bar", true);
     s.word_wrap = get_bool("word_wrap", false);
     s.show_line_numbers = get_bool("show_line_numbers", true);
+    s.tab_size = get_int("tab_size", 4);
     s.font_size = get_int("font_size", 16);
+    s.font_name = get_str("font_name");
     s.last_open_dir = get_str("last_open_dir");
 
     // Parse recent files array
@@ -122,6 +126,8 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // ============================================================================
 EditorApp::EditorApp() {
     new_tab();  // Start with one untitled tab
+    font_size_temp_ = settings_.font_size;
+    tab_size_temp_ = settings_.tab_size;
 }
 
 EditorApp::~EditorApp() {
@@ -195,7 +201,10 @@ void EditorApp::init() {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    
+    // Apply initial font settings
     io.FontGlobalScale = settings_.font_size / 16.0f;
+    font_size_temp_ = settings_.font_size;
 
     apply_theme(settings_.dark_theme);
 
@@ -205,10 +214,16 @@ void EditorApp::init() {
     // Apply initial settings to first tab
     if (!tabs_.empty()) {
         TextEditor* ed = tabs_[0].editor;
+        int tab_idx = 0;
 
         if (settings_.word_wrap) {
             ed->SetImGuiChildIgnored(true);
         }
+        
+        ed->SetTabSize(settings_.tab_size);
+        ed->SetShowWhitespaces(false);
+        
+        apply_zoom(tab_idx);
     }
 }
 
@@ -266,7 +281,8 @@ void EditorApp::new_tab() {
     tab.display_name = "untitled";
     tab.editor = new TextEditor();
     tab.editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
-    
+    tab.editor->SetTabSize(settings_.tab_size);
+
     tab.editor->SetText("");
     tabs_.push_back(std::move(tab));
     active_tab_ = (int)tabs_.size() - 1;
@@ -326,6 +342,7 @@ void EditorApp::open_file(const std::string& path) {
     tab.display_name = std::filesystem::path(selected_path).filename().string();
     tab.dirty = false;
     tab.editor->SetText(content);
+    tab.editor->SetTabSize(settings_.tab_size);
 
     // Auto-detect language
     auto ext = std::filesystem::path(selected_path).extension().string();
@@ -341,6 +358,9 @@ void EditorApp::open_file(const std::string& path) {
 
     settings_.last_open_dir = std::filesystem::path(selected_path).parent_path().string();
     add_recent_file(selected_path);
+    
+    // Give focus to the editor
+    ImGui::SetWindowFocus("Editor");
 }
 
 bool EditorApp::save_tab(int idx) {
@@ -608,19 +628,51 @@ void EditorApp::toggle_status_bar() {
 
 void EditorApp::toggle_word_wrap() {
     settings_.word_wrap = !settings_.word_wrap;
-    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-        tabs_[active_tab_].editor->SetImGuiChildIgnored(settings_.word_wrap);
+    // Apply to all tabs
+    for (auto& tab : tabs_) {
+        tab.editor->SetImGuiChildIgnored(settings_.word_wrap);
     }
 }
 
 void EditorApp::toggle_line_numbers() {
     settings_.show_line_numbers = !settings_.show_line_numbers;
-    // TextEditor always shows line numbers — no toggle API available
+    // Apply to all tabs - TextEditor always shows line numbers, but we can note the setting
+    // The actual rendering will be controlled by our wrapper in render_editor_area
 }
 
 void EditorApp::toggle_theme() {
     settings_.dark_theme = !settings_.dark_theme;
     apply_theme(settings_.dark_theme);
+    
+    // Apply theme to all tabs immediately
+    for (auto& tab : tabs_) {
+        if (settings_.dark_theme) {
+            tab.editor->SetPalette(TextEditor::GetDarkPalette());
+        } else {
+            tab.editor->SetPalette(TextEditor::GetLightPalette());
+        }
+    }
+}
+
+void EditorApp::set_tab_size(int size) {
+    if (size < 1 || size > 16) return;
+    settings_.tab_size = size;
+    
+    // Apply to all tabs
+    for (auto& tab : tabs_) {
+        tab.editor->SetTabSize(size);
+    }
+}
+
+void EditorApp::rebuild_fonts() {
+    // For now, we just update the global font scale
+    // In a full implementation, you would reload fonts from ImGui
+    ImGui::GetIO().FontGlobalScale = settings_.font_size / 16.0f;
+    
+    // Apply to all tabs via zoom
+    for (int i = 0; i < (int)tabs_.size(); i++) {
+        apply_zoom(i);
+    }
 }
 
 // ============================================================================
@@ -723,6 +775,7 @@ void EditorApp::render() {
     if (show_replace_) render_replace_dialog();
     if (show_goto_) render_goto_dialog();
     if (show_font_) render_font_dialog();
+    if (show_spaces_dialog_) render_spaces_dialog();
     if (show_cmd_palette_) render_command_palette();
 
     ImGui::End();
@@ -821,6 +874,14 @@ void EditorApp::render_menu_view() {
         if (ImGui::MenuItem("Word Wrap", nullptr, &ww)) toggle_word_wrap();
         bool ln = settings_.show_line_numbers;
         if (ImGui::MenuItem("Line Numbers", nullptr, &ln)) toggle_line_numbers();
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Spaces")) {
+            if (ImGui::MenuItem("2 Spaces", nullptr, settings_.tab_size == 2)) set_tab_size(2);
+            if (ImGui::MenuItem("4 Spaces", nullptr, settings_.tab_size == 4)) set_tab_size(4);
+            if (ImGui::MenuItem("8 Spaces", nullptr, settings_.tab_size == 8)) set_tab_size(8);
+            if (ImGui::MenuItem("Custom...")) { show_spaces_dialog_ = true; tab_size_temp_ = settings_.tab_size; }
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
         if (ImGui::MenuItem(settings_.dark_theme ? "Light Theme" : "Dark Theme")) toggle_theme();
         ImGui::EndMenu();
@@ -1028,24 +1089,28 @@ void EditorApp::render_goto_dialog() {
 }
 
 void EditorApp::render_font_dialog() {
-    ImGui::OpenPopup("Font");
+    ImGui::OpenPopup("Font Settings");
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 
-    if (ImGui::BeginPopupModal("Font", &show_font_, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Font size:");
+    if (ImGui::BeginPopupModal("Font Settings", &show_font_, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Font Size (8-48):");
         ImGui::SetNextItemWidth(100);
         ImGui::InputInt("##fontsize", &font_size_temp_);
         font_size_temp_ = std::max(8, std::min(48, font_size_temp_));
+        
+        ImGui::Separator();
+        ImGui::TextUnformatted("Note: Font size changes apply to all tabs.");
+        ImGui::TextUnformatted("Changing font family requires application restart.");
 
         if (ImGui::Button("Apply")) {
             settings_.font_size = font_size_temp_;
-            ImGui::GetIO().FontGlobalScale = font_size_temp_ / 16.0f;
+            rebuild_fonts();
         }
         ImGui::SameLine();
         if (ImGui::Button("OK")) {
             settings_.font_size = font_size_temp_;
-            ImGui::GetIO().FontGlobalScale = font_size_temp_ / 16.0f;
+            rebuild_fonts();
             show_font_ = false;
         }
         ImGui::SameLine();
@@ -1118,6 +1183,32 @@ void EditorApp::render_command_palette() {
                 cmd_buf_[0] = '\0';
             }
         }
+
+        ImGui::EndPopup();
+    }
+}
+
+void EditorApp::render_spaces_dialog() {
+    ImGui::OpenPopup("Tab Size");
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal("Tab Size", &show_spaces_dialog_, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Tab size (1-16):");
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputInt("##tabsize", &tab_size_temp_);
+        tab_size_temp_ = std::max(1, std::min(16, tab_size_temp_));
+
+        if (ImGui::Button("Apply")) {
+            set_tab_size(tab_size_temp_);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("OK")) {
+            set_tab_size(tab_size_temp_);
+            show_spaces_dialog_ = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) show_spaces_dialog_ = false;
 
         ImGui::EndPopup();
     }

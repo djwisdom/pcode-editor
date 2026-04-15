@@ -182,3 +182,20 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 # Install
 # ============================================================================
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+
+# ============================================================================
+# Test Suite
+# ============================================================================
+enable_testing()
+
+add_executable(test_view_features tests/test_view_features.cpp)
+target_compile_options(test_view_features PRIVATE -Wall -Wextra)
+
+add_test(NAME ViewFeatures COMMAND test_view_features)
+
+# Custom target to run tests
+add_custom_target(run_tests
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS test_view_features
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
