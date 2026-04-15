@@ -1,6 +1,7 @@
 #include "editor_app.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <GLFW/glfw3.h>
@@ -145,6 +146,10 @@ void EditorApp::render() {
     ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
     ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
 
+    // Force "Editor" window into the central dock node on first launch
+    // This ensures it fills the entire viewport instead of floating
+    ImGui::DockBuilderDockWindow("Editor", dockspace_id);
+
     render_menu_bar();
     render_editor();
     render_status_bar();
@@ -183,13 +188,10 @@ void EditorApp::render_menu_bar() {
 }
 
 void EditorApp::render_editor() {
-    ImGui::Begin("Editor");
-
+    // No title bar, no borders — let the dockspace handle the chrome
+    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse);
     TextEditor* editor = static_cast<TextEditor*>(text_editor_);
     editor->Render("TextEditor");
-
-    // Track dirty state
-    // (TextEditor doesn't expose dirty state directly, so we track on edit)
     ImGui::End();
 }
 
