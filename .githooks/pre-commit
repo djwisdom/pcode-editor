@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# ============================================================================
+# Pre-commit hook: Validates build compiles successfully before committing
+# ============================================================================
+#
+# Installation:
+#   cp .githooks/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# Or configure git to use the hooks directory:
+#   git config core.hooksPath .githooks
+#
+# Skip with: git commit --no-verify
+# ============================================================================
+
+set -e
+
+echo "🔍 Running pre-commit build validation..."
+
+# Detect platform
+PLATFORM="$(uname -s)"
+BUILD_DIR="build-precommit"
+
+# Function to cleanup on exit
+cleanup() {
+    if [ -d "$BUILD_DIR" ]; then
+        rm -rf "$BUILD_DIR"
+    fi
+}
+
+# Only cleanup if we created the directory
+trap cleanup EXIT
+
+case "$PLATFORM" in
+    FreeBSD|OpenBSD|NetBSD)
+        echo "📦 Building for BSD (X11)..."
+        mkdir -p "$BUILD_DIR"
+        cd "$BUILD_DIR"
+        cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGLFW_BUILD_WAYLAND=OFF \
+            -DGLFW_BUILD_X11=ON > /dev/null 2>&1
+        make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 2) > /dev/null 2>&1
+        ;;
+    Linux)
+        echo "📦 Building for Linux (Wayland)..."
+        mkdir -p "$BUILD_DIR"
+        cd "$BUILD_DIR"
+        cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGLFW_BUILD_WAYLAND=ON \
+            -DGLFW_BUILD_X11=OFF > /dev/null 2>&1
+        make -j$(nproc) > /dev/null 2>&1
+        ;;
+    Darwin)
+        echo "📦 Building for macOS..."
+        mkdir -p "$BUILD_DIR"
+        cd "$BUILD_DIR"
+        cmake .. -DCMAKE_BUILD_TYPE=Release > /dev/null 2>&1
+        make -j$(sysctl -n hw.ncpu) > /dev/null 2>&1
+        ;;
+    MINGW*|MSYS*|CYGWIN*)
+        echo "📦 Building for Windows..."
+        mkdir -p "$BUILD_DIR"
+        cd "$BUILD_DIR"
+        cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release > /dev/null 2>&1
+        make -j$(nproc) > /dev/null 2>&1
+        ;;
+    *)
+        echo "❌ Unsupported platform: $PLATFORM"
+        exit 1
+        ;;
+esac
+
+# Verify executable exists
+if [ -f "pcode-editor" ] || [ -f "pcode-editor.exe" ]; then
+    echo "✅ Build successful!"
+    exit 0
+else
+    echo "❌ Build failed - executable not found"
+    exit 1
+fi

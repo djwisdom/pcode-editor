@@ -1,0 +1,173 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  # ========================================================================
+  # Linux Build (Wayland)
+  # ========================================================================
+  build-linux:
+    name: Linux (Wayland)
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          libwayland-dev \
+          wayland-protocols \
+          libxkbcommon-dev \
+          libgtk-3-dev \
+          libgl1-mesa-dev \
+          pkg-config
+    
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DGLFW_BUILD_WAYLAND=ON \
+          -DGLFW_BUILD_X11=OFF
+    
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+    
+    - name: Verify executable
+      run: |
+        file build/pcode-editor
+        ls -lh build/pcode-editor
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pcode-editor-linux
+        path: build/pcode-editor
+        if-no-files-found: error
+
+  # ========================================================================
+  # Windows Build (Win32)
+  # ========================================================================
+  build-windows:
+    name: Windows (Win32)
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. `
+          -G "Visual Studio 17 2022" `
+          -A x64 `
+          -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+    
+    - name: Verify executable
+      shell: pwsh
+      run: |
+        Get-ChildItem build/Release/pcode-editor.exe
+        (Get-Item build/Release/pcode-editor.exe).Length
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pcode-editor-windows
+        path: build/Release/pcode-editor.exe
+        if-no-files-found: error
+
+  # ========================================================================
+  # FreeBSD Build (X11)
+  # ========================================================================
+  build-freebsd:
+    name: FreeBSD (X11)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        freebsd-version: ['14.4']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Build on FreeBSD
+      uses: cross-platform-actions/action@v0.25.0
+      with:
+        operating_system: freebsd
+        version: ${{ matrix.freebsd-version }}
+        shell: bash
+        run: |
+          # Install dependencies
+          sudo pkg update
+          sudo pkg install -y \
+            cmake \
+            xorg-libX11 \
+            xorgproto \
+            gtk3 \
+            mesa-libs \
+            pkgconf \
+            llvm19
+          
+          # Configure and build
+          mkdir -p build
+          cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGLFW_BUILD_WAYLAND=OFF \
+            -DGLFW_BUILD_X11=ON
+          
+          make -j$(sysctl -n hw.ncpu)
+          
+          # Verify
+          file pcode-editor
+          ls -lh pcode-editor
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pcode-editor-freebsd
+        path: build/pcode-editor
+        if-no-files-found: error
+
+  # ========================================================================
+  # Summary Job
+  # ========================================================================
+  build-summary:
+    name: Build Summary
+    needs: [build-linux, build-windows, build-freebsd]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Build Status
+      run: |
+        echo "## Build Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Linux (Wayland) | ${{ needs.build-linux.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Windows (Win32) | ${{ needs.build-windows.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| FreeBSD (X11) | ${{ needs.build-freebsd.result }} |" >> $GITHUB_STEP_SUMMARY
