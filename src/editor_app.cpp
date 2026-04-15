@@ -65,7 +65,7 @@ void EditorApp::init() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    window_ = glfwCreateWindow(1280, 800, "Code Editor", nullptr, nullptr);
+    window_ = glfwCreateWindow(1280, 800, "pCode Editor", nullptr, nullptr);
     if (!window_) {
         fprintf(stderr, "Failed to create GLFW window\n");
         glfwTerminate();
