@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/djwisdom/code-editor
+CMAKE_SOURCE_DIR = /home/djwisdom/pcode-editor
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/djwisdom/code-editor/build
+CMAKE_BINARY_DIR = /home/djwisdom/pcode-editor/build
 
 # Utility rule file for update_mappings.
 
@@ -67,8 +67,8 @@ include _deps/glfw-build/src/CMakeFiles/update_mappings.dir/compiler_depend.make
 include _deps/glfw-build/src/CMakeFiles/update_mappings.dir/progress.make
 
 _deps/glfw-build/src/CMakeFiles/update_mappings:
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Updating gamepad mappings from upstream repository"
-	cd /home/djwisdom/code-editor/build/_deps/glfw-src/src && /usr/bin/cmake -P /home/djwisdom/code-editor/build/_deps/glfw-src/CMake/GenerateMappings.cmake mappings.h.in mappings.h
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Updating gamepad mappings from upstream repository"
+	cd /home/djwisdom/pcode-editor/build/_deps/glfw-src/src && /usr/bin/cmake -P /home/djwisdom/pcode-editor/build/_deps/glfw-src/CMake/GenerateMappings.cmake mappings.h.in mappings.h
 
 _deps/glfw-build/src/CMakeFiles/update_mappings.dir/codegen:
 .PHONY : _deps/glfw-build/src/CMakeFiles/update_mappings.dir/codegen
@@ -82,10 +82,10 @@ _deps/glfw-build/src/CMakeFiles/update_mappings.dir/build: update_mappings
 .PHONY : _deps/glfw-build/src/CMakeFiles/update_mappings.dir/build
 
 _deps/glfw-build/src/CMakeFiles/update_mappings.dir/clean:
-	cd /home/djwisdom/code-editor/build/_deps/glfw-build/src && $(CMAKE_COMMAND) -P CMakeFiles/update_mappings.dir/cmake_clean.cmake
+	cd /home/djwisdom/pcode-editor/build/_deps/glfw-build/src && $(CMAKE_COMMAND) -P CMakeFiles/update_mappings.dir/cmake_clean.cmake
 .PHONY : _deps/glfw-build/src/CMakeFiles/update_mappings.dir/clean
 
 _deps/glfw-build/src/CMakeFiles/update_mappings.dir/depend:
-	cd /home/djwisdom/code-editor/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/djwisdom/code-editor /home/djwisdom/code-editor/build/_deps/glfw-src/src /home/djwisdom/code-editor/build /home/djwisdom/code-editor/build/_deps/glfw-build/src /home/djwisdom/code-editor/build/_deps/glfw-build/src/CMakeFiles/update_mappings.dir/DependInfo.cmake "--color=$(COLOR)" update_mappings
+	cd /home/djwisdom/pcode-editor/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/djwisdom/pcode-editor /home/djwisdom/pcode-editor/build/_deps/glfw-src/src /home/djwisdom/pcode-editor/build /home/djwisdom/pcode-editor/build/_deps/glfw-build/src /home/djwisdom/pcode-editor/build/_deps/glfw-build/src/CMakeFiles/update_mappings.dir/DependInfo.cmake "--color=$(COLOR)" update_mappings
 .PHONY : _deps/glfw-build/src/CMakeFiles/update_mappings.dir/depend
 

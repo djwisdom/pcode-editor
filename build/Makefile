@@ -57,10 +57,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/djwisdom/code-editor
+CMAKE_SOURCE_DIR = /home/djwisdom/pcode-editor
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/djwisdom/code-editor/build
+CMAKE_BINARY_DIR = /home/djwisdom/pcode-editor/build
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -132,9 +132,9 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/djwisdom/code-editor/build/CMakeFiles /home/djwisdom/code-editor/build//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/djwisdom/pcode-editor/build/CMakeFiles /home/djwisdom/pcode-editor/build//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/djwisdom/code-editor/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/djwisdom/pcode-editor/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -162,17 +162,17 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named code-editor
+# Target rules for targets named pcode-editor
 
 # Build rule for target.
-code-editor: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 code-editor
-.PHONY : code-editor
+pcode-editor: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 pcode-editor
+.PHONY : pcode-editor
 
 # fast build rule for target.
-code-editor/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/build
-.PHONY : code-editor/fast
+pcode-editor/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/build
+.PHONY : pcode-editor/fast
 
 #=============================================================================
 # Target rules for targets named uninstall
@@ -213,12 +213,25 @@ update_mappings/fast:
 	$(MAKE) $(MAKESILENT) -f _deps/glfw-build/src/CMakeFiles/update_mappings.dir/build.make _deps/glfw-build/src/CMakeFiles/update_mappings.dir/build
 .PHONY : update_mappings/fast
 
+#=============================================================================
+# Target rules for targets named nfd
+
+# Build rule for target.
+nfd: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 nfd
+.PHONY : nfd
+
+# fast build rule for target.
+nfd/fast:
+	$(MAKE) $(MAKESILENT) -f _deps/nfd-build/src/CMakeFiles/nfd.dir/build.make _deps/nfd-build/src/CMakeFiles/nfd.dir/build
+.PHONY : nfd/fast
+
 _deps/imgui-src/backends/imgui_impl_glfw.o: _deps/imgui-src/backends/imgui_impl_glfw.cpp.o
 .PHONY : _deps/imgui-src/backends/imgui_impl_glfw.o
 
 # target to build an object file
 _deps/imgui-src/backends/imgui_impl_glfw.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/backends/imgui_impl_glfw.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/backends/imgui_impl_glfw.cpp.o
 .PHONY : _deps/imgui-src/backends/imgui_impl_glfw.cpp.o
 
 _deps/imgui-src/backends/imgui_impl_glfw.i: _deps/imgui-src/backends/imgui_impl_glfw.cpp.i
@@ -226,7 +239,7 @@ _deps/imgui-src/backends/imgui_impl_glfw.i: _deps/imgui-src/backends/imgui_impl_
 
 # target to preprocess a source file
 _deps/imgui-src/backends/imgui_impl_glfw.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/backends/imgui_impl_glfw.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/backends/imgui_impl_glfw.cpp.i
 .PHONY : _deps/imgui-src/backends/imgui_impl_glfw.cpp.i
 
 _deps/imgui-src/backends/imgui_impl_glfw.s: _deps/imgui-src/backends/imgui_impl_glfw.cpp.s
@@ -234,7 +247,7 @@ _deps/imgui-src/backends/imgui_impl_glfw.s: _deps/imgui-src/backends/imgui_impl_
 
 # target to generate assembly for a file
 _deps/imgui-src/backends/imgui_impl_glfw.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/backends/imgui_impl_glfw.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/backends/imgui_impl_glfw.cpp.s
 .PHONY : _deps/imgui-src/backends/imgui_impl_glfw.cpp.s
 
 _deps/imgui-src/backends/imgui_impl_opengl3.o: _deps/imgui-src/backends/imgui_impl_opengl3.cpp.o
@@ -242,7 +255,7 @@ _deps/imgui-src/backends/imgui_impl_opengl3.o: _deps/imgui-src/backends/imgui_im
 
 # target to build an object file
 _deps/imgui-src/backends/imgui_impl_opengl3.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/backends/imgui_impl_opengl3.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/backends/imgui_impl_opengl3.cpp.o
 .PHONY : _deps/imgui-src/backends/imgui_impl_opengl3.cpp.o
 
 _deps/imgui-src/backends/imgui_impl_opengl3.i: _deps/imgui-src/backends/imgui_impl_opengl3.cpp.i
@@ -250,7 +263,7 @@ _deps/imgui-src/backends/imgui_impl_opengl3.i: _deps/imgui-src/backends/imgui_im
 
 # target to preprocess a source file
 _deps/imgui-src/backends/imgui_impl_opengl3.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/backends/imgui_impl_opengl3.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/backends/imgui_impl_opengl3.cpp.i
 .PHONY : _deps/imgui-src/backends/imgui_impl_opengl3.cpp.i
 
 _deps/imgui-src/backends/imgui_impl_opengl3.s: _deps/imgui-src/backends/imgui_impl_opengl3.cpp.s
@@ -258,7 +271,7 @@ _deps/imgui-src/backends/imgui_impl_opengl3.s: _deps/imgui-src/backends/imgui_im
 
 # target to generate assembly for a file
 _deps/imgui-src/backends/imgui_impl_opengl3.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/backends/imgui_impl_opengl3.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/backends/imgui_impl_opengl3.cpp.s
 .PHONY : _deps/imgui-src/backends/imgui_impl_opengl3.cpp.s
 
 _deps/imgui-src/imgui.o: _deps/imgui-src/imgui.cpp.o
@@ -266,7 +279,7 @@ _deps/imgui-src/imgui.o: _deps/imgui-src/imgui.cpp.o
 
 # target to build an object file
 _deps/imgui-src/imgui.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui.cpp.o
 .PHONY : _deps/imgui-src/imgui.cpp.o
 
 _deps/imgui-src/imgui.i: _deps/imgui-src/imgui.cpp.i
@@ -274,7 +287,7 @@ _deps/imgui-src/imgui.i: _deps/imgui-src/imgui.cpp.i
 
 # target to preprocess a source file
 _deps/imgui-src/imgui.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui.cpp.i
 .PHONY : _deps/imgui-src/imgui.cpp.i
 
 _deps/imgui-src/imgui.s: _deps/imgui-src/imgui.cpp.s
@@ -282,7 +295,7 @@ _deps/imgui-src/imgui.s: _deps/imgui-src/imgui.cpp.s
 
 # target to generate assembly for a file
 _deps/imgui-src/imgui.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui.cpp.s
 .PHONY : _deps/imgui-src/imgui.cpp.s
 
 _deps/imgui-src/imgui_demo.o: _deps/imgui-src/imgui_demo.cpp.o
@@ -290,7 +303,7 @@ _deps/imgui-src/imgui_demo.o: _deps/imgui-src/imgui_demo.cpp.o
 
 # target to build an object file
 _deps/imgui-src/imgui_demo.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_demo.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_demo.cpp.o
 .PHONY : _deps/imgui-src/imgui_demo.cpp.o
 
 _deps/imgui-src/imgui_demo.i: _deps/imgui-src/imgui_demo.cpp.i
@@ -298,7 +311,7 @@ _deps/imgui-src/imgui_demo.i: _deps/imgui-src/imgui_demo.cpp.i
 
 # target to preprocess a source file
 _deps/imgui-src/imgui_demo.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_demo.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_demo.cpp.i
 .PHONY : _deps/imgui-src/imgui_demo.cpp.i
 
 _deps/imgui-src/imgui_demo.s: _deps/imgui-src/imgui_demo.cpp.s
@@ -306,7 +319,7 @@ _deps/imgui-src/imgui_demo.s: _deps/imgui-src/imgui_demo.cpp.s
 
 # target to generate assembly for a file
 _deps/imgui-src/imgui_demo.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_demo.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_demo.cpp.s
 .PHONY : _deps/imgui-src/imgui_demo.cpp.s
 
 _deps/imgui-src/imgui_draw.o: _deps/imgui-src/imgui_draw.cpp.o
@@ -314,7 +327,7 @@ _deps/imgui-src/imgui_draw.o: _deps/imgui-src/imgui_draw.cpp.o
 
 # target to build an object file
 _deps/imgui-src/imgui_draw.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_draw.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_draw.cpp.o
 .PHONY : _deps/imgui-src/imgui_draw.cpp.o
 
 _deps/imgui-src/imgui_draw.i: _deps/imgui-src/imgui_draw.cpp.i
@@ -322,7 +335,7 @@ _deps/imgui-src/imgui_draw.i: _deps/imgui-src/imgui_draw.cpp.i
 
 # target to preprocess a source file
 _deps/imgui-src/imgui_draw.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_draw.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_draw.cpp.i
 .PHONY : _deps/imgui-src/imgui_draw.cpp.i
 
 _deps/imgui-src/imgui_draw.s: _deps/imgui-src/imgui_draw.cpp.s
@@ -330,7 +343,7 @@ _deps/imgui-src/imgui_draw.s: _deps/imgui-src/imgui_draw.cpp.s
 
 # target to generate assembly for a file
 _deps/imgui-src/imgui_draw.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_draw.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_draw.cpp.s
 .PHONY : _deps/imgui-src/imgui_draw.cpp.s
 
 _deps/imgui-src/imgui_tables.o: _deps/imgui-src/imgui_tables.cpp.o
@@ -338,7 +351,7 @@ _deps/imgui-src/imgui_tables.o: _deps/imgui-src/imgui_tables.cpp.o
 
 # target to build an object file
 _deps/imgui-src/imgui_tables.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_tables.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_tables.cpp.o
 .PHONY : _deps/imgui-src/imgui_tables.cpp.o
 
 _deps/imgui-src/imgui_tables.i: _deps/imgui-src/imgui_tables.cpp.i
@@ -346,7 +359,7 @@ _deps/imgui-src/imgui_tables.i: _deps/imgui-src/imgui_tables.cpp.i
 
 # target to preprocess a source file
 _deps/imgui-src/imgui_tables.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_tables.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_tables.cpp.i
 .PHONY : _deps/imgui-src/imgui_tables.cpp.i
 
 _deps/imgui-src/imgui_tables.s: _deps/imgui-src/imgui_tables.cpp.s
@@ -354,7 +367,7 @@ _deps/imgui-src/imgui_tables.s: _deps/imgui-src/imgui_tables.cpp.s
 
 # target to generate assembly for a file
 _deps/imgui-src/imgui_tables.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_tables.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_tables.cpp.s
 .PHONY : _deps/imgui-src/imgui_tables.cpp.s
 
 _deps/imgui-src/imgui_widgets.o: _deps/imgui-src/imgui_widgets.cpp.o
@@ -362,7 +375,7 @@ _deps/imgui-src/imgui_widgets.o: _deps/imgui-src/imgui_widgets.cpp.o
 
 # target to build an object file
 _deps/imgui-src/imgui_widgets.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_widgets.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_widgets.cpp.o
 .PHONY : _deps/imgui-src/imgui_widgets.cpp.o
 
 _deps/imgui-src/imgui_widgets.i: _deps/imgui-src/imgui_widgets.cpp.i
@@ -370,7 +383,7 @@ _deps/imgui-src/imgui_widgets.i: _deps/imgui-src/imgui_widgets.cpp.i
 
 # target to preprocess a source file
 _deps/imgui-src/imgui_widgets.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_widgets.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_widgets.cpp.i
 .PHONY : _deps/imgui-src/imgui_widgets.cpp.i
 
 _deps/imgui-src/imgui_widgets.s: _deps/imgui-src/imgui_widgets.cpp.s
@@ -378,7 +391,7 @@ _deps/imgui-src/imgui_widgets.s: _deps/imgui-src/imgui_widgets.cpp.s
 
 # target to generate assembly for a file
 _deps/imgui-src/imgui_widgets.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui-src/imgui_widgets.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui-src/imgui_widgets.cpp.s
 .PHONY : _deps/imgui-src/imgui_widgets.cpp.s
 
 _deps/imgui_coloredit-src/TextEditor.o: _deps/imgui_coloredit-src/TextEditor.cpp.o
@@ -386,7 +399,7 @@ _deps/imgui_coloredit-src/TextEditor.o: _deps/imgui_coloredit-src/TextEditor.cpp
 
 # target to build an object file
 _deps/imgui_coloredit-src/TextEditor.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui_coloredit-src/TextEditor.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui_coloredit-src/TextEditor.cpp.o
 .PHONY : _deps/imgui_coloredit-src/TextEditor.cpp.o
 
 _deps/imgui_coloredit-src/TextEditor.i: _deps/imgui_coloredit-src/TextEditor.cpp.i
@@ -394,7 +407,7 @@ _deps/imgui_coloredit-src/TextEditor.i: _deps/imgui_coloredit-src/TextEditor.cpp
 
 # target to preprocess a source file
 _deps/imgui_coloredit-src/TextEditor.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui_coloredit-src/TextEditor.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui_coloredit-src/TextEditor.cpp.i
 .PHONY : _deps/imgui_coloredit-src/TextEditor.cpp.i
 
 _deps/imgui_coloredit-src/TextEditor.s: _deps/imgui_coloredit-src/TextEditor.cpp.s
@@ -402,7 +415,7 @@ _deps/imgui_coloredit-src/TextEditor.s: _deps/imgui_coloredit-src/TextEditor.cpp
 
 # target to generate assembly for a file
 _deps/imgui_coloredit-src/TextEditor.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/_deps/imgui_coloredit-src/TextEditor.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/_deps/imgui_coloredit-src/TextEditor.cpp.s
 .PHONY : _deps/imgui_coloredit-src/TextEditor.cpp.s
 
 src/editor_app.o: src/editor_app.cpp.o
@@ -410,7 +423,7 @@ src/editor_app.o: src/editor_app.cpp.o
 
 # target to build an object file
 src/editor_app.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/src/editor_app.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/src/editor_app.cpp.o
 .PHONY : src/editor_app.cpp.o
 
 src/editor_app.i: src/editor_app.cpp.i
@@ -418,7 +431,7 @@ src/editor_app.i: src/editor_app.cpp.i
 
 # target to preprocess a source file
 src/editor_app.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/src/editor_app.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/src/editor_app.cpp.i
 .PHONY : src/editor_app.cpp.i
 
 src/editor_app.s: src/editor_app.cpp.s
@@ -426,7 +439,7 @@ src/editor_app.s: src/editor_app.cpp.s
 
 # target to generate assembly for a file
 src/editor_app.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/src/editor_app.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/src/editor_app.cpp.s
 .PHONY : src/editor_app.cpp.s
 
 src/main.o: src/main.cpp.o
@@ -434,7 +447,7 @@ src/main.o: src/main.cpp.o
 
 # target to build an object file
 src/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/src/main.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/src/main.cpp.o
 .PHONY : src/main.cpp.o
 
 src/main.i: src/main.cpp.i
@@ -442,7 +455,7 @@ src/main.i: src/main.cpp.i
 
 # target to preprocess a source file
 src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/src/main.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/src/main.cpp.i
 .PHONY : src/main.cpp.i
 
 src/main.s: src/main.cpp.s
@@ -450,7 +463,7 @@ src/main.s: src/main.cpp.s
 
 # target to generate assembly for a file
 src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/code-editor.dir/build.make CMakeFiles/code-editor.dir/src/main.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/pcode-editor.dir/build.make CMakeFiles/pcode-editor.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
 # Help Target
@@ -467,8 +480,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... uninstall"
 	@echo "... update_mappings"
-	@echo "... code-editor"
 	@echo "... glfw"
+	@echo "... nfd"
+	@echo "... pcode-editor"
 	@echo "... _deps/imgui-src/backends/imgui_impl_glfw.o"
 	@echo "... _deps/imgui-src/backends/imgui_impl_glfw.i"
 	@echo "... _deps/imgui-src/backends/imgui_impl_glfw.s"

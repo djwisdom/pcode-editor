@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild
+CMAKE_SOURCE_DIR = /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild
+CMAKE_BINARY_DIR = /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild
 
 # Utility rule file for imgui_coloredit-populate.
 
@@ -77,60 +77,60 @@ CMakeFiles/imgui_coloredit-populate-complete: imgui_coloredit-populate-prefix/sr
 CMakeFiles/imgui_coloredit-populate-complete: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-build
 CMakeFiles/imgui_coloredit-populate-complete: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-install
 CMakeFiles/imgui_coloredit-populate-complete: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-test
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Completed 'imgui_coloredit-populate'"
-	/usr/bin/cmake -E make_directory /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles
-	/usr/bin/cmake -E touch /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles/imgui_coloredit-populate-complete
-	/usr/bin/cmake -E touch /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-done
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Completed 'imgui_coloredit-populate'"
+	/usr/bin/cmake -E make_directory /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles
+	/usr/bin/cmake -E touch /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles/imgui_coloredit-populate-complete
+	/usr/bin/cmake -E touch /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-done
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-update:
 .PHONY : imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-update
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-build: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-configure
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "No build step for 'imgui_coloredit-populate'"
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E echo_append
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E touch /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "No build step for 'imgui_coloredit-populate'"
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E echo_append
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E touch /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-build
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-configure: imgui_coloredit-populate-prefix/tmp/imgui_coloredit-populate-cfgcmd.txt
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-configure: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-patch
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "No configure step for 'imgui_coloredit-populate'"
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E echo_append
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E touch /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-configure
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "No configure step for 'imgui_coloredit-populate'"
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E echo_append
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E touch /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-configure
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-download: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-gitinfo.txt
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-download: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-mkdir
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Performing download step (git clone) for 'imgui_coloredit-populate'"
-	cd /home/djwisdom/code-editor/build/_deps && /usr/bin/cmake -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/tmp/imgui_coloredit-populate-gitclone.cmake
-	cd /home/djwisdom/code-editor/build/_deps && /usr/bin/cmake -E touch /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-download
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Performing download step (git clone) for 'imgui_coloredit-populate'"
+	cd /home/djwisdom/pcode-editor/build/_deps && /usr/bin/cmake -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/tmp/imgui_coloredit-populate-gitclone.cmake
+	cd /home/djwisdom/pcode-editor/build/_deps && /usr/bin/cmake -E touch /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-download
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-install: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "No install step for 'imgui_coloredit-populate'"
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E echo_append
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E touch /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-install
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "No install step for 'imgui_coloredit-populate'"
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E echo_append
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E touch /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-install
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-mkdir:
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Creating directories for 'imgui_coloredit-populate'"
-	/usr/bin/cmake -Dcfgdir= -P /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/tmp/imgui_coloredit-populate-mkdirs.cmake
-	/usr/bin/cmake -E touch /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-mkdir
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Creating directories for 'imgui_coloredit-populate'"
+	/usr/bin/cmake -Dcfgdir= -P /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/tmp/imgui_coloredit-populate-mkdirs.cmake
+	/usr/bin/cmake -E touch /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-mkdir
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-patch: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-patch-info.txt
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-patch: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-update
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "No patch step for 'imgui_coloredit-populate'"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "No patch step for 'imgui_coloredit-populate'"
 	/usr/bin/cmake -E echo_append
-	/usr/bin/cmake -E touch /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-patch
+	/usr/bin/cmake -E touch /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-patch
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-update:
 .PHONY : imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-update
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-test: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-install
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "No test step for 'imgui_coloredit-populate'"
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E echo_append
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E touch /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-test
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "No test step for 'imgui_coloredit-populate'"
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E echo_append
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-build && /usr/bin/cmake -E touch /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-test
 
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-update: imgui_coloredit-populate-prefix/tmp/imgui_coloredit-populate-gitupdate.cmake
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-update: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-update-info.txt
 imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-update: imgui_coloredit-populate-prefix/src/imgui_coloredit-populate-stamp/imgui_coloredit-populate-download
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Performing update step for 'imgui_coloredit-populate'"
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-src && /usr/bin/cmake -Dcan_fetch=YES -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/tmp/imgui_coloredit-populate-gitupdate.cmake
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Performing update step for 'imgui_coloredit-populate'"
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-src && /usr/bin/cmake -Dcan_fetch=YES -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/imgui_coloredit-populate-prefix/tmp/imgui_coloredit-populate-gitupdate.cmake
 
 CMakeFiles/imgui_coloredit-populate.dir/codegen:
 .PHONY : CMakeFiles/imgui_coloredit-populate.dir/codegen
@@ -157,6 +157,6 @@ CMakeFiles/imgui_coloredit-populate.dir/clean:
 .PHONY : CMakeFiles/imgui_coloredit-populate.dir/clean
 
 CMakeFiles/imgui_coloredit-populate.dir/depend:
-	cd /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild /home/djwisdom/code-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles/imgui_coloredit-populate.dir/DependInfo.cmake "--color=$(COLOR)" imgui_coloredit-populate
+	cd /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild /home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-subbuild/CMakeFiles/imgui_coloredit-populate.dir/DependInfo.cmake "--color=$(COLOR)" imgui_coloredit-populate
 .PHONY : CMakeFiles/imgui_coloredit-populate.dir/depend
 

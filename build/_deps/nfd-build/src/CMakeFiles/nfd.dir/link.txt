@@ -1,0 +1,2 @@
+/usr/bin/ar qc libnfd.a CMakeFiles/nfd.dir/nfd_gtk.cpp.o "CMakeFiles/nfd.dir/xdg-foreign-unstable-v1.c.o"
+/usr/bin/ranlib libnfd.a

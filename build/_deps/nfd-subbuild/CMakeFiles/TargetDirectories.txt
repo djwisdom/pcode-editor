@@ -1,0 +1,3 @@
+/home/djwisdom/pcode-editor/build/_deps/nfd-subbuild/CMakeFiles/nfd-populate.dir
+/home/djwisdom/pcode-editor/build/_deps/nfd-subbuild/CMakeFiles/edit_cache.dir
+/home/djwisdom/pcode-editor/build/_deps/nfd-subbuild/CMakeFiles/rebuild_cache.dir

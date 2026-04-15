@@ -4,7 +4,7 @@
 # compile C with /usr/bin/cc
 C_DEFINES = -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11
 
-C_INCLUDES = -I/home/djwisdom/code-editor/build/_deps/glfw-src/include -I/home/djwisdom/code-editor/build/_deps/glfw-src/src -I/home/djwisdom/code-editor/build/_deps/glfw-build/src
+C_INCLUDES = -I/home/djwisdom/pcode-editor/build/_deps/glfw-src/include -I/home/djwisdom/pcode-editor/build/_deps/glfw-src/src -I/home/djwisdom/pcode-editor/build/_deps/glfw-build/src
 
 C_FLAGS = -std=c99 -fPIC -Wall
 

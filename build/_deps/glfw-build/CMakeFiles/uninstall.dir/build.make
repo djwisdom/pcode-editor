@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/djwisdom/code-editor
+CMAKE_SOURCE_DIR = /home/djwisdom/pcode-editor
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/djwisdom/code-editor/build
+CMAKE_BINARY_DIR = /home/djwisdom/pcode-editor/build
 
 # Utility rule file for uninstall.
 
@@ -67,7 +67,7 @@ include _deps/glfw-build/CMakeFiles/uninstall.dir/compiler_depend.make
 include _deps/glfw-build/CMakeFiles/uninstall.dir/progress.make
 
 _deps/glfw-build/CMakeFiles/uninstall:
-	cd /home/djwisdom/code-editor/build/_deps/glfw-build && /usr/bin/cmake -P /home/djwisdom/code-editor/build/_deps/glfw-build/cmake_uninstall.cmake
+	cd /home/djwisdom/pcode-editor/build/_deps/glfw-build && /usr/bin/cmake -P /home/djwisdom/pcode-editor/build/_deps/glfw-build/cmake_uninstall.cmake
 
 _deps/glfw-build/CMakeFiles/uninstall.dir/codegen:
 .PHONY : _deps/glfw-build/CMakeFiles/uninstall.dir/codegen
@@ -81,10 +81,10 @@ _deps/glfw-build/CMakeFiles/uninstall.dir/build: uninstall
 .PHONY : _deps/glfw-build/CMakeFiles/uninstall.dir/build
 
 _deps/glfw-build/CMakeFiles/uninstall.dir/clean:
-	cd /home/djwisdom/code-editor/build/_deps/glfw-build && $(CMAKE_COMMAND) -P CMakeFiles/uninstall.dir/cmake_clean.cmake
+	cd /home/djwisdom/pcode-editor/build/_deps/glfw-build && $(CMAKE_COMMAND) -P CMakeFiles/uninstall.dir/cmake_clean.cmake
 .PHONY : _deps/glfw-build/CMakeFiles/uninstall.dir/clean
 
 _deps/glfw-build/CMakeFiles/uninstall.dir/depend:
-	cd /home/djwisdom/code-editor/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/djwisdom/code-editor /home/djwisdom/code-editor/build/_deps/glfw-src /home/djwisdom/code-editor/build /home/djwisdom/code-editor/build/_deps/glfw-build /home/djwisdom/code-editor/build/_deps/glfw-build/CMakeFiles/uninstall.dir/DependInfo.cmake "--color=$(COLOR)" uninstall
+	cd /home/djwisdom/pcode-editor/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/djwisdom/pcode-editor /home/djwisdom/pcode-editor/build/_deps/glfw-src /home/djwisdom/pcode-editor/build /home/djwisdom/pcode-editor/build/_deps/glfw-build /home/djwisdom/pcode-editor/build/_deps/glfw-build/CMakeFiles/uninstall.dir/DependInfo.cmake "--color=$(COLOR)" uninstall
 .PHONY : _deps/glfw-build/CMakeFiles/uninstall.dir/depend
 

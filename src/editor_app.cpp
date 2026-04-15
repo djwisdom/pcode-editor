@@ -5,10 +5,12 @@
 #include <imgui_impl_opengl3.h>
 #include <GLFW/glfw3.h>
 #include <TextEditor.h>
+#include <nfd.h>
 
 #include <cstdio>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -98,6 +100,31 @@ void EditorApp::shutdown() {
 }
 
 void EditorApp::render() {
+    // Keyboard shortcuts (global, before ImGui consumes input)
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
+        if (ImGui::IsKeyPressed(ImGuiKey_O)) {
+            open_file("");
+            return;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_S)) {
+            save_file();
+            return;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_N)) {
+            new_file();
+            return;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_P)) {
+            show_command_palette_ = !show_command_palette_;
+            return;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Q)) {
+            running_ = false;
+            return;
+        }
+    }
+
     // Full-screen dockspace
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);
@@ -185,6 +212,23 @@ void EditorApp::render_status_bar() {
         TextEditor* editor = static_cast<TextEditor*>(text_editor_);
         auto pos = editor->GetCursorPosition();
 
+        // Detect language from file extension for display
+        std::string lang_display = "Text";
+        if (!current_file_.empty() && current_file_ != "untitled") {
+            auto ext = std::filesystem::path(current_file_).extension().string();
+            if (ext == ".c") lang_display = "C";
+            else if (ext == ".cpp" || ext == ".hpp" || ext == ".cxx") lang_display = "C++";
+            else if (ext == ".py") lang_display = "Python";
+            else if (ext == ".js") lang_display = "JavaScript";
+            else if (ext == ".lua") lang_display = "Lua";
+            else if (ext == ".cs") lang_display = "C#";
+            else if (ext == ".java") lang_display = "Java";
+            else if (ext == ".html" || ext == ".htm") lang_display = "HTML";
+            else if (ext == ".json") lang_display = "JSON";
+            else if (ext == ".xml") lang_display = "XML";
+            else if (ext == ".sql") lang_display = "SQL";
+        }
+
         // Left: file name
         const char* fname = current_file_.c_str();
         ImGui::Text("%s%s", fname, dirty_ ? " *" : "");
@@ -192,12 +236,12 @@ void EditorApp::render_status_bar() {
         ImGui::SameLine();
 
         // Right: cursor position
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 200);
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 220);
         ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
 
         ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 100);
-        ImGui::Text("C++");
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 110);
+        ImGui::Text("%s", lang_display.c_str());
 
         ImGui::End();
     } else {
@@ -248,22 +292,61 @@ void EditorApp::render_command_palette() {
 }
 
 void EditorApp::open_file(const std::string& path) {
-    // For now, just set a placeholder. Full file dialog would use native dialogs.
+    std::string selected_path = path;
+
+    // If no path given, show native file dialog
     if (path.empty()) {
-        current_file_ = "untitled";
-        TextEditor* editor = static_cast<TextEditor*>(text_editor_);
-        editor->SetText("// New file\n");
-    } else {
-        std::ifstream file(path);
-        if (file.is_open()) {
-            std::stringstream ss;
-            ss << file.rdbuf();
-            TextEditor* editor = static_cast<TextEditor*>(text_editor_);
-            editor->SetText(ss.str());
-            current_file_ = path;
-            dirty_ = false;
+        nfdchar_t* out_path = nullptr;
+        nfdresult_t result = NFD_OpenDialog(&out_path, nullptr, 0, nullptr);
+
+        if (result == NFD_OKAY && out_path) {
+            selected_path = out_path;
+            NFD_FreePath(out_path);
+        } else {
+            return; // User cancelled or error
         }
     }
+
+    // Read the file
+    std::ifstream file(selected_path);
+    if (!file.is_open()) {
+        fprintf(stderr, "Failed to open: %s\n", selected_path.c_str());
+        return;
+    }
+
+    std::stringstream ss;
+    ss << file.rdbuf();
+    std::string content = ss.str();
+    file.close();
+
+    // Set editor content
+    TextEditor* editor = static_cast<TextEditor*>(text_editor_);
+    editor->SetText(content);
+    current_file_ = selected_path;
+    dirty_ = false;
+
+    // Auto-detect language from extension
+    auto ext = std::filesystem::path(selected_path).extension().string();
+    if (ext == ".c" || ext == ".h") {
+        editor->SetLanguageDefinition(TextEditor::LanguageDefinition::C());
+    } else if (ext == ".cpp" || ext == ".hpp" || ext == ".cxx" || ext == ".hxx") {
+        editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
+    } else if (ext == ".py" || ext == ".lua") {
+        editor->SetLanguageDefinition(TextEditor::LanguageDefinition::Lua());
+    } else if (ext == ".js" || ext == ".json") {
+        editor->SetLanguageDefinition(TextEditor::LanguageDefinition::Lua()); // closest match
+    } else if (ext == ".cs") {
+        editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus()); // closest match
+    } else if (ext == ".java") {
+        editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus()); // closest match
+    } else if (ext == ".html" || ext == ".htm" || ext == ".xml") {
+        editor->SetLanguageDefinition(TextEditor::LanguageDefinition::Lua()); // closest match
+    } else if (ext == ".sql") {
+        editor->SetLanguageDefinition(TextEditor::LanguageDefinition::SQL());
+    } else if (ext == ".glsl" || ext == ".vert" || ext == ".frag" || ext == ".hlsl") {
+        editor->SetLanguageDefinition(TextEditor::LanguageDefinition::GLSL());
+    }
+    // else: keep current language definition
 }
 
 void EditorApp::save_file() {

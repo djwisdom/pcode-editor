@@ -46,6 +46,15 @@ if(NOT imgui_coloredit_POPULATED)
     FetchContent_Populate(imgui_coloredit)
 endif()
 
+# Native File Dialog — cross-platform native file picker
+FetchContent_Declare(
+    nfd
+    GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended.git
+    GIT_TAG        master
+)
+set(NFD_INSTALL ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(nfd)
+
 # ============================================================================
 # Dear ImGui sources
 # ============================================================================
@@ -88,18 +97,22 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
     ${imgui_coloredit_SOURCE_DIR}
+    ${nfd_SOURCE_DIR}/src/include
     ${GLFW_INCLUDE_DIR}
 )
 
 # Platform-specific libraries
 if(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE glfw opengl32 gdi32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE glfw opengl32 gdi32 nfd)
     target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
 elseif(APPLE)
-    target_link_libraries(${PROJECT_NAME} PRIVATE glfw "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+    target_link_libraries(${PROJECT_NAME} PRIVATE glfw "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo" nfd)
 else()
     find_package(OpenGL REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE glfw ${OPENGL_LIBRARIES} dl)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+    target_link_libraries(${PROJECT_NAME} PRIVATE glfw ${OPENGL_LIBRARIES} dl nfd ${GTK3_LIBRARIES})
+    target_include_directories(${PROJECT_NAME} PRIVATE ${GTK3_INCLUDE_DIRS})
 endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE

@@ -1,7 +1,7 @@
 {
 	"InstallScripts" : 
 	[
-		"/home/djwisdom/code-editor/build/_deps/glfw-subbuild/cmake_install.cmake"
+		"/home/djwisdom/pcode-editor/build/_deps/glfw-subbuild/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

@@ -28,8 +28,8 @@ set_property(GLOBAL PROPERTY _CMAKE_FindGit_GIT_EXECUTABLE_VERSION
 include(ExternalProject)
 ExternalProject_Add(imgui_coloredit-populate
                      "UPDATE_DISCONNECTED" "False" "GIT_REPOSITORY" "https://github.com/BalazsJako/ImGuiColorTextEdit.git" "EXTERNALPROJECT_INTERNAL_ARGUMENT_SEPARATOR" "GIT_TAG" "master"
-                    SOURCE_DIR          "/home/djwisdom/code-editor/build/_deps/imgui_coloredit-src"
-                    BINARY_DIR          "/home/djwisdom/code-editor/build/_deps/imgui_coloredit-build"
+                    SOURCE_DIR          "/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-src"
+                    BINARY_DIR          "/home/djwisdom/pcode-editor/build/_deps/imgui_coloredit-build"
                     CONFIGURE_COMMAND   ""
                     BUILD_COMMAND       ""
                     INSTALL_COMMAND     ""
