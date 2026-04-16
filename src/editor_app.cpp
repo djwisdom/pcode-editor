@@ -14,6 +14,7 @@
 #include <nfd.h>
 
 #include <cstdio>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <filesystem>
@@ -48,6 +49,7 @@ static void settings_save(const AppSettings& s, const std::string& path) {
     f << "  \"show_status_bar\": " << (s.show_status_bar ? "true" : "false") << ",\n";
     f << "  \"word_wrap\": " << (s.word_wrap ? "true" : "false") << ",\n";
     f << "  \"show_line_numbers\": " << (s.show_line_numbers ? "true" : "false") << ",\n";
+    f << "  \"show_spaces\": " << (s.show_spaces ? "true" : "false") << ",\n";
     f << "  \"tab_size\": " << s.tab_size << ",\n";
     f << "  \"font_size\": " << s.font_size << ",\n";
     f << "  \"font_name\": \"" << json_escape(s.font_name) << "\",\n";
@@ -98,6 +100,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.show_status_bar = get_bool("show_status_bar", true);
     s.word_wrap = get_bool("word_wrap", false);
     s.show_line_numbers = get_bool("show_line_numbers", true);
+    s.show_spaces = get_bool("show_spaces", false);
     s.tab_size = get_int("tab_size", 4);
     s.font_size = get_int("font_size", 16);
     s.font_name = get_str("font_name");
@@ -221,7 +224,7 @@ void EditorApp::init() {
         }
         
         ed->SetTabSize(settings_.tab_size);
-        ed->SetShowWhitespaces(false);
+        ed->SetShowWhitespaces(settings_.show_spaces);
         
         apply_zoom(tab_idx);
     }
@@ -600,13 +603,13 @@ void EditorApp::replace_all() {
 // ============================================================================
 void EditorApp::zoom_in() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
-    tabs_[active_tab_].zoom_pct = std::min(200, tabs_[active_tab_].zoom_pct + 10);
+    tabs_[active_tab_].zoom_pct = (std::min)(200, tabs_[active_tab_].zoom_pct + 10);
     apply_zoom(active_tab_);
 }
 
 void EditorApp::zoom_out() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
-    tabs_[active_tab_].zoom_pct = std::max(50, tabs_[active_tab_].zoom_pct - 10);
+    tabs_[active_tab_].zoom_pct = (std::max)(50, tabs_[active_tab_].zoom_pct - 10);
     apply_zoom(active_tab_);
 }
 
@@ -636,8 +639,13 @@ void EditorApp::toggle_word_wrap() {
 
 void EditorApp::toggle_line_numbers() {
     settings_.show_line_numbers = !settings_.show_line_numbers;
-    // Apply to all tabs - TextEditor always shows line numbers, but we can note the setting
-    // The actual rendering will be controlled by our wrapper in render_editor_area
+}
+
+void EditorApp::toggle_spaces() {
+    settings_.show_spaces = !settings_.show_spaces;
+    for (auto& tab : tabs_) {
+        tab.editor->SetShowWhitespaces(settings_.show_spaces);
+    }
 }
 
 void EditorApp::toggle_theme() {
@@ -664,12 +672,85 @@ void EditorApp::set_tab_size(int size) {
     }
 }
 
-void EditorApp::rebuild_fonts() {
-    // For now, we just update the global font scale
-    // In a full implementation, you would reload fonts from ImGui
-    ImGui::GetIO().FontGlobalScale = settings_.font_size / 16.0f;
+// ============================================================================
+// Bookmarks
+// ============================================================================
+void EditorApp::toggle_bookmark(int line) {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& bookmarks = tabs_[active_tab_].bookmarks;
+    auto it = std::find(bookmarks.begin(), bookmarks.end(), line);
+    if (it != bookmarks.end()) {
+        bookmarks.erase(it);
+    } else {
+        bookmarks.push_back(line);
+        std::sort(bookmarks.begin(), bookmarks.end());
+    }
+}
+
+void EditorApp::next_bookmark() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& bookmarks = tabs_[active_tab_].bookmarks;
+    if (bookmarks.empty()) return;
+    auto pos = tabs_[active_tab_].editor->GetCursorPosition().mLine;
+    auto it = std::upper_bound(bookmarks.begin(), bookmarks.end(), pos);
+    if (it != bookmarks.end()) {
+        tabs_[active_tab_].editor->SetCursorPosition(TextEditor::Coordinates(*it, 0));
+    } else if (!bookmarks.empty()) {
+        tabs_[active_tab_].editor->SetCursorPosition(TextEditor::Coordinates(bookmarks[0], 0));
+    }
+}
+
+void EditorApp::prev_bookmark() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& bookmarks = tabs_[active_tab_].bookmarks;
+    if (bookmarks.empty()) return;
+    auto pos = tabs_[active_tab_].editor->GetCursorPosition().mLine;
+    auto it = std::lower_bound(bookmarks.begin(), bookmarks.end(), pos);
+    if (it != bookmarks.begin()) {
+        --it;
+        tabs_[active_tab_].editor->SetCursorPosition(TextEditor::Coordinates(*it, 0));
+    } else {
+        tabs_[active_tab_].editor->SetCursorPosition(TextEditor::Coordinates(bookmarks.back(), 0));
+    }
+}
+
+void EditorApp::clear_bookmarks() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    tabs_[active_tab_].bookmarks.clear();
+}
+
+// ============================================================================
+// Change History
+// ============================================================================
+void EditorApp::update_change_history() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    int current_lines = tab.editor->GetTotalLines();
     
-    // Apply to all tabs via zoom
+    if (tab.last_saved_line_count == 0) {
+        tab.last_saved_line_count = current_lines;
+        return;
+    }
+    
+    if (current_lines > tab.last_saved_line_count) {
+        for (int i = tab.last_saved_line_count; i < current_lines; i++) {
+            tab.changed_lines.push_back(i);
+        }
+    }
+    tab.last_saved_line_count = current_lines;
+}
+
+void EditorApp::clear_change_history() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    tabs_[active_tab_].changed_lines.clear();
+}
+
+void EditorApp::rebuild_fonts() {
+    // Dynamic font change - apply immediately to all tabs
+    float scale = settings_.font_size / 16.0f;
+    ImGui::GetIO().FontGlobalScale = scale;
+    
+    // Mark all tabs as needing re-render
     for (int i = 0; i < (int)tabs_.size(); i++) {
         apply_zoom(i);
     }
@@ -713,7 +794,12 @@ void EditorApp::render() {
         if (ImGui::IsKeyPressed(ImGuiKey_F)) { show_find_ = true; return; }
         if (ImGui::IsKeyPressed(ImGuiKey_H)) { show_replace_ = true; return; }
         if (ImGui::IsKeyPressed(ImGuiKey_G)) { show_goto_ = true; return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_A)) { /* Select All — handled by TextEditor */ }
+        if (ImGui::IsKeyPressed(ImGuiKey_A)) { 
+            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                tabs_[active_tab_].editor->SelectAll(); 
+            }
+            return; 
+        }
     }
     if (io.KeyCtrl && io.KeyShift && !io.KeyAlt) {
         if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_window(); return; }
@@ -726,8 +812,14 @@ void EditorApp::render() {
     }
     if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
         if (ImGui::IsKeyPressed(ImGuiKey_F3)) { find_next(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_F2)) { 
+            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                auto pos = tabs_[active_tab_].editor->GetCursorPosition();
+                toggle_bookmark(pos.mLine);
+            }
+            return; 
+        }
         if (ImGui::IsKeyPressed(ImGuiKey_F5)) {
-            // Insert time/date
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
                 auto now = std::chrono::system_clock::now();
                 auto t = std::chrono::system_clock::to_time_t(now);
@@ -807,14 +899,10 @@ void EditorApp::render_menu_file() {
                         open_file(settings_.recent_files[i]);
                     }
                 }
-                ImGui::EndMenu();
+ImGui::EndMenu();
             }
         }
 
-        ImGui::Separator();
-        if (ImGui::MenuItem("Save", "Ctrl+S")) save_tab(active_tab_);
-        if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) save_tab_as(active_tab_);
-        if (ImGui::MenuItem("Save All", "Ctrl+Alt+S")) save_all();
         ImGui::Separator();
         // Page Setup — placeholder (requires native print dialog)
         if (ImGui::MenuItem("Page Setup...")) { /* TODO: native dialog */ }
@@ -829,12 +917,32 @@ void EditorApp::render_menu_file() {
 
 void EditorApp::render_menu_edit() {
     if (ImGui::BeginMenu("Edit")) {
-        if (ImGui::MenuItem("Undo", "Ctrl+Z")) { /* TextEditor handles */ }
+        if (ImGui::MenuItem("Undo", "Ctrl+Z")) { 
+            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                tabs_[active_tab_].editor->Undo(); 
+            }
+        }
         ImGui::Separator();
-        if (ImGui::MenuItem("Cut", "Ctrl+X")) { /* TextEditor handles */ }
-        if (ImGui::MenuItem("Copy", "Ctrl+C")) { /* TextEditor handles */ }
-        if (ImGui::MenuItem("Paste", "Ctrl+V")) { /* TextEditor handles */ }
-        if (ImGui::MenuItem("Delete", "Del")) { /* TextEditor handles */ }
+        if (ImGui::MenuItem("Cut", "Ctrl+X")) { 
+            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                tabs_[active_tab_].editor->Cut(); 
+            }
+        }
+        if (ImGui::MenuItem("Copy", "Ctrl+C")) { 
+            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                tabs_[active_tab_].editor->Copy(); 
+            }
+        }
+        if (ImGui::MenuItem("Paste", "Ctrl+V")) { 
+            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                tabs_[active_tab_].editor->Paste(); 
+            }
+        }
+        if (ImGui::MenuItem("Delete", "Del")) { 
+            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                tabs_[active_tab_].editor->Delete(); 
+            }
+        }
         ImGui::Separator();
         if (ImGui::MenuItem("Find...", "Ctrl+F")) show_find_ = true;
         if (ImGui::MenuItem("Find Next", "F3")) find_next();
@@ -842,7 +950,11 @@ void EditorApp::render_menu_edit() {
         if (ImGui::MenuItem("Replace...", "Ctrl+H")) show_replace_ = true;
         if (ImGui::MenuItem("Go To...", "Ctrl+G")) show_goto_ = true;
         ImGui::Separator();
-        if (ImGui::MenuItem("Select All", "Ctrl+A")) { /* TextEditor handles */ }
+        if (ImGui::MenuItem("Select All", "Ctrl+A")) { 
+            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                tabs_[active_tab_].editor->SelectAll(); 
+            }
+        }
         if (ImGui::MenuItem("Time/Date", "F5")) {
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
                 auto now = std::chrono::system_clock::now();
@@ -874,12 +986,14 @@ void EditorApp::render_menu_view() {
         if (ImGui::MenuItem("Word Wrap", nullptr, &ww)) toggle_word_wrap();
         bool ln = settings_.show_line_numbers;
         if (ImGui::MenuItem("Line Numbers", nullptr, &ln)) toggle_line_numbers();
+        bool sp = settings_.show_spaces;
+        if (ImGui::MenuItem("Show Spaces", nullptr, &sp)) toggle_spaces();
         ImGui::Separator();
         if (ImGui::BeginMenu("Spaces")) {
             if (ImGui::MenuItem("2 Spaces", nullptr, settings_.tab_size == 2)) set_tab_size(2);
             if (ImGui::MenuItem("4 Spaces", nullptr, settings_.tab_size == 4)) set_tab_size(4);
             if (ImGui::MenuItem("8 Spaces", nullptr, settings_.tab_size == 8)) set_tab_size(8);
-            if (ImGui::MenuItem("Custom...")) { show_spaces_dialog_ = true; tab_size_temp_ = settings_.tab_size; }
+            if (ImGui::MenuItem("Custom...")) { show_spaces_ = true; tab_size_temp_ = settings_.tab_size; }
             ImGui::EndMenu();
         }
         ImGui::Separator();
@@ -912,8 +1026,10 @@ void EditorApp::render_editor_area() {
             bool open = true;
             if (ImGui::BeginTabItem(label.c_str(), &open, tab_item_flags)) {
                 active_tab_ = i;
-                TextEditor* editor = tab.editor;
-                editor->Render("TextEditor");
+                
+                // Render gutter with bookmarks and change history
+                render_editor_with_margins();
+                
                 ImGui::EndTabItem();
             }
             if (!open) {
@@ -925,6 +1041,74 @@ void EditorApp::render_editor_area() {
     }
 
     ImGui::End();
+}
+
+void EditorApp::render_editor_with_margins() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    TextEditor* editor = tab.editor;
+    
+    // Calculate gutter width: bookmark margin + line number margin + change history margin
+    float gutter_width = 0.0f;
+    bool has_bookmarks = !tab.bookmarks.empty();
+    bool has_changes = !tab.changed_lines.empty();
+    
+    if (has_bookmarks || has_changes || settings_.show_line_numbers) {
+        gutter_width = 80.0f; // Combined gutter width
+    }
+    
+    if (gutter_width > 0.0f) {
+        ImGui::BeginGroup();
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+        
+        // Get cursor position to sync scroll
+        auto cursor = editor->GetCursorPosition();
+        int total_lines = editor->GetTotalLines();
+        
+        // Render gutter
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2f, 0.2f, 0.24f, 1.0f));
+        if (ImGui::BeginChild("##Gutter", ImVec2(gutter_width, -1), false, ImGuiWindowFlags_NoScrollbar)) {
+            for (int line = 0; line < total_lines; line++) {
+                ImGui::PushID(line);
+                
+                // Bookmark column
+                bool is_bookmarked = std::find(tab.bookmarks.begin(), tab.bookmarks.end(), line) != tab.bookmarks.end();
+                if (is_bookmarked) {
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "\xE2\x9C\x93"); // Checkmark symbol
+                } else {
+                    ImGui::Text(" ");
+                }
+                ImGui::SameLine();
+                
+                // Line number column
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "%d", line + 1);
+                ImGui::SameLine();
+                
+                // Change history column (highlight modified lines)
+                bool is_changed = std::find(tab.changed_lines.begin(), tab.changed_lines.end(), line) != tab.changed_lines.end();
+                if (is_changed) {
+                    ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), "\xE2\x80\xA2"); // Dot symbol
+                }
+                
+                ImGui::PopID();
+            }
+        }
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+        
+        ImGui::SameLine();
+        ImGui::PopStyleVar();
+        
+        // Render the text editor
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+        editor->Render("TextEditor");
+        ImGui::PopStyleVar();
+        
+        ImGui::EndGroup();
+    } else {
+        // No gutter needed, just render editor
+        editor->Render("TextEditor");
+    }
 }
 
 // ============================================================================
@@ -1097,7 +1281,7 @@ void EditorApp::render_font_dialog() {
         ImGui::Text("Font Size (8-48):");
         ImGui::SetNextItemWidth(100);
         ImGui::InputInt("##fontsize", &font_size_temp_);
-        font_size_temp_ = std::max(8, std::min(48, font_size_temp_));
+        font_size_temp_ = (std::max)(8, (std::min)(48, font_size_temp_));
         
         ImGui::Separator();
         ImGui::TextUnformatted("Note: Font size changes apply to all tabs.");
@@ -1197,7 +1381,7 @@ void EditorApp::render_spaces_dialog() {
         ImGui::Text("Tab size (1-16):");
         ImGui::SetNextItemWidth(100);
         ImGui::InputInt("##tabsize", &tab_size_temp_);
-        tab_size_temp_ = std::max(1, std::min(16, tab_size_temp_));
+        tab_size_temp_ = (std::max)(1, (std::min)(16, tab_size_temp_));
 
         if (ImGui::Button("Apply")) {
             set_tab_size(tab_size_temp_);

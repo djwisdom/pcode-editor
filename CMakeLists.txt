@@ -175,7 +175,9 @@ elseif(PLATFORM_BSD)
 endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE
-    -Wall -Wextra -Wno-unused-parameter
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra>
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-unused-parameter>
 )
 
 # ============================================================================
@@ -189,7 +191,10 @@ install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 enable_testing()
 
 add_executable(test_view_features tests/test_view_features.cpp)
-target_compile_options(test_view_features PRIVATE -Wall -Wextra)
+target_compile_options(test_view_features PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra>
+)
 
 add_test(NAME ViewFeatures COMMAND test_view_features)
 

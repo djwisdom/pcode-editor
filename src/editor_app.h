@@ -17,6 +17,17 @@ struct EditorTab {
     bool dirty = false;          // Has unsaved changes
     TextEditor* editor = nullptr; // Owned by tab
     int zoom_pct = 100;          // Zoom percentage
+    
+    // Bookmark and change tracking
+    std::vector<int> bookmarks;  // Line numbers with bookmarks
+    std::vector<int> changed_lines;  // Lines with changes (for change history)
+    int last_saved_line_count = 0;  // Line count when last saved
+};
+
+struct ChangeHistoryEntry {
+    int line;
+    int type;  // 0=added, 1=modified, 2=deleted
+    std::string timestamp;
 };
 
 // ============================================================================
@@ -29,6 +40,7 @@ struct AppSettings {
     bool show_status_bar = true;
     bool word_wrap = false;
     bool show_line_numbers = true;
+    bool show_spaces = false;
     int tab_size = 4;          // Tab size in spaces
     int font_size = 16;
     std::string font_name = ""; // Font family name (empty = default)
@@ -93,9 +105,24 @@ private:
     void toggle_status_bar();
     void toggle_word_wrap();
     void toggle_line_numbers();
+    void toggle_spaces();
     void toggle_theme();
     void set_tab_size(int size);
     void rebuild_fonts();
+
+    // Bookmarks
+    void toggle_bookmark(int line);
+    void next_bookmark();
+    void prev_bookmark();
+    void clear_bookmarks();
+
+    // Change history
+    void update_change_history();
+    void clear_change_history();
+
+    // Gutter rendering
+    void render_gutter(int tab_idx, float width);
+    void render_editor_with_margins();
 
     // Helpers
     void apply_theme(bool dark);
@@ -122,6 +149,7 @@ private:
     bool show_goto_ = false;
     bool show_font_ = false;
     bool show_cmd_palette_ = false;
+    bool show_spaces_ = false;
 
     // Find state
     char find_text_[256] = {0};
