@@ -22,6 +22,10 @@ struct EditorTab {
     std::vector<int> bookmarks;  // Line numbers with bookmarks
     std::vector<int> changed_lines;  // Lines with changes (for change history)
     int last_saved_line_count = 0;  // Line count when last saved
+    
+    // Per-tab state
+    float scroll_x = 0.0f;
+    float scroll_y = 0.0f;
 };
 
 struct ChangeHistoryEntry {
@@ -109,6 +113,7 @@ private:
     void toggle_spaces();
     void toggle_theme();
     void set_tab_size(int size);
+    void load_fonts();
     void rebuild_fonts();
 
     // Bookmarks

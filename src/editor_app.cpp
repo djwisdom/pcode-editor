@@ -218,9 +218,8 @@ void EditorApp::init() {
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     
-    // Apply initial font settings
-    io.FontGlobalScale = settings_.font_size / 16.0f;
-    font_size_temp_ = settings_.font_size;
+    // Load fonts
+    load_fonts();
 
     apply_theme(settings_.dark_theme);
 
@@ -766,15 +765,32 @@ void EditorApp::clear_change_history() {
     tabs_[active_tab_].changed_lines.clear();
 }
 
-void EditorApp::rebuild_fonts() {
-    // Dynamic font change - apply immediately to all tabs
-    float scale = settings_.font_size / 16.0f;
-    ImGui::GetIO().FontGlobalScale = scale;
+void EditorApp::load_fonts() {
+    ImGuiIO& io = ImGui::GetIO();
     
-    // Mark all tabs as needing re-render
-    for (int i = 0; i < (int)tabs_.size(); i++) {
-        apply_zoom(i);
-    }
+    // Just add default font - we'll control size via FontGlobalScale
+    io.Fonts->AddFontDefault();
+    
+    // Store font size temp
+    font_size_temp_ = settings_.font_size;
+    
+    // Font texture is built automatically by the renderer on first use
+    
+    // Apply initial font scale
+    float scale = (float)settings_.font_size / 16.0f;
+    io.FontGlobalScale = scale;
+}
+
+void EditorApp::rebuild_fonts() {
+    // Use font global scale to adjust font size - more stable than rebuilding
+    ImGuiIO& io = ImGui::GetIO();
+    
+    // Get the base font size from settings
+    float base_size = (float)settings_.font_size;
+    
+    // Calculate scale relative to default 16px
+    float scale = base_size / 16.0f;
+    io.FontGlobalScale = scale;
 }
 
 // ============================================================================
@@ -1039,6 +1055,17 @@ void EditorApp::render_editor_area() {
 
     // Tab bar - only show if more than one tab
     bool show_tabs = tabs_.size() > 1;
+    static int prev_active_tab = -1;
+    
+    // Save scroll position when switching away from a tab
+    if (prev_active_tab != active_tab_ && prev_active_tab >= 0 && prev_active_tab < (int)tabs_.size()) {
+        // Note: TextEditor doesn't have public scroll getters/setters, 
+        // but we could track cursor position as proxy
+        auto& prev_tab = tabs_[prev_active_tab];
+        prev_tab.editor->GetCursorPosition(); // This doesn't return scroll, but we can track cursor
+    }
+    prev_active_tab = active_tab_;
+    
     if (show_tabs) {
         ImGuiTabBarFlags tab_flags = ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs;
         if (ImGui::BeginTabBar("##Tabs", tab_flags)) {
@@ -1328,6 +1355,11 @@ void EditorApp::render_font_dialog() {
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 
+    // Initialize temp values from current settings when opening
+    if (show_font_ && font_name_temp_.empty()) {
+        font_name_temp_ = settings_.font_name;
+    }
+
     if (ImGui::BeginPopupModal("Font Settings", &show_font_, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Font Family:");
         ImGui::SetNextItemWidth(250);
@@ -1347,7 +1379,7 @@ void EditorApp::render_font_dialog() {
         
         ImGui::Separator();
         ImGui::TextUnformatted("Note: Font size changes apply to all tabs.");
-        ImGui::TextUnformatted("Changing font family requires application restart.");
+        ImGui::TextUnformatted("Font family changes require application restart.");
 
         if (ImGui::Button("Apply")) {
             settings_.font_size = font_size_temp_;
