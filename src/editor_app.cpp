@@ -899,10 +899,14 @@ void EditorApp::render_menu_file() {
                         open_file(settings_.recent_files[i]);
                     }
                 }
-ImGui::EndMenu();
+                ImGui::EndMenu();
             }
         }
 
+        ImGui::Separator();
+        if (ImGui::MenuItem("Save", "Ctrl+S")) save_tab(active_tab_);
+        if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) save_tab_as(active_tab_);
+        if (ImGui::MenuItem("Save All", "Ctrl+Alt+S")) save_all();
         ImGui::Separator();
         // Page Setup — placeholder (requires native print dialog)
         if (ImGui::MenuItem("Page Setup...")) { /* TODO: native dialog */ }
@@ -1012,32 +1016,40 @@ void EditorApp::render_editor_area() {
         new_tab();
     }
 
-    // Tab bar
-    ImGuiTabBarFlags tab_flags = ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs;
-    if (ImGui::BeginTabBar("##Tabs", tab_flags)) {
-        for (int i = 0; i < (int)tabs_.size(); i++) {
-            auto& tab = tabs_[i];
-            std::string label = tab.display_name;
-            if (tab.dirty) label += " *";
+    // Tab bar - only show if more than one tab
+    bool show_tabs = tabs_.size() > 1;
+    if (show_tabs) {
+        ImGuiTabBarFlags tab_flags = ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs;
+        if (ImGui::BeginTabBar("##Tabs", tab_flags)) {
+            for (int i = 0; i < (int)tabs_.size(); i++) {
+                auto& tab = tabs_[i];
+                std::string label = tab.display_name;
+                if (tab.dirty) label += " *";
 
-            ImGuiTabItemFlags tab_item_flags = 0;
-            if (i == active_tab_) tab_item_flags |= ImGuiTabItemFlags_SetSelected;
+                ImGuiTabItemFlags tab_item_flags = 0;
+                if (i == active_tab_) tab_item_flags |= ImGuiTabItemFlags_SetSelected;
 
-            bool open = true;
-            if (ImGui::BeginTabItem(label.c_str(), &open, tab_item_flags)) {
-                active_tab_ = i;
-                
-                // Render gutter with bookmarks and change history
-                render_editor_with_margins();
-                
-                ImGui::EndTabItem();
+                bool open = true;
+                if (ImGui::BeginTabItem(label.c_str(), &open, tab_item_flags)) {
+                    active_tab_ = i;
+                    
+                    // Render gutter with bookmarks and change history
+                    render_editor_with_margins();
+                    
+                    ImGui::EndTabItem();
+                }
+                if (!open) {
+                    close_tab(i);
+                    break;
+                }
             }
-            if (!open) {
-                close_tab(i);
-                break;
-            }
+            ImGui::EndTabBar();
         }
-        ImGui::EndTabBar();
+    } else {
+        // Single tab - just render the editor directly
+        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+            render_editor_with_margins();
+        }
     }
 
     ImGui::End();
