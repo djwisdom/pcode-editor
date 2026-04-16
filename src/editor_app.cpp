@@ -788,6 +788,8 @@ void EditorApp::load_fonts() {
     // Fallback to default
     if (!font) {
         font = io.Fonts->AddFontDefault();
+        // Clear font name since we couldn't load the requested one
+        settings_.font_name = "";
     }
     
     font_size_temp_ = settings_.font_size;
@@ -802,7 +804,6 @@ void EditorApp::rebuild_fonts() {
     
     // Update font size
     settings_.font_size = font_size_temp_;
-    settings_.font_name = font_name_temp_;
     
     // Clear and rebuild fonts
     io.Fonts->Clear();
@@ -810,20 +811,27 @@ void EditorApp::rebuild_fonts() {
     ImFont* font = nullptr;
     
     // Try to load user-selected font
-    if (!settings_.font_name.empty()) {
+    if (!font_name_temp_.empty()) {
         #ifdef _WIN32
         std::vector<std::string> exts = {".ttc", ".ttf", ".otf"};
         for (const auto& ext : exts) {
-            std::string path = "C:/Windows/Fonts/" + settings_.font_name + ext;
+            std::string path = "C:/Windows/Fonts/" + font_name_temp_ + ext;
             font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
-            if (font) break;
+            if (font) {
+                // Success - update settings with the loaded font name
+                settings_.font_name = font_name_temp_;
+                break;
+            }
         }
         #endif
     }
     
-    // Fallback to default
+    // Fallback to default if couldn't load
     if (!font) {
         font = io.Fonts->AddFontDefault();
+        // Clear - couldn't load the requested font
+        font_name_temp_ = "";
+        settings_.font_name = "";
     }
     
     float scale = (float)settings_.font_size / 16.0f;
@@ -1151,8 +1159,9 @@ void EditorApp::render_editor_with_margins() {
     auto& tab = tabs_[active_tab_];
     TextEditor* editor = tab.editor;
     
-    // Show custom gutter only for bookmarks and change history (not line numbers - TextEditor handles that)
-    bool has_bookmarks = !tab.bookmarks.empty();
+    // Always show gutter for bookmarks (allows adding/removing bookmarks)
+    // Also show change history when there are changes
+    bool has_bookmarks = true; // Always show bookmark gutter
     bool has_changes = !tab.changed_lines.empty();
     
     if (has_bookmarks || has_changes) {
@@ -1169,7 +1178,7 @@ void EditorApp::render_editor_with_margins() {
             for (int line = 0; line < total_lines; line++) {
                 ImGui::PushID(line);
                 
-                // Bookmark column
+                // Bookmark column - clickable to toggle
                 bool is_bookmarked = std::find(tab.bookmarks.begin(), tab.bookmarks.end(), line) != tab.bookmarks.end();
                 if (is_bookmarked) {
                     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), ""); // Checkmark symbol
