@@ -130,6 +130,13 @@ static void settings_load(AppSettings& s, const std::string& path) {
 }
 
 // ============================================================================
+// Version
+// ============================================================================
+std::string EditorApp::get_version() {
+    return "pCode Editor version 0.1.0 (35f8455)";
+}
+
+// ============================================================================
 // Constructor / Destructor
 // ============================================================================
 EditorApp::EditorApp(int argc, char* argv[])
@@ -137,6 +144,24 @@ EditorApp::EditorApp(int argc, char* argv[])
     new_tab();  // Start with one untitled tab
     font_size_temp_ = settings_.font_size;
     tab_size_temp_ = settings_.tab_size;
+    
+    // Check for --version argument
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "--version" || arg == "-v") {
+            printf("%s\n", get_version().c_str());
+            running_ = false;
+            return;
+        }
+        if (arg == "--help" || arg == "-h") {
+            printf("Usage: pcode-editor [options] [files...]\n");
+            printf("Options:\n");
+            printf("  --version, -v  Show version info\n");
+            printf("  --help, -h       Show this help\n");
+            running_ = false;
+            return;
+        }
+    }
 }
 
 EditorApp::~EditorApp() {
@@ -155,6 +180,9 @@ void EditorApp::load_files_from_args(int argc, char* argv[]) {
 // Main loop
 // ============================================================================
 int EditorApp::run() {
+    // If already exited due to --version or --help
+    if (!running_) return 0;
+    
     init();
     
     // Load files from command line arguments
@@ -1331,6 +1359,11 @@ bool EditorApp::execute_vim_command(const std::string& cmd) {
     
     std::string command = cmd;
     if (command[0] == ':') command = command.substr(1);
+    
+    if (command == "version") {
+        printf("%s\n", get_version().c_str());
+        return true;
+    }
     
     if (command == "q") {
         close_tab(active_tab_);

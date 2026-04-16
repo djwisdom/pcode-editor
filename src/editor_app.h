@@ -137,6 +137,9 @@ private:
     void replace_one();
     void replace_all();
 
+    // Version
+    static std::string get_version();
+    
     // View
     void zoom_in();
     void zoom_out();
