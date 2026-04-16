@@ -847,7 +847,7 @@ void EditorApp::load_fonts() {
         #ifdef _WIN32
         std::vector<std::string> exts = {".ttf", ".otf", ".ttc"}; // Try ttf first
         for (const auto& ext : exts) {
-            std::string path = "C:/Windows/Fonts/" + settings_.font_name + ext;
+            std::string path = "C:\\Windows\\Fonts\\" + settings_.font_name + ext;
             font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
             if (font) break;
         }
@@ -884,7 +884,7 @@ void EditorApp::rebuild_fonts() {
         #ifdef _WIN32
         std::vector<std::string> exts = {".ttf", ".otf", ".ttc"};
         for (const auto& ext : exts) {
-            std::string path = "C:/Windows/Fonts/" + font_name_temp_ + ext;
+            std::string path = "C:\\Windows\\Fonts\\" + font_name_temp_ + ext;
             font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
             if (font) {
                 // Success - update settings with the loaded font name
