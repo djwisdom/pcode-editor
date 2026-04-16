@@ -776,7 +776,7 @@ void EditorApp::load_fonts() {
     // Try to load user-selected font
     if (!settings_.font_name.empty()) {
         #ifdef _WIN32
-        std::vector<std::string> exts = {".ttc", ".ttf", ".otf"}; // Try .ttc first
+        std::vector<std::string> exts = {".ttc", ".ttf", ".otf"};
         for (const auto& ext : exts) {
             std::string path = "C:/Windows/Fonts/" + settings_.font_name + ext;
             font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
@@ -793,8 +793,6 @@ void EditorApp::load_fonts() {
     font_size_temp_ = settings_.font_size;
     font_name_temp_ = settings_.font_name;
     
-    // Don't call Build() - the backend handles it automatically on first render
-    // Just set the global scale
     float scale = (float)settings_.font_size / 16.0f;
     io.FontGlobalScale = scale;
 }
@@ -814,7 +812,7 @@ void EditorApp::rebuild_fonts() {
     // Try to load user-selected font
     if (!settings_.font_name.empty()) {
         #ifdef _WIN32
-        std::vector<std::string> exts = {".ttc", ".ttf", ".otf"}; // Try .ttc first
+        std::vector<std::string> exts = {".ttc", ".ttf", ".otf"};
         for (const auto& ext : exts) {
             std::string path = "C:/Windows/Fonts/" + settings_.font_name + ext;
             font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
@@ -828,8 +826,6 @@ void EditorApp::rebuild_fonts() {
         font = io.Fonts->AddFontDefault();
     }
     
-    // Don't call Build() - the backend handles it automatically
-    // Just apply scale
     float scale = (float)settings_.font_size / 16.0f;
     io.FontGlobalScale = scale;
 }
@@ -1122,7 +1118,11 @@ void EditorApp::render_editor_area() {
 
                 bool open = true;
                 if (ImGui::BeginTabItem(label.c_str(), &open, tab_item_flags)) {
-                    active_tab_ = i;
+                    if (active_tab_ != i) {
+                        active_tab_ = i;
+                        // Focus on the new tab's editor
+                        ImGui::SetWindowFocus("Editor");
+                    }
                     
                     // Render gutter with bookmarks and change history
                     render_editor_with_margins();
@@ -1222,8 +1222,6 @@ void EditorApp::render_status_bar() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 2));
 
     if (ImGui::Begin("StatusBar", nullptr, flags)) {
-        ImGui::PopStyleVar(2);
-
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
             auto& tab = tabs_[active_tab_];
             auto pos = tab.editor->GetCursorPosition();
@@ -1273,9 +1271,8 @@ void EditorApp::render_status_bar() {
         }
 
         ImGui::End();
-    } else {
-        ImGui::PopStyleVar(2);
     }
+    ImGui::PopStyleVar(2);
 }
 
 // ============================================================================
