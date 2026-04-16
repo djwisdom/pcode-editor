@@ -7,20 +7,22 @@
 
 struct GLFWwindow;
 class TextEditor;
-struct ImVec2;
 
 // ============================================================================
 // Split — represents a split view within a tab
 // ============================================================================
 struct Split {
-    TextEditor* editor = nullptr;  // The editor for this split
-    float size_x = 0.0f;           // Width (for vertical splits) or stored ratio
-    float size_y = 0.0f;           // Height (for horizontal splits)
+    TextEditor* editor = nullptr;       // The editor for this split (can be shared)
+    bool editor_owned = true;        // Should we delete editor on split close
     bool is_active = true;         // Is this split focused
     
     // Split layout info
     bool is_horizontal = true;    // true = horizontal (top/bottom), false = vertical (left/right)
     float ratio = 0.5f;            // Size ratio relative to container (0.0-1.0)
+    
+    // For rendering (position and size in container)
+    float pos_x = 0, pos_y = 0;
+    float size_x = 0, size_y = 0;
 };
 
 // ============================================================================
@@ -48,6 +50,11 @@ struct EditorTab {
     // Splits
     std::vector<class Split*> splits;
     int active_split = 0;
+    
+    // Cached file info for status bar
+    std::string file_encoding = "UTF-8";
+    std::string line_ending = "LF";
+    size_t file_size = 0;
 };
 
 struct ChangeHistoryEntry {
@@ -215,14 +222,16 @@ private:
     char cmd_buf_[256] = {0};
 
     // Vim mode state
-    enum class VimMode { Normal, Insert, Visual, VisualLine, OperatorPending };
+    enum class VimMode { Normal, Insert, Visual, VisualLine, OperatorPending, Command };
     VimMode vim_mode_ = VimMode::Normal;
-    char vim_operator_ = 0;  // 'd', 'y', 'c', etc.
+    char vim_operator_ = 0;
     int vim_count_ = 0;
-    int vim_motion_ = 0;  // pending motion for operator
+    int vim_motion_ = 0;
     char vim_register_ = '"';
     char vim_last_find_char_ = 0;
     bool vim_last_find_reverse_ = false;
+    std::string vim_command_buffer_;
+    bool execute_vim_command(const std::string& cmd);
     std::string vim_key_buffer_;
     
     // Splits
@@ -232,5 +241,8 @@ private:
     void close_split();
     void next_split();
     void prev_split();
+    void open_file_split(const std::string& path);
+    void rotate_splits();
+    void equalize_splits();
     void render_splits(int tab_idx);
 };

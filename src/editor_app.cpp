@@ -373,6 +373,11 @@ void EditorApp::open_file(const std::string& path) {
     tab.dirty = false;
     tab.editor->SetText(content);
     tab.editor->SetTabSize(settings_.tab_size);
+    
+    // Cache file info for status bar
+    tab.file_encoding = "UTF-8";  // TODO: detect actual encoding
+    tab.line_ending = get_line_ending(content);
+    tab.file_size = content.size();
 
     // Auto-detect language
     auto ext = std::filesystem::path(selected_path).extension().string();
@@ -410,6 +415,8 @@ bool EditorApp::save_tab(int idx) {
     file << editor->GetText();
     file.close();
     tab.dirty = false;
+    tab.file_size = editor->GetText().size();
+    tab.line_ending = get_line_ending(editor->GetText());
     add_recent_file(tab.file_path);
     return true;
 }
@@ -850,14 +857,14 @@ void EditorApp::load_fonts() {
     
     ImFont* font = nullptr;
     
-    // Try to load user-selected font - scan actual files in C:\Windows\Fonts\
+#if defined(_WIN32)
+    // Try to load user-selected font - scan actual files in C:/Windows/Fonts/
     if (!settings_.font_name.empty()) {
-        #ifdef _WIN32
         std::vector<std::string> exts = {".ttf", ".otf", ".ttc"};
         std::string name = settings_.font_name;
         
         for (const auto& ext : exts) {
-            std::string path = "C:\\Windows\\Fonts\\" + name + ext;
+            std::string path = std::string("C:\\Windows\\Fonts\\") + name + ext;
             // Check if file exists before trying to load
             if (GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
                 font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
@@ -868,8 +875,10 @@ void EditorApp::load_fonts() {
         if (!font) {
             settings_.font_name = "";
         }
-        #endif
     }
+#else
+    (void)settings_; // unused on non-Windows
+#endif
     
     // Fallback to built-in default (not system font)
     if (!font) {
@@ -894,14 +903,14 @@ void EditorApp::rebuild_fonts() {
     
     ImFont* font = nullptr;
     
-    // Try to load user-selected font - scan actual files in C:\Windows\Fonts\
+#if defined(_WIN32)
+    // Try to load user-selected font - scan actual files in C:/Windows/Fonts/
     if (!font_name_temp_.empty()) {
-        #ifdef _WIN32
         std::vector<std::string> exts = {".ttf", ".otf", ".ttc"};
         std::string name = font_name_temp_;
         
         for (const auto& ext : exts) {
-            std::string path = "C:\\Windows\\Fonts\\" + name + ext;
+            std::string path = std::string("C:\\Windows\\Fonts\\") + name + ext;
             if (GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
                 font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
                 if (font) {
@@ -910,8 +919,10 @@ void EditorApp::rebuild_fonts() {
                 }
             }
         }
-        #endif
     }
+#else
+    (void)font_name_temp_;
+#endif
     
     // Fallback to built-in default (not system font)
     if (!font) {
@@ -937,6 +948,7 @@ const char* EditorApp::get_vim_mode_str() const {
         case VimMode::Visual: return "-- VISUAL --";
         case VimMode::VisualLine: return "-- VISUAL LINE --";
         case VimMode::OperatorPending: return "-- OPERATOR PENDING --";
+        case VimMode::Command: return ":";
         default: return "";
     }
 }
@@ -1060,6 +1072,94 @@ void EditorApp::handle_vim_key(int key, int mods) {
                 for (int i = 0; i < count; i++) {
                     if (line < (int)lines.size() && col < (int)lines[line].size()) {
                         ed->Delete();
+                    }
+                }
+                break;
+            case 'w':
+                while (count-- > 0) {
+                    int next_col = col;
+                    if (line < (int)lines.size()) {
+                        std::string& text = lines[line];
+                        while (next_col < (int)text.size() && (text[next_col] == ' ' || text[next_col] == '\t')) next_col++;
+                        while (next_col < (int)text.size()) {
+                            if ((text[next_col] >= 'a' && text[next_col] <= 'z') ||
+                                (text[next_col] >= 'A' && text[next_col] <= 'Z') ||
+                                (text[next_col] >= '0' && text[next_col] <= '9') ||
+                                text[next_col] == '_') break;
+                            next_col++;
+                        }
+                        if (next_col < (int)text.size()) {
+                            while (next_col < (int)text.size()) {
+                                if ((text[next_col] >= 'a' && text[next_col] <= 'z') ||
+                                    (text[next_col] >= 'A' && text[next_col] <= 'Z') ||
+                                    (text[next_col] >= '0' && text[next_col] <= '9') ||
+                                    text[next_col] == '_') {
+                                    next_col++;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                        if (next_col >= (int)text.size() && line < ed->GetTotalLines() - 1) {
+                            line++;
+                            col = 0;
+                            if (line < (int)lines.size()) text = lines[line];
+                            next_col = 0;
+                            while (next_col < (int)text.size() && (text[next_col] == ' ' || text[next_col] == '\t')) next_col++;
+                        } else {
+                            col = next_col;
+                        }
+                        ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+                    }
+                }
+                break;
+            case 'b':
+                while (count-- > 0) {
+                    if (line < (int)lines.size()) {
+                        std::string& text = lines[line];
+                        int prev_col = col;
+                        while (prev_col > 0) {
+                            char c = text[prev_col - 1];
+                            bool is_word = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                        (c >= '0' && c <= '9') || c == '_';
+                            if (!is_word) break;
+                            prev_col--;
+                        }
+                        while (prev_col > 0) {
+                            char c = text[prev_col - 1];
+                            bool is_word = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                        (c >= '0' && c <= '9') || c == '_';
+                            if (is_word) prev_col--;
+                            else break;
+                        }
+                        col = prev_col;
+                        ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+                    }
+                }
+                break;
+            case 'e':
+                while (count-- > 0) {
+                    if (line < (int)lines.size()) {
+                        std::string& text = lines[line];
+                        int end_col = col;
+                        while (end_col < (int)text.size()) {
+                            char c = text[end_col];
+                            bool is_word = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                        (c >= '0' && c <= '9') || c == '_';
+                            if (!is_word) break;
+                            end_col++;
+                        }
+                        if (end_col < (int)text.size()) {
+                            while (end_col < (int)text.size()) {
+                                char c = text[end_col];
+                                bool is_word = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                            (c >= '0' && c <= '9') || c == '_';
+                                if (is_word) end_col++;
+                                else break;
+                            }
+                        }
+                        col = end_col;
+                        ed->SetCursorPosition(TextEditor::Coordinates(line, col));
                     }
                 }
                 break;
@@ -1221,6 +1321,78 @@ void EditorApp::handle_vim_key(int key, int mods) {
     vim_mode_ = VimMode::Normal;
 }
 
+bool EditorApp::execute_vim_command(const std::string& cmd) {
+    if (cmd.empty()) return false;
+    
+    std::string command = cmd;
+    if (command[0] == ':') command = command.substr(1);
+    
+    if (command == "q") {
+        close_tab(active_tab_);
+        return true;
+    }
+    if (command == "q!") {
+        close_tab(active_tab_);
+        return true;
+    }
+    if (command == "w") {
+        save_tab(active_tab_);
+        return true;
+    }
+    if (command == "wq") {
+        save_tab(active_tab_);
+        close_tab(active_tab_);
+        return true;
+    }
+    if (command == "e") {
+        open_file("");
+        return true;
+    }
+    if (command == "e!") {
+        open_file("");
+        return true;
+    }
+    if (command.substr(0, 1) == "e" && command.length() > 1) {
+        std::string path = command.substr(2);
+        open_file(path);
+        return true;
+    }
+    if (command == "new") {
+        new_tab();
+        return true;
+    }
+    if (command == "tabnew") {
+        new_tab();
+        return true;
+    }
+    if (command == "tabe") {
+        open_file("");
+        return true;
+    }
+    if (command.substr(0, 4) == "tabe" && command.length() > 5) {
+        std::string path = command.substr(5);
+        open_file(path);
+        return true;
+    }
+    if (command == "N" || command == "n") {
+        new_window();
+        return true;
+    }
+    if (command == "sp") {
+        split_horizontal();
+        return true;
+    }
+    if (command == "vsp") {
+        split_vertical();
+        return true;
+    }
+    if (command == "on" || command == "only") {
+        return true;
+    }
+    
+    return false;
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -1262,11 +1434,45 @@ void EditorApp::render() {
         }
         if (ImGui::IsKeyPressed(ImGuiKey_Space)) handle_vim_key(ImGuiKey_Space, 0);
         else if (ImGui::IsKeyPressed(ImGuiKey_Enter)) handle_vim_key(ImGuiKey_Enter, 0);
-        else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) handle_vim_key(ImGuiKey_Escape, 0);
+        else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) { vim_mode_ = VimMode::Normal; vim_key_buffer_.clear(); vim_count_ = 0; return; }
         else if (ImGui::IsKeyPressed(ImGuiKey_Backspace)) handle_vim_key(ImGuiKey_Backspace, 0);
         else if (ImGui::IsKeyPressed(ImGuiKey_Tab)) handle_vim_key(ImGuiKey_Tab, 0);
         else if (ImGui::IsKeyPressed(ImGuiKey_Minus)) handle_vim_key(ImGuiKey_Minus, 0);
         else if (ImGui::IsKeyPressed(ImGuiKey_Period)) handle_vim_key(ImGuiKey_Period, 0);
+        else if (ImGui::IsKeyPressed(ImGuiKey_Semicolon) && io.KeyShift) { vim_mode_ = VimMode::Command; vim_command_buffer_ = ":"; return; }
+    }
+    
+    // Command mode input handling
+    if (vim_mode_ == VimMode::Command) {
+        for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
+            if (ImGui::IsKeyPressed((ImGuiKey)key)) { 
+                vim_command_buffer_ += (char)('a' + (key - ImGuiKey_A));
+                return; 
+            }
+        }
+        for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
+            if (ImGui::IsKeyPressed((ImGuiKey)key)) { 
+                vim_command_buffer_ += (char)('0' + (key - ImGuiKey_0));
+                return; 
+            }
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter)) { 
+            execute_vim_command(vim_command_buffer_); 
+            vim_command_buffer_.clear(); 
+            vim_mode_ = VimMode::Normal; 
+            return; 
+        }
+        else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) { 
+            vim_command_buffer_.clear(); 
+            vim_mode_ = VimMode::Normal; 
+            return; 
+        }
+        else if (ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
+            if (!vim_command_buffer_.empty()) vim_command_buffer_.pop_back();
+            return;
+        }
+        else if (ImGui::IsKeyPressed(ImGuiKey_Slash)) { vim_command_buffer_ += '/'; return; }
+        else if (ImGui::IsKeyPressed(ImGuiKey_Backslash)) { vim_command_buffer_ += '\\'; return; }
     }
     
     if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
@@ -1294,7 +1500,9 @@ void EditorApp::render() {
         if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_all(); return; }
     }
     if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
+        if (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_F3)) { prev_bookmark(); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_F3)) { find_next(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_F4)) { next_bookmark(); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_F2)) { 
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
                 auto pos = get_active_editor()->GetCursorPosition();
@@ -1477,7 +1685,20 @@ void EditorApp::render_menu_view() {
         if (ImGui::MenuItem("Line Numbers", nullptr, &ln)) toggle_line_numbers();
         bool sp = settings_.show_spaces;
         if (ImGui::MenuItem("Show Spaces", nullptr, &sp)) toggle_spaces();
-ImGui::Separator();
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Bookmarks")) {
+            if (ImGui::MenuItem("Toggle Bookmark", "F2")) {
+                if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                    auto pos = get_active_editor()->GetCursorPosition();
+                    toggle_bookmark(pos.mLine);
+                }
+            }
+            if (ImGui::MenuItem("Next Bookmark", "F4")) next_bookmark();
+            if (ImGui::MenuItem("Previous Bookmark", "F3")) prev_bookmark();
+            if (ImGui::MenuItem("Clear All Bookmarks")) clear_bookmarks();
+            ImGui::EndMenu();
+        }
+        ImGui::Separator();
         if (ImGui::BeginMenu("Spaces")) {
             if (ImGui::MenuItem("2 Spaces", nullptr, settings_.tab_size == 2)) set_tab_size(2);
             if (ImGui::MenuItem("4 Spaces", nullptr, settings_.tab_size == 4)) set_tab_size(4);
@@ -1502,10 +1723,27 @@ ImGui::Separator();
             if (ImGui::MenuItem("Split Horizontal", "Ctrl+Shift+H")) split_horizontal();
             if (ImGui::MenuItem("Split Vertical", "Ctrl+Shift+V")) split_vertical();
             ImGui::Separator();
-            if (ImGui::MenuItem("Close Split", "Ctrl+W")) close_split();
+            if (ImGui::MenuItem("Split and Open File", "Ctrl+Shift+F")) {
+                std::string path;
+                if (!path.empty()) {
+                    open_file_split(path);
+                } else {
+                    nfdchar_t* out_path = nullptr;
+                    nfdresult_t result = NFD_OpenDialog(&out_path, nullptr, 0, nullptr);
+                    if (result == NFD_OKAY && out_path) {
+                        open_file_split(std::string(out_path));
+                        NFD_FreePath(out_path);
+                    }
+                }
+            }
             ImGui::Separator();
-            if (ImGui::MenuItem("Next Split", "Ctrl+K")) next_split();
-            if (ImGui::MenuItem("Previous Split", "Ctrl+J")) prev_split();
+            if (ImGui::MenuItem("Close Split", "Ctrl+Alt+W")) close_split();
+            ImGui::Separator();
+            if (ImGui::MenuItem("Focus Next", "Ctrl+K")) next_split();
+            if (ImGui::MenuItem("Focus Previous", "Ctrl+J")) prev_split();
+            ImGui::Separator();
+            if (ImGui::MenuItem("Rotate Down", "Ctrl+Alt+K")) rotate_splits();
+            if (ImGui::MenuItem("Equal Size", "Ctrl+Alt+E")) equalize_splits();
             ImGui::EndMenu();
         }
         ImGui::Separator();
@@ -1661,48 +1899,71 @@ void EditorApp::render_status_bar() {
             TextEditor* editor = get_active_editor();
             auto pos = editor ? editor->GetCursorPosition() : TextEditor::Coordinates();
 
-            // Left: file name
-            ImGui::Text("%s%s", tab.display_name.c_str(), tab.dirty ? " *" : "");
+            // Left section: filename with dirty indicator
+            const char* dirty_indicator = tab.dirty ? "[+]" : "";
+            ImGui::Text("%s%s", tab.display_name.c_str(), dirty_indicator);
             ImGui::SameLine();
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20);
 
-            // Right side items
-            float right_start = ImGui::GetWindowWidth() - 400;
-            ImGui::SetCursorPosX(right_start);
+            // Vim mode display
+            if (vim_mode_ == VimMode::Command) {
+                ImGui::Text("%s", vim_command_buffer_.c_str());
+                ImGui::SameLine();
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20);
+            } else if (vim_mode_ != VimMode::Normal) {
+                ImGui::Text("%s", get_vim_mode_str());
+                ImGui::SameLine();
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20);
+            }
 
-            // Line/Col
-            ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
+            // Right section - calculate position
+            float win_width = ImGui::GetWindowWidth();
+            float right_x = win_width - 380;
+
+            // Cursor position: Ln, Col
+            ImGui::SetCursorPosX(right_x);
+            ImGui::Text("Ln %d", pos.mLine + 1);
             ImGui::SameLine();
+            ImGui::SetCursorPosX(right_x + 60);
+            ImGui::Text("Col %d", pos.mColumn + 1);
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(right_x + 110);
+
+            // Current line percentage
+            int total_lines = editor ? editor->GetTotalLines() : 1;
+            int line_pct = total_lines > 0 ? (int)((pos.mLine + 1) * 100.0f / total_lines) : 0;
+            ImGui::Text("%d%%", line_pct);
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(right_x + 150);
+
+            // Encoding
+            ImGui::Text("%s", tab.file_encoding.c_str());
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(right_x + 200);
+
+            // Line ending
+            ImGui::Text("%s", tab.line_ending.c_str());
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(right_x + 240);
+
+            // File size
+            if (tab.file_size > 1024 * 1024) {
+                ImGui::Text("%.1fMB", tab.file_size / (1024.0 * 1024.0));
+            } else if (tab.file_size > 1024) {
+                ImGui::Text("%.1fKB", tab.file_size / 1024.0);
+            } else {
+                ImGui::Text("%zuB", tab.file_size);
+            }
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(right_x + 300);
+
+            // Tab size
+            ImGui::Text("Tab: %d", settings_.tab_size);
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(right_x + 360);
 
             // Zoom
             ImGui::Text("%d%%", tab.zoom_pct);
-            ImGui::SameLine();
-
-            // Encoding
-            std::string enc = "UTF-8";
-            if (!tab.file_path.empty()) {
-                enc = get_file_encoding(tab.file_path);
-            }
-            ImGui::Text("%s", enc.c_str());
-            ImGui::SameLine();
-
-            // Line ending
-            std::string le = "CRLF";
-            if (!tab.file_path.empty()) {
-                std::ifstream f(tab.file_path, std::ios::binary);
-                if (f.is_open()) {
-                    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-                    le = get_line_ending(content);
-                }
-            }
-            ImGui::Text("%s", le.c_str());
-            ImGui::SameLine();
-
-            // File size
-            size_t sz = 0;
-            if (!tab.file_path.empty()) sz = get_file_size(tab.file_path);
-            if (sz > 1024 * 1024) ImGui::Text("%.1f MB", sz / (1024.0 * 1024.0));
-            else if (sz > 1024) ImGui::Text("%.1f KB", sz / 1024.0);
-            else ImGui::Text("%zu B", sz);
         }
 
         ImGui::End();
@@ -1804,36 +2065,56 @@ void EditorApp::render_font_dialog() {
     
     if (!fonts_loaded) {
         font_list.clear();
-        #ifdef _WIN32
-        WIN32_FIND_DATAW fd;
-        HANDLE hFind = FindFirstFileW(L"C:\\Windows\\Fonts\\*.ttf", &fd);
-        if (hFind != INVALID_HANDLE_VALUE) {
-            do {
-                std::wstring ws(fd.cFileName);
-                std::string name(ws.begin(), ws.end());
-                size_t dot = name.rfind('.');
-                if (dot != std::string::npos) name = name.substr(0, dot);
-                if (!name.empty() && std::find(font_list.begin(), font_list.end(), name) == font_list.end()) {
-                    font_list.push_back(name);
-                }
-            } while (FindNextFileW(hFind, &fd));
-            FindClose(hFind);
+#if defined(_WIN32)
+        std::vector<std::string> extensions = {".ttf", ".otf", ".ttc"};
+        
+        for (const auto& ext : extensions) {
+            std::string search_path = std::string("C:\\Windows\\Fonts\\*") + ext;
+            std::wstring wpath;
+            wpath.assign(search_path.begin(), search_path.end());
+            WIN32_FIND_DATAW fd;
+            HANDLE hFind = FindFirstFileW(wpath.c_str(), &fd);
+            if (hFind != INVALID_HANDLE_VALUE) {
+                do {
+                    std::wstring ws(fd.cFileName);
+                    std::string name(ws.begin(), ws.end());
+                    size_t dot = name.rfind('.');
+                    if (dot != std::string::npos) name = name.substr(0, dot);
+                    
+                    if (!name.empty()) {
+                        bool found = false;
+                        for (const auto& existing : font_list) {
+                            if (existing == name) { found = true; break; }
+                        }
+                        if (!found) font_list.push_back(name);
+                    }
+                } while (FindNextFileW(hFind, &fd));
+                FindClose(hFind);
+            }
         }
-        hFind = FindFirstFileW(L"C:\\Windows\\Fonts\\*.otf", &fd);
-        if (hFind != INVALID_HANDLE_VALUE) {
-            do {
-                std::wstring ws(fd.cFileName);
-                std::string name(ws.begin(), ws.end());
-                size_t dot = name.rfind('.');
-                if (dot != std::string::npos) name = name.substr(0, dot);
-                if (!name.empty() && std::find(font_list.begin(), font_list.end(), name) == font_list.end()) {
-                    font_list.push_back(name);
+        
+        // Algorithm: clean suffix patterns (MT, NB, BK, LI, etc.)
+        for (auto& font : font_list) {
+            std::string cleaned;
+            for (size_t i = 0; i < font.length(); ++i) {
+                char c = font[i];
+                // Skip common suffixes
+                if (i + 1 < font.length() && 
+                    ((font[i] == 'M' && font[i+1] == 'T') ||
+                     (font[i] == 'N' && font[i+1] == 'B') ||
+                     (font[i] == 'B' && font[i+1] == 'K') ||
+                     (font[i] == 'L' && font[i+1] == 'I'))) {
+                    break;
                 }
-            } while (FindNextFileW(hFind, &fd));
-            FindClose(hFind);
+                if (i == 0 && c >= '0' && c <= '9') continue;
+                cleaned += c;
+            }
+            if (!cleaned.empty()) font = cleaned;
         }
+        
         std::sort(font_list.begin(), font_list.end());
-        #endif
+        font_list.erase(std::unique(font_list.begin(), font_list.end()), font_list.end());
+#endif
         fonts_loaded = true;
     }
     
@@ -1994,17 +2275,12 @@ void EditorApp::split_horizontal() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     auto& tab = tabs_[active_tab_];
     
-    TextEditor* new_editor = new TextEditor();
-    new_editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
-    new_editor->SetTabSize(settings_.tab_size);
-    
     TextEditor* active_editor = get_active_editor();
-    if (active_editor) {
-        new_editor->SetText(active_editor->GetText());
-    }
     
+    // Create new split that shares the editor (Vim-like)
     Split* split = new Split();
-    split->editor = new_editor;
+    split->editor = active_editor;  // Share the same editor
+    split->editor_owned = false;    // Don't delete - shared with tab.editor or another split
     split->is_horizontal = true;
     split->ratio = 0.5f;
     
@@ -2016,17 +2292,12 @@ void EditorApp::split_vertical() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     auto& tab = tabs_[active_tab_];
     
-    TextEditor* new_editor = new TextEditor();
-    new_editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
-    new_editor->SetTabSize(settings_.tab_size);
-    
     TextEditor* active_editor = get_active_editor();
-    if (active_editor) {
-        new_editor->SetText(active_editor->GetText());
-    }
     
+    // Create new split that shares the editor (Vim-like)
     Split* split = new Split();
-    split->editor = new_editor;
+    split->editor = active_editor;  // Share the same editor
+    split->editor_owned = false;    // Don't delete - shared with tab.editor or another split
     split->is_horizontal = false;
     split->ratio = 0.5f;
     
@@ -2041,7 +2312,11 @@ void EditorApp::close_split() {
     if (tab.splits.size() <= 1) return;
     
     Split* split = tab.splits[tab.active_split];
-    delete split->editor;
+    
+    // Only delete the editor if this split owns it
+    if (split->editor_owned) {
+        delete split->editor;
+    }
     delete split;
     
     tab.splits.erase(tab.splits.begin() + tab.active_split);
@@ -2067,6 +2342,34 @@ void EditorApp::prev_split() {
     tab.active_split = (tab.active_split - 1 + (int)tab.splits.size()) % (int)tab.splits.size();
 }
 
+void EditorApp::open_file_split(const std::string& path) {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    
+    if (!path.empty()) {
+        split_horizontal();
+        open_file(path);
+    }
+}
+
+void EditorApp::rotate_splits() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    if (tab.splits.size() <= 1) return;
+    
+    tab.active_split = (tab.active_split + 1) % (int)tab.splits.size();
+}
+
+void EditorApp::equalize_splits() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    if (tab.splits.empty()) return;
+    
+    float equal_ratio = 1.0f / (float)tab.splits.size();
+    for (auto* split : tab.splits) {
+        split->ratio = equal_ratio;
+    }
+}
+
 void EditorApp::render_splits(int tab_idx) {
     if (tab_idx < 0 || tab_idx >= (int)tabs_.size()) return;
     auto& tab = tabs_[tab_idx];
@@ -2081,11 +2384,102 @@ void EditorApp::render_splits(int tab_idx) {
         return;
     }
     
-    // Multiple splits - for now show active split only (simplified)
-    // Full split rendering needs ImGui splitters for resize
-    for (int i = 0; i < (int)tab.splits.size(); i++) {
-        if (i == tab.active_split) {
-            tab.splits[i]->editor->Render("TextEditor");
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    
+    // Determine if we have horizontal or vertical splits
+    bool has_horizontal = false;
+    bool has_vertical = false;
+    for (auto* s : tab.splits) {
+        if (s->is_horizontal) has_horizontal = true;
+        else has_vertical = true;
+    }
+    
+    if (has_horizontal || (!has_horizontal && !has_vertical)) {
+        // Horizontal splits - stack top to bottom
+        int n = (int)tab.splits.size();
+        float total_ratio = 0;
+        for (int i = 0; i < n - 1; i++) {
+            total_ratio += tab.splits[i]->ratio;
+        }
+        
+        float y = 0;
+        for (int i = 0; i < n; i++) {
+            auto* split = tab.splits[i];
+            float h;
+            if (i < n - 1) {
+                h = avail.y * (split->ratio / total_ratio) * (1.0f - total_ratio);
+            } else {
+                h = avail.y - y;
+            }
+            
+            ImGui::SetNextWindowPos(ImVec2(0, y));
+            ImGui::SetNextWindowSize(ImVec2(avail.x, h));
+            ImGui::BeginChild(("hsplit_" + std::to_string(i)).c_str(), ImVec2(avail.x, h), true, ImGuiWindowFlags_NoScrollbar);
+            if (split->editor) {
+                split->editor->Render(("Editor_h" + std::to_string(i)).c_str());
+            }
+            ImGui::EndChild();
+            y += h;
+            
+            if (i < n - 1) {
+                // Resize handle
+                ImGui::InvisibleButton(("rs_" + std::to_string(i)).c_str(), ImVec2(avail.x, 4));
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+                }
+                if (ImGui::IsItemActive()) {
+                    ImGuiIO& io = ImGui::GetIO();
+                    float delta = io.MouseDelta.y / avail.y;
+                    float new_ratio = split->ratio + delta;
+                    if (new_ratio < 0.2f) new_ratio = 0.2f;
+                    if (new_ratio > 0.8f) new_ratio = 0.8f;
+                    split->ratio = new_ratio;
+                }
+            }
+        }
+    } else {
+        // Vertical splits - stack left to right
+        int n = (int)tab.splits.size();
+        float total_ratio = 0;
+        for (int i = 0; i < n - 1; i++) {
+            total_ratio += tab.splits[i]->ratio;
+        }
+        
+        float x = 0;
+        for (int i = 0; i < n; i++) {
+            auto* split = tab.splits[i];
+            float w;
+            if (i < n - 1) {
+                w = avail.x * (split->ratio / total_ratio) * (1.0f - total_ratio);
+            } else {
+                w = avail.x - x;
+            }
+            
+            ImGui::SetNextWindowPos(ImVec2(x, 0));
+            ImGui::SetNextWindowSize(ImVec2(w, avail.y));
+            ImGui::BeginChild(("vsplit_" + std::to_string(i)).c_str(), ImVec2(w, avail.y), true, ImGuiWindowFlags_NoScrollbar);
+            if (split->editor) {
+                split->editor->Render(("Editor_v" + std::to_string(i)).c_str());
+            }
+            ImGui::EndChild();
+            x += w;
+            
+            if (i < n - 1) {
+                // Resize handle
+                ImGui::SameLine();
+                ImGui::InvisibleButton(("rs_" + std::to_string(i)).c_str(), ImVec2(4, avail.y));
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+                }
+                if (ImGui::IsItemActive()) {
+                    ImGuiIO& io = ImGui::GetIO();
+                    float delta = io.MouseDelta.x / avail.x;
+                    float new_ratio = split->ratio + delta;
+                    if (new_ratio < 0.2f) new_ratio = 0.2f;
+                    if (new_ratio > 0.8f) new_ratio = 0.8f;
+                    split->ratio = new_ratio;
+                }
+            }
         }
     }
 }
