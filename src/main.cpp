@@ -6,9 +6,6 @@
 #include "editor_app.h"
 
 int main(int argc, char* argv[]) {
-    (void)argc;
-    (void)argv;
-
-    EditorApp app;
+    EditorApp app(argc, argv);
     return app.run();
 }

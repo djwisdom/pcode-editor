@@ -127,7 +127,8 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // ============================================================================
 // Constructor / Destructor
 // ============================================================================
-EditorApp::EditorApp() {
+EditorApp::EditorApp(int argc, char* argv[])
+    : argc_(argc), argv_(argv) {
     new_tab();  // Start with one untitled tab
     font_size_temp_ = settings_.font_size;
     tab_size_temp_ = settings_.tab_size;
@@ -139,11 +140,20 @@ EditorApp::~EditorApp() {
     }
 }
 
+void EditorApp::load_files_from_args(int argc, char* argv[]) {
+    for (int i = 1; i < argc; i++) {
+        open_file(argv[i]);
+    }
+}
+
 // ============================================================================
 // Main loop
 // ============================================================================
 int EditorApp::run() {
     init();
+    
+    // Load files from command line arguments
+    load_files_from_args(argc_, argv_);
 
     while (running_ && !glfwWindowShouldClose(window_)) {
         glfwPollEvents();
@@ -181,6 +191,9 @@ int EditorApp::run() {
 // ============================================================================
 void EditorApp::init() {
     load_settings();
+
+    // Initialize native file dialog
+    NFD_Init();
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -225,12 +238,14 @@ void EditorApp::init() {
         
         ed->SetTabSize(settings_.tab_size);
         ed->SetShowWhitespaces(settings_.show_spaces);
+        // Note: TextEditor always shows line numbers (no toggle available in this version)
         
         apply_zoom(tab_idx);
     }
 }
 
 void EditorApp::shutdown() {
+    NFD_Quit();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -305,13 +320,18 @@ void EditorApp::open_file(const std::string& path) {
 
     if (path.empty()) {
         nfdchar_t* out_path = nullptr;
-        nfdresult_t result = NFD_OpenDialog(&out_path, nullptr, 0,
-            settings_.last_open_dir.empty() ? nullptr : settings_.last_open_dir.c_str());
+        // Pass null for defaultPath to let OS decide (avoids ShellItem error)
+        nfdresult_t result = NFD_OpenDialog(&out_path, nullptr, 0, nullptr);
 
         if (result == NFD_OKAY && out_path) {
             selected_path = out_path;
+            // Save the directory for next time
+            settings_.last_open_dir = std::filesystem::path(out_path).parent_path().string();
             NFD_FreePath(out_path);
+        } else if (result == NFD_CANCEL) {
+            return;
         } else {
+            fprintf(stderr, "NFD Error: %s\n", NFD_GetError());
             return;
         }
     }
@@ -362,8 +382,8 @@ void EditorApp::open_file(const std::string& path) {
     settings_.last_open_dir = std::filesystem::path(selected_path).parent_path().string();
     add_recent_file(selected_path);
     
-    // Give focus to the editor
-    ImGui::SetWindowFocus("Editor");
+    // Set active tab to newly opened file
+    active_tab_ = tab_idx;
 }
 
 bool EditorApp::save_tab(int idx) {
@@ -639,6 +659,7 @@ void EditorApp::toggle_word_wrap() {
 
 void EditorApp::toggle_line_numbers() {
     settings_.show_line_numbers = !settings_.show_line_numbers;
+    // Note: TextEditor always shows line numbers in this version
 }
 
 void EditorApp::toggle_spaces() {
@@ -1060,24 +1081,19 @@ void EditorApp::render_editor_with_margins() {
     auto& tab = tabs_[active_tab_];
     TextEditor* editor = tab.editor;
     
-    // Calculate gutter width: bookmark margin + line number margin + change history margin
-    float gutter_width = 0.0f;
+    // Show custom gutter only for bookmarks and change history (not line numbers - TextEditor handles that)
     bool has_bookmarks = !tab.bookmarks.empty();
     bool has_changes = !tab.changed_lines.empty();
     
-    if (has_bookmarks || has_changes || settings_.show_line_numbers) {
-        gutter_width = 80.0f; // Combined gutter width
-    }
-    
-    if (gutter_width > 0.0f) {
+    if (has_bookmarks || has_changes) {
+        float gutter_width = 40.0f;
+        
         ImGui::BeginGroup();
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
         
-        // Get cursor position to sync scroll
-        auto cursor = editor->GetCursorPosition();
         int total_lines = editor->GetTotalLines();
         
-        // Render gutter
+        // Render gutter for bookmarks and change history
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2f, 0.2f, 0.24f, 1.0f));
         if (ImGui::BeginChild("##Gutter", ImVec2(gutter_width, -1), false, ImGuiWindowFlags_NoScrollbar)) {
             for (int line = 0; line < total_lines; line++) {
@@ -1086,20 +1102,16 @@ void EditorApp::render_editor_with_margins() {
                 // Bookmark column
                 bool is_bookmarked = std::find(tab.bookmarks.begin(), tab.bookmarks.end(), line) != tab.bookmarks.end();
                 if (is_bookmarked) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "\xE2\x9C\x93"); // Checkmark symbol
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), ""); // Checkmark symbol
                 } else {
-                    ImGui::Text(" ");
+                    ImGui::Text("");
                 }
-                ImGui::SameLine();
-                
-                // Line number column
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "%d", line + 1);
                 ImGui::SameLine();
                 
                 // Change history column (highlight modified lines)
                 bool is_changed = std::find(tab.changed_lines.begin(), tab.changed_lines.end(), line) != tab.changed_lines.end();
                 if (is_changed) {
-                    ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), "\xE2\x80\xA2"); // Dot symbol
+                    ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), ""); // Dot symbol
                 }
                 
                 ImGui::PopID();
@@ -1285,11 +1297,49 @@ void EditorApp::render_goto_dialog() {
 }
 
 void EditorApp::render_font_dialog() {
+    static std::vector<std::string> font_list;
+    static bool fonts_loaded = false;
+    
+    if (!fonts_loaded) {
+        font_list.clear();
+        #ifdef _WIN32
+        LOGFONTW lf = {};
+        lf.lfCharSet = DEFAULT_CHARSET;
+        lf.lfFaceName[0] = '\0';
+        lf.lfPitchAndFamily = 0;
+        HDC hdc = GetDC(NULL);
+        EnumFontFamiliesExW(hdc, &lf, (FONTENUMPROCW)[](const LOGFONTW* lf, const TEXTMETRICW* tm, DWORD fontType, LPARAM lParam) -> int {
+            auto* fonts = (std::vector<std::string>*)lParam;
+            std::wstring name(lf->lfFaceName);
+            if (!name.empty()) {
+                std::string narrow(name.begin(), name.end());
+                if (std::find(fonts->begin(), fonts->end(), narrow) == fonts->end()) {
+                    fonts->push_back(narrow);
+                }
+            }
+            return 1;
+        }, (LPARAM)&font_list, 0);
+        ReleaseDC(NULL, hdc);
+        #endif
+        fonts_loaded = true;
+    }
+    
     ImGui::OpenPopup("Font Settings");
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 
     if (ImGui::BeginPopupModal("Font Settings", &show_font_, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Font Family:");
+        ImGui::SetNextItemWidth(250);
+        if (ImGui::BeginCombo("##fontfamily", font_name_temp_.empty() ? "Default" : font_name_temp_.c_str())) {
+            for (const auto& font : font_list) {
+                if (ImGui::Selectable(font.c_str())) {
+                    font_name_temp_ = font;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        
         ImGui::Text("Font Size (8-48):");
         ImGui::SetNextItemWidth(100);
         ImGui::InputInt("##fontsize", &font_size_temp_);
@@ -1301,11 +1351,13 @@ void EditorApp::render_font_dialog() {
 
         if (ImGui::Button("Apply")) {
             settings_.font_size = font_size_temp_;
+            settings_.font_name = font_name_temp_;
             rebuild_fonts();
         }
         ImGui::SameLine();
         if (ImGui::Button("OK")) {
             settings_.font_size = font_size_temp_;
+            settings_.font_name = font_name_temp_;
             rebuild_fonts();
             show_font_ = false;
         }

@@ -53,10 +53,11 @@ struct AppSettings {
 // ============================================================================
 class EditorApp {
 public:
-    EditorApp();
+EditorApp(int argc = 0, char* argv[] = nullptr);
     ~EditorApp();
 
     int run();
+    void load_files_from_args(int argc, char* argv[]);
 
 private:
     // Lifecycle
@@ -164,6 +165,10 @@ private:
     // Font state
     int font_size_temp_ = 16;
     std::string font_name_temp_ = "";
+
+    // Command line args
+    int argc_ = 0;
+    char** argv_ = nullptr;
 
     // Spaces submenu state
     bool show_spaces_dialog_ = false;
