@@ -154,6 +154,10 @@ private:
     void render_menu_recent();
     void render_editor_area();
     void render_status_bar();
+    void render_command_line();
+    void render_terminal();
+    void start_terminal();
+    void update_terminal_output();
     void render_sidebar();
     void render_file_tree();
     void render_git_changes();
@@ -190,6 +194,7 @@ private:
     void zoom_out();
     void zoom_reset();
     void toggle_status_bar();
+    void toggle_explorer();
     void toggle_word_wrap();
     void toggle_line_numbers();
     void toggle_spaces();
@@ -276,6 +281,12 @@ private:
 
     // Spaces submenu state
     bool show_spaces_dialog_ = false;
+    bool show_terminal_ = false;
+    void* terminal_hwnd_ = nullptr;
+    void* terminal_process_ = nullptr;
+    void* terminal_stdin_ = nullptr;
+    void* terminal_stdout_ = nullptr;
+    std::string terminal_output_;
     int tab_size_temp_ = 4;
 
     // Command palette
@@ -283,14 +294,12 @@ private:
 
     // Vim mode state
     enum class VimMode { Normal, Insert, Visual, VisualLine, OperatorPending, Command };
-    VimMode vim_mode_ = VimMode::Normal;
-    char vim_operator_ = 0;
-    int vim_count_ = 0;
-    int vim_motion_ = 0;
-    char vim_register_ = '"';
-    char vim_last_find_char_ = 0;
-    bool vim_last_find_reverse_ = false;
+VimMode vim_mode_ = VimMode::Normal;
     std::string vim_command_buffer_;
+    char vim_cmd_input_[256] = {0};
+    bool editor_focused_ = true;
+    int vim_count_ = 0;
+    int vim_operator_ = 0;
     char vim_command_input_[256] = "";
     bool execute_vim_command(const std::string& cmd);
     std::string vim_key_buffer_;

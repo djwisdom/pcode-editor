@@ -695,6 +695,10 @@ void EditorApp::toggle_status_bar() {
     settings_.show_status_bar = !settings_.show_status_bar;
 }
 
+void EditorApp::toggle_explorer() {
+    show_file_tree_ = !show_file_tree_;
+}
+
 void EditorApp::toggle_word_wrap() {
     settings_.word_wrap = !settings_.word_wrap;
     // Apply to all tabs
@@ -1490,37 +1494,9 @@ void EditorApp::render() {
         else if (ImGui::IsKeyPressed(ImGuiKey_Semicolon) && io.KeyShift) { vim_mode_ = VimMode::Command; vim_command_buffer_ = ":"; return; }
     }
     
-    // Command mode input handling
+    // Command mode input handling - handled by command line window InputText
     if (vim_mode_ == VimMode::Command) {
-        for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
-            if (ImGui::IsKeyPressed((ImGuiKey)key)) { 
-                vim_command_buffer_ += (char)('a' + (key - ImGuiKey_A));
-                return; 
-            }
-        }
-        for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
-            if (ImGui::IsKeyPressed((ImGuiKey)key)) { 
-                vim_command_buffer_ += (char)('0' + (key - ImGuiKey_0));
-                return; 
-            }
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter)) { 
-            execute_vim_command(vim_command_buffer_); 
-            vim_command_buffer_.clear(); 
-            vim_mode_ = VimMode::Normal; 
-            return; 
-        }
-        else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) { 
-            vim_command_buffer_.clear(); 
-            vim_mode_ = VimMode::Normal; 
-            return; 
-        }
-        else if (ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
-            if (!vim_command_buffer_.empty()) vim_command_buffer_.pop_back();
-            return;
-        }
-        else if (ImGui::IsKeyPressed(ImGuiKey_Slash)) { vim_command_buffer_ += '/'; return; }
-        else if (ImGui::IsKeyPressed(ImGuiKey_Backslash)) { vim_command_buffer_ += '\\'; return; }
+        return;
     }
     
     if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
@@ -1615,6 +1591,8 @@ void EditorApp::render() {
 
     // Render status bar AFTER DockSpace ends to avoid nesting issues
     if (settings_.show_status_bar) render_status_bar();
+    render_command_line();
+    render_terminal();
 }
 
 // ============================================================================
@@ -1730,6 +1708,8 @@ void EditorApp::render_menu_view() {
         ImGui::Separator();
         bool sb = settings_.show_status_bar;
         if (ImGui::MenuItem("Status Bar", nullptr, &sb)) toggle_status_bar();
+        bool exp = show_file_tree_;
+        if (ImGui::MenuItem("Explorer", nullptr, &exp)) toggle_explorer();
         bool ww = settings_.word_wrap;
         if (ImGui::MenuItem("Word Wrap", nullptr, &ww)) toggle_word_wrap();
         bool ln = settings_.show_line_numbers;
@@ -1770,6 +1750,10 @@ void EditorApp::render_menu_view() {
             ImGui::EndMenu();
         }
         ImGui::Separator();
+        if (ImGui::MenuItem("Terminal", "Ctrl+`", &show_terminal_)) {
+            if (show_terminal_ && !terminal_process_) start_terminal();
+        }
+        ImGui::Separator();
         if (ImGui::BeginMenu("Split")) {
             if (ImGui::MenuItem("Split Horizontal", "Ctrl+Shift+H")) split_horizontal();
             if (ImGui::MenuItem("Split Vertical", "Ctrl+Shift+V")) split_vertical();
@@ -1808,6 +1792,24 @@ ImGui::EndMenu();
 // ============================================================================
 void EditorApp::render_editor_area() {
     ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse);
+    
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow)) {
+        editor_focused_ = true;
+    }
+
+    if (vim_mode_ == VimMode::Command) {
+        ImVec4 cmd_color = ImVec4(0.2f, 0.4f, 0.8f, 1.0f);
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            ImGui::GetWindowPos(), 
+            ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowWidth(), ImGui::GetWindowPos().y + 3),
+            ImColor(cmd_color));
+    } else if (editor_focused_) {
+        ImVec4 focus_color = ImVec4(0.3f, 0.7f, 0.3f, 1.0f);
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            ImGui::GetWindowPos(), 
+            ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowWidth(), ImGui::GetWindowPos().y + 3),
+            ImColor(focus_color));
+    }
 
     if (tabs_.empty()) {
         new_tab();
@@ -1881,9 +1883,8 @@ void EditorApp::render_editor_with_margins() {
     
     // Always show gutter for bookmarks (allows adding/removing bookmarks)
     // Also show change history when there are changes
-    bool has_bookmarks = true; // Always show bookmark gutter
+    bool show_gutter = settings_.show_bookmark_margin || settings_.show_change_history;
     bool has_changes = !tab.changed_lines.empty();
-    bool show_gutter = (settings_.show_bookmark_margin && has_bookmarks) || (settings_.show_change_history && has_changes);
     
     if (show_gutter) {
         float gutter_width = 40.0f;
@@ -1953,7 +1954,7 @@ void EditorApp::render_editor_with_margins() {
 // Sidebar with File Tree, Git, Symbols
 // ============================================================================
 void EditorApp::render_sidebar() {
-    if (!settings_.show_status_bar) return; // Only show with status bar
+    if (!show_file_tree_) return;
     
     ImGui::Begin("Explorer", nullptr, ImGuiWindowFlags_NoTitleBar);
     
@@ -2095,9 +2096,12 @@ void EditorApp::render_symbol_outline() {
 void EditorApp::render_status_bar() {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     float line_height = 22;
-    float height = line_height * 2;
+    float height = line_height;
+    float cmd_height = vim_mode_ == VimMode::Command ? line_height : 0;
+    float term_height = show_terminal_ ? 200.0f : 0.0f;
 
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + viewport->Size.y - height));
+    float total_bottom = viewport->Pos.y + viewport->Size.y - term_height;
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, total_bottom - cmd_height - height));
     ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, height));
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings
@@ -2114,56 +2118,226 @@ void EditorApp::render_status_bar() {
             TextEditor* editor = get_active_editor();
             auto pos = editor ? editor->GetCursorPosition() : TextEditor::Coordinates();
 
-            ImGui::SetCursorPosY(3);
-
             const char* mode_str = get_vim_mode_str();
             const char* dirty_indicator = tab.dirty ? "*" : "";
             ImGui::Text("%s \xc2\xb7 %s%s", mode_str, tab.display_name.c_str(), dirty_indicator);
 
             float win_width = ImGui::GetWindowWidth();
             float right_x = win_width - 420;
-
             ImGui::SetCursorPosX(right_x);
             ImGui::Text("Ln %d", pos.mLine + 1);
             ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 60);
+            ImGui::SetCursorPosX(right_x + 50);
             ImGui::Text("Col %d", pos.mColumn + 1);
             ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 110);
-            int total_lines = editor ? editor->GetTotalLines() : 1;
-            int line_pct = total_lines > 0 ? (int)((pos.mLine + 1) * 100.0f / total_lines) : 0;
-            ImGui::Text("%d%%", line_pct);
+            ImGui::SetCursorPosX(right_x + 100);
+            ImGui::Text("\xc2\xb7 %s", tab.file_encoding.c_str());
             ImGui::SameLine();
             ImGui::SetCursorPosX(right_x + 150);
-            ImGui::Text("%s", tab.file_encoding.c_str());
+            ImGui::Text("\xc2\xb7 %s", tab.line_ending.c_str());
             ImGui::SameLine();
             ImGui::SetCursorPosX(right_x + 200);
-            ImGui::Text("%s", tab.line_ending.c_str());
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 240);
             if (tab.file_size > 1024 * 1024) {
-                ImGui::Text("%.1fMB", tab.file_size / (1024.0 * 1024.0));
+                ImGui::Text("\xc2\xb7 %.1fMB", tab.file_size / (1024.0 * 1024.0));
             } else if (tab.file_size > 1024) {
-                ImGui::Text("%.1fKB", tab.file_size / 1024.0);
+                ImGui::Text("\xc2\xb7 %.1fKB", tab.file_size / 1024.0);
             } else {
-                ImGui::Text("%zuB", tab.file_size);
+                ImGui::Text("\xc2\xb7 %zuB", tab.file_size);
             }
             ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 300);
-            ImGui::Text("Tab: %d", settings_.tab_size);
+            ImGui::SetCursorPosX(right_x + 260);
+            ImGui::Text("\xc2\xb7 Tab %d", settings_.tab_size);
             ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 360);
-            ImGui::Text("%d%%", tab.zoom_pct);
-
-            ImGui::SetCursorPosY(line_height + 3);
-
-            const char* cmd = vim_mode_ == VimMode::Command ? vim_command_buffer_.c_str() : "";
-            ImGui::Text("%s", cmd);
+            ImGui::SetCursorPosX(right_x + 320);
+            ImGui::Text("\xc2\xb7 %d%%", tab.zoom_pct);
         }
 
         ImGui::End();
     }
     ImGui::PopStyleVar(3);
+}
+
+void EditorApp::render_command_line() {
+    if (vim_mode_ != VimMode::Command) return;
+
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    float line_height = 22;
+    float status_height = line_height;
+    float term_height = show_terminal_ ? 200.0f : 0.0f;
+
+    float total_bottom = viewport->Pos.y + viewport->Size.y - term_height;
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, total_bottom - line_height));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, line_height));
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings
+                           | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar
+                           | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 2));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+
+    if (ImGui::Begin("CommandLine", nullptr, flags)) {
+        ImVec4 cmd_focus_color = ImVec4(0.2f, 0.4f, 0.8f, 1.0f);
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            ImGui::GetWindowPos(), 
+            ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowWidth(), ImGui::GetWindowPos().y + 3),
+            ImColor(cmd_focus_color));
+        
+        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 20);
+        if (ImGui::InputText("##cmd", vim_cmd_input_, sizeof(vim_cmd_input_), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            vim_command_buffer_ = vim_cmd_input_;
+            execute_vim_command(vim_command_buffer_);
+            vim_mode_ = VimMode::Normal;
+            vim_command_buffer_.clear();
+            vim_cmd_input_[0] = '\0';
+            editor_focused_ = true;
+        }
+        ImGui::End();
+    }
+    ImGui::PopStyleVar(3);
+}
+
+void EditorApp::start_terminal() {
+#ifdef _WIN32
+    if (terminal_process_) return;
+    
+    SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
+    HANDLE hStdInRd = NULL, hStdInWr = NULL;
+    HANDLE hStdOutRd = NULL, hStdOutWr = NULL;
+    
+    CreatePipe(&hStdInRd, &hStdInWr, &sa, 0);
+    CreatePipe(&hStdOutRd, &hStdOutWr, &sa, 0);
+    
+    SetHandleInformation(hStdInWr, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(hStdOutRd, HANDLE_FLAG_INHERIT, 0);
+    
+    STARTUPINFOA si = {sizeof(STARTUPINFOA)};
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.hStdInput = hStdInRd;
+    si.hStdOutput = hStdOutWr;
+    si.hStdError = hStdOutWr;
+    si.wShowWindow = SW_HIDE;
+    
+    PROCESS_INFORMATION pi = {};
+    const char* cmd = "cmd.exe";
+    
+    if (CreateProcessA(nullptr, (LPSTR)cmd, nullptr, nullptr, TRUE, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
+        terminal_process_ = (void*)pi.hProcess;
+        terminal_stdin_ = (void*)hStdInWr;
+        terminal_stdout_ = (void*)hStdOutRd;
+        CloseHandle(pi.hThread);
+        CloseHandle(hStdInRd);
+        CloseHandle(hStdOutWr);
+        terminal_output_ = "Terminal started. Type commands below.\r\n";
+    } else {
+        CloseHandle(hStdInRd);
+        CloseHandle(hStdInWr);
+        CloseHandle(hStdOutRd);
+        CloseHandle(hStdOutWr);
+    }
+#endif
+}
+
+void EditorApp::update_terminal_output() {
+#ifdef _WIN32
+    if (!terminal_stdout_ || !terminal_process_) return;
+    
+    DWORD avail = 0;
+    if (PeekNamedPipe((HANDLE)terminal_stdout_, nullptr, 0, nullptr, &avail, nullptr) && avail > 0) {
+        char buf[1024] = {};
+        DWORD read = 0;
+        if (ReadFile((HANDLE)terminal_stdout_, buf, sizeof(buf) - 1, &read, nullptr)) {
+            if (read > 0) {
+                terminal_output_ += std::string(buf, read);
+                if (terminal_output_.size() > 10000) {
+                    terminal_output_ = terminal_output_.substr(terminal_output_.size() - 5000);
+                }
+            }
+        }
+    }
+    
+    DWORD exitCode = 0;
+    if (GetExitCodeProcess((HANDLE)terminal_process_, &exitCode)) {
+        if (exitCode != STILL_ACTIVE) {
+            terminal_output_ += "\r\n[Process exited]\r\n";
+            if (terminal_stdin_) CloseHandle((HANDLE)terminal_stdin_);
+            if (terminal_stdout_) CloseHandle((HANDLE)terminal_stdout_);
+            terminal_process_ = nullptr;
+            terminal_stdin_ = nullptr;
+            terminal_stdout_ = nullptr;
+        }
+    }
+#endif
+}
+
+void EditorApp::render_terminal() {
+    if (!show_terminal_) return;
+    
+    update_terminal_output();
+    
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    float line_height = 22;
+    float height = vim_mode_ == VimMode::Command ? line_height * 2 : line_height;
+    float term_height = 200;
+    
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + viewport->Size.y - term_height - height));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, term_height));
+    
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings
+                           | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar
+                           | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    
+    if (ImGui::Begin("Terminal", nullptr, flags)) {
+        static char input_buf[256] = "";
+        
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
+        ImGui::Text("Terminal");
+        ImGui::Separator();
+        
+        ImGui::BeginChild("term_output", ImVec2(ImGui::GetWindowWidth(), term_height - 60), true);
+        ImGui::Text("%s", terminal_output_.c_str());
+        if (ImGui::GetScrollY() < ImGui::GetScrollMaxY()) {
+            ImGui::SetScrollHereY(1.0f);
+        }
+        ImGui::EndChild();
+        
+        ImGui::Separator();
+        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 80);
+        if (ImGui::InputText("##term_input", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            if (terminal_stdin_ && strlen(input_buf) > 0) {
+                std::string cmd = input_buf;
+                cmd += "\r\n";
+#ifdef _WIN32
+                DWORD written = 0;
+                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+#endif
+                input_buf[0] = '\0';
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Run")) {
+            if (terminal_stdin_ && strlen(input_buf) > 0) {
+                std::string cmd = input_buf;
+                cmd += "\r\n";
+#ifdef _WIN32
+                DWORD written = 0;
+                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+#endif
+                input_buf[0] = '\0';
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Clear")) {
+            terminal_output_ = "";
+        }
+        ImGui::PopStyleVar();
+        ImGui::End();
+    }
+    ImGui::PopStyleVar(2);
 }
 
 // ============================================================================
@@ -2696,6 +2870,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
