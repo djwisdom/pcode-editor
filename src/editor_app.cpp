@@ -842,14 +842,20 @@ void EditorApp::load_fonts() {
     
     ImFont* font = nullptr;
     
-    // Try to load user-selected font (prefer .ttf for better compatibility)
+    // Try to load user-selected font - scan actual files in C:\Windows\Fonts\
     if (!settings_.font_name.empty()) {
         #ifdef _WIN32
-        std::vector<std::string> exts = {".ttf", ".otf", ".ttc"}; // Try ttf first
+        std::vector<std::string> exts = {".ttf", ".otf", ".ttc"};
+        std::string name = settings_.font_name;
+        
         for (const auto& ext : exts) {
-            std::string path = "C:\\Windows\\Fonts\\" + settings_.font_name + ext;
+            std::string path = "C:\\Windows\\Fonts\\" + name + ext;
             font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
             if (font) break;
+        }
+        // If couldn't load, clear the font name
+        if (!font) {
+            settings_.font_name = "";
         }
         #endif
     }
@@ -857,8 +863,6 @@ void EditorApp::load_fonts() {
     // Fallback to built-in default (not system font)
     if (!font) {
         font = io.Fonts->AddFontDefault();
-        // Clear font name since we couldn't load the requested one
-        settings_.font_name = "";
     }
     
     font_size_temp_ = settings_.font_size;
@@ -879,15 +883,16 @@ void EditorApp::rebuild_fonts() {
     
     ImFont* font = nullptr;
     
-    // Try to load user-selected font (prefer .ttf for better compatibility)
+    // Try to load user-selected font - scan actual files in C:\Windows\Fonts\
     if (!font_name_temp_.empty()) {
         #ifdef _WIN32
         std::vector<std::string> exts = {".ttf", ".otf", ".ttc"};
+        std::string name = font_name_temp_;
+        
         for (const auto& ext : exts) {
-            std::string path = "C:\\Windows\\Fonts\\" + font_name_temp_ + ext;
+            std::string path = "C:\\Windows\\Fonts\\" + name + ext;
             font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
             if (font) {
-                // Success - update settings with the loaded font name
                 settings_.font_name = font_name_temp_;
                 break;
             }
@@ -895,16 +900,311 @@ void EditorApp::rebuild_fonts() {
         #endif
     }
     
-    // Fallback to built-in default if couldn't load
+    // Fallback to built-in default (not system font)
     if (!font) {
         font = io.Fonts->AddFontDefault();
-        // Clear - couldn't load the requested font
         font_name_temp_ = "";
         settings_.font_name = "";
     }
     
-    float scale = (float)settings_.font_size / 16.0f;
+    font_size_temp_ = settings_.font_size;
+    font_name_temp_ = settings_.font_name;
+    
+float scale = (float)settings_.font_size / 16.0f;
     io.FontGlobalScale = scale;
+}
+
+// ============================================================================
+// Vim Mode
+// ============================================================================
+const char* EditorApp::get_vim_mode_str() const {
+    switch (vim_mode_) {
+        case VimMode::Normal: return "-- NORMAL --";
+        case VimMode::Insert: return "-- INSERT --";
+        case VimMode::Visual: return "-- VISUAL --";
+        case VimMode::VisualLine: return "-- VISUAL LINE --";
+        case VimMode::OperatorPending: return "-- OPERATOR PENDING --";
+        default: return "";
+    }
+}
+
+void EditorApp::handle_vim_key(int key, int mods) {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    TextEditor* ed = tabs_[active_tab_].editor;
+    auto pos = ed->GetCursorPosition();
+    int line = pos.mLine;
+    int col = pos.mColumn;
+    auto& lines = ed->GetTextLines();
+    
+    // Escape cancels everything
+    if (key == ImGuiKey_Escape) {
+        vim_mode_ = VimMode::Normal;
+        vim_operator_ = 0;
+        vim_count_ = 0;
+        vim_key_buffer_.clear();
+        return;
+    }
+    
+    // In insert mode, only Escape matters
+    if (vim_mode_ == VimMode::Insert) {
+        return;
+    }
+    
+    // Map key to char
+    char c = 0;
+    if (key >= ImGuiKey_A && key <= ImGuiKey_Z) {
+        c = (char)('a' + (key - ImGuiKey_A));
+    } else if (key >= ImGuiKey_0 && key <= ImGuiKey_9) {
+        c = (char)('0' + (key - ImGuiKey_0));
+    } else if (key == ImGuiKey_Space) c = ' ';
+    else if (key == ImGuiKey_Enter) c = '\n';
+    else if (key == ImGuiKey_Backspace) c = 8;
+    else if (key == ImGuiKey_Tab) c = 9;
+    else if (key == ImGuiKey_Period) c = '.';
+    else if (key == ImGuiKey_Minus) c = '-';
+    
+    if (!c) return;
+    
+    // Handle count prefix (digits)
+    if (c >= '0' && c <= '9' && vim_key_buffer_.empty()) {
+        if (c == '0' && vim_count_ == 0) {
+            // 0 is a motion, not a count
+        } else {
+            vim_count_ = vim_count_ * 10 + (c - '0');
+            return;
+        }
+    }
+    
+    vim_key_buffer_ += c;
+    std::string& kb = vim_key_buffer_;
+    int count = vim_count_ > 0 ? vim_count_ : 1;
+    
+    // Single key commands
+    if (kb.size() == 1) {
+        switch (kb[0]) {
+            case 'h':
+                ed->SetCursorPosition(TextEditor::Coordinates(line, (std::max)(0, col - count)));
+                break;
+            case 'j':
+                ed->SetCursorPosition(TextEditor::Coordinates((std::min)(ed->GetTotalLines() - 1, line + count), col));
+                break;
+            case 'k':
+                ed->SetCursorPosition(TextEditor::Coordinates((std::max)(0, line - count), col));
+                break;
+            case 'l':
+                if (line < (int)lines.size() && col < (int)lines[line].size()) {
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, col + count));
+                }
+                break;
+            case '0':
+                ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
+                break;
+            case '^':
+                if (line < (int)lines.size()) {
+                    std::string& text = lines[line];
+                    int start = 0;
+                    while (start < (int)text.size() && (text[start] == ' ' || text[start] == '\t')) start++;
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, start));
+                }
+                break;
+            case '$':
+                if (line < (int)lines.size()) {
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, (int)lines[line].size()));
+                }
+                break;
+            case 'i':
+                vim_mode_ = VimMode::Insert;
+                break;
+            case 'I':
+                ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
+                vim_mode_ = VimMode::Insert;
+                break;
+            case 'a':
+                if (line < (int)lines.size() && col < (int)lines[line].size()) {
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, col + 1));
+                }
+                vim_mode_ = VimMode::Insert;
+                break;
+            case 'A':
+                if (line < (int)lines.size()) {
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, (int)lines[line].size()));
+                }
+                vim_mode_ = VimMode::Insert;
+                break;
+            case 'o':
+                ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
+                ed->InsertText("\n");
+                vim_mode_ = VimMode::Insert;
+                break;
+            case 'O':
+                ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
+                ed->InsertText("\n");
+                if (line > 0) ed->SetCursorPosition(TextEditor::Coordinates(line - 1, 0));
+                vim_mode_ = VimMode::Insert;
+                break;
+            case 'x':
+                for (int i = 0; i < count; i++) {
+                    if (line < (int)lines.size() && col < (int)lines[line].size()) {
+                        ed->Delete();
+                    }
+                }
+                break;
+            case 'X':
+                for (int i = 0; i < count; i++) {
+                    if (col > 0) {
+                        ed->SetCursorPosition(TextEditor::Coordinates(line, col - 1));
+                        ed->Delete();
+                        col--;
+                    }
+                }
+                break;
+            case 'd':
+                vim_mode_ = VimMode::OperatorPending;
+                vim_operator_ = 'd';
+                return;
+            case 'y':
+                vim_mode_ = VimMode::OperatorPending;
+                vim_operator_ = 'y';
+                return;
+            case 'c':
+                vim_mode_ = VimMode::OperatorPending;
+                vim_operator_ = 'c';
+                return;
+            case 'v':
+                vim_mode_ = VimMode::Visual;
+                return;
+            case 'V':
+                vim_mode_ = VimMode::VisualLine;
+                return;
+            case 'u':
+                for (int i = 0; i < count; i++) ed->Undo();
+                break;
+            case 'p':
+                ed->Paste();
+                break;
+            case 'P':
+                ed->SetCursorPosition(TextEditor::Coordinates(line, (std::max)(0, col - 1)));
+                ed->Paste();
+                break;
+            case '~':
+                if (line < (int)lines.size() && col < (int)lines[line].size()) {
+                    char ch = lines[line][col];
+                    if (ch >= 'a' && ch <= 'z') ch = ch - 'a' + 'A';
+                    else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 'a';
+                    lines[line][col] = ch;
+                    tabs_[active_tab_].dirty = true;
+                }
+                break;
+            case 'G': {
+                int target = count > 0 ? count - 1 : ed->GetTotalLines() - 1;
+                target = (std::max)(0, (std::min)(target, ed->GetTotalLines() - 1));
+                ed->SetCursorPosition(TextEditor::Coordinates(target, 0));
+                break;
+            }
+            case 'g':
+                vim_mode_ = VimMode::OperatorPending;
+                vim_operator_ = 'g';
+                return;
+            case '.':
+                break;
+            default:
+                break;
+        }
+        
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    
+    // Multi-key commands
+    if (kb == "gg") {
+        int target = vim_count_ > 0 ? vim_count_ - 1 : 0;
+        ed->SetCursorPosition(TextEditor::Coordinates(target, 0));
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    
+    if (kb == "dd") {
+        ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
+        if (line < (int)lines.size()) {
+            ed->SetSelectionEnd(TextEditor::Coordinates(line, (int)lines[line].size()));
+        }
+        ed->Cut();
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    
+    if (kb == "yy") {
+        ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
+        if (line < (int)lines.size()) {
+            ed->SetSelectionEnd(TextEditor::Coordinates(line, (int)lines[line].size()));
+        }
+        ed->Copy();
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    
+    if (kb == "cc") {
+        ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
+        if (line < (int)lines.size()) {
+            ed->SetSelectionEnd(TextEditor::Coordinates(line, (int)lines[line].size()));
+        }
+        ed->Delete();
+        vim_mode_ = VimMode::Insert;
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        return;
+    }
+    
+    // Operator pending
+    if (vim_mode_ == VimMode::OperatorPending && kb.size() >= 1) {
+        char op = vim_operator_;
+        char motion = kb[0];
+        
+        if (op == 'd') {
+            if (motion == 'd') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
+                if (line < (int)lines.size()) {
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, (int)lines[line].size()));
+                }
+                ed->Delete();
+            }
+        } else if (op == 'y') {
+            if (motion == 'y') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
+                if (line < (int)lines.size()) {
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, (int)lines[line].size()));
+                }
+                ed->Copy();
+            }
+        } else if (op == 'c') {
+            if (motion == 'c') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
+                if (line < (int)lines.size()) {
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, (int)lines[line].size()));
+                }
+                ed->Delete();
+                vim_mode_ = VimMode::Insert;
+            }
+        }
+        
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_operator_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    
+    vim_key_buffer_.clear();
+    vim_count_ = 0;
+    vim_mode_ = VimMode::Normal;
 }
 
 // ============================================================================
@@ -937,6 +1237,24 @@ size_t EditorApp::get_file_size(const std::string& path) {
 void EditorApp::render() {
     // Global keyboard shortcuts
     ImGuiIO& io = ImGui::GetIO();
+    
+    // Handle Vim mode keys first
+    if (vim_mode_ != VimMode::Insert) {
+        for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
+            if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); break; }
+        }
+        for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
+            if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); break; }
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Space)) handle_vim_key(ImGuiKey_Space, 0);
+        else if (ImGui::IsKeyPressed(ImGuiKey_Enter)) handle_vim_key(ImGuiKey_Enter, 0);
+        else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) handle_vim_key(ImGuiKey_Escape, 0);
+        else if (ImGui::IsKeyPressed(ImGuiKey_Backspace)) handle_vim_key(ImGuiKey_Backspace, 0);
+        else if (ImGui::IsKeyPressed(ImGuiKey_Tab)) handle_vim_key(ImGuiKey_Tab, 0);
+        else if (ImGui::IsKeyPressed(ImGuiKey_Minus)) handle_vim_key(ImGuiKey_Minus, 0);
+        else if (ImGui::IsKeyPressed(ImGuiKey_Period)) handle_vim_key(ImGuiKey_Period, 0);
+    }
+    
     if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
         if (ImGui::IsKeyPressed(ImGuiKey_O)) { open_file(""); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab(active_tab_); return; }
@@ -1460,23 +1778,34 @@ void EditorApp::render_font_dialog() {
     if (!fonts_loaded) {
         font_list.clear();
         #ifdef _WIN32
-        LOGFONTW lf = {};
-        lf.lfCharSet = DEFAULT_CHARSET;
-        lf.lfFaceName[0] = '\0';
-        lf.lfPitchAndFamily = 0;
-        HDC hdc = GetDC(NULL);
-        EnumFontFamiliesExW(hdc, &lf, (FONTENUMPROCW)[](const LOGFONTW* lf, const TEXTMETRICW* tm, DWORD fontType, LPARAM lParam) -> int {
-            auto* fonts = (std::vector<std::string>*)lParam;
-            std::wstring name(lf->lfFaceName);
-            if (!name.empty()) {
-                std::string narrow(name.begin(), name.end());
-                if (std::find(fonts->begin(), fonts->end(), narrow) == fonts->end()) {
-                    fonts->push_back(narrow);
+        WIN32_FIND_DATAW fd;
+        HANDLE hFind = FindFirstFileW(L"C:\\Windows\\Fonts\\*.ttf", &fd);
+        if (hFind != INVALID_HANDLE_VALUE) {
+            do {
+                std::wstring ws(fd.cFileName);
+                std::string name(ws.begin(), ws.end());
+                size_t dot = name.rfind('.');
+                if (dot != std::string::npos) name = name.substr(0, dot);
+                if (!name.empty() && std::find(font_list.begin(), font_list.end(), name) == font_list.end()) {
+                    font_list.push_back(name);
                 }
-            }
-            return 1;
-        }, (LPARAM)&font_list, 0);
-        ReleaseDC(NULL, hdc);
+            } while (FindNextFileW(hFind, &fd));
+            FindClose(hFind);
+        }
+        hFind = FindFirstFileW(L"C:\\Windows\\Fonts\\*.otf", &fd);
+        if (hFind != INVALID_HANDLE_VALUE) {
+            do {
+                std::wstring ws(fd.cFileName);
+                std::string name(ws.begin(), ws.end());
+                size_t dot = name.rfind('.');
+                if (dot != std::string::npos) name = name.substr(0, dot);
+                if (!name.empty() && std::find(font_list.begin(), font_list.end(), name) == font_list.end()) {
+                    font_list.push_back(name);
+                }
+            } while (FindNextFileW(hFind, &fd));
+            FindClose(hFind);
+        }
+        std::sort(font_list.begin(), font_list.end());
         #endif
         fonts_loaded = true;
     }

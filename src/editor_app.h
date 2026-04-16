@@ -134,6 +134,11 @@ private:
     void fold_all();
     void unfold_all();
 
+    // Vim mode
+    void handle_vim_key(int key, int mods);
+    bool is_vim_normal_mode() const { return vim_mode_ == VimMode::Normal; }
+    const char* get_vim_mode_str() const;
+
     // Gutter rendering
     void render_gutter(int tab_idx, float width);
     void render_editor_with_margins();
@@ -189,4 +194,15 @@ private:
 
     // Command palette
     char cmd_buf_[256] = {0};
+
+    // Vim mode state
+    enum class VimMode { Normal, Insert, Visual, VisualLine, OperatorPending };
+    VimMode vim_mode_ = VimMode::Normal;
+    char vim_operator_ = 0;  // 'd', 'y', 'c', etc.
+    int vim_count_ = 0;
+    int vim_motion_ = 0;  // pending motion for operator
+    char vim_register_ = '"';
+    char vim_last_find_char_ = 0;
+    bool vim_last_find_reverse_ = false;
+    std::string vim_key_buffer_;
 };
