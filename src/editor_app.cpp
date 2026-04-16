@@ -768,28 +768,69 @@ void EditorApp::clear_change_history() {
 void EditorApp::load_fonts() {
     ImGuiIO& io = ImGui::GetIO();
     
-    // Just add default font - we'll control size via FontGlobalScale
-    io.Fonts->AddFontDefault();
+    // Clear existing fonts first
+    io.Fonts->Clear();
     
-    // Store font size temp
+    ImFont* font = nullptr;
+    
+    // Try to load user-selected font
+    if (!settings_.font_name.empty()) {
+        #ifdef _WIN32
+        std::vector<std::string> exts = {".ttc", ".ttf", ".otf"}; // Try .ttc first
+        for (const auto& ext : exts) {
+            std::string path = "C:/Windows/Fonts/" + settings_.font_name + ext;
+            font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
+            if (font) break;
+        }
+        #endif
+    }
+    
+    // Fallback to default
+    if (!font) {
+        font = io.Fonts->AddFontDefault();
+    }
+    
     font_size_temp_ = settings_.font_size;
+    font_name_temp_ = settings_.font_name;
     
-    // Font texture is built automatically by the renderer on first use
-    
-    // Apply initial font scale
+    // Don't call Build() - the backend handles it automatically on first render
+    // Just set the global scale
     float scale = (float)settings_.font_size / 16.0f;
     io.FontGlobalScale = scale;
 }
 
 void EditorApp::rebuild_fonts() {
-    // Use font global scale to adjust font size - more stable than rebuilding
     ImGuiIO& io = ImGui::GetIO();
     
-    // Get the base font size from settings
-    float base_size = (float)settings_.font_size;
+    // Update font size
+    settings_.font_size = font_size_temp_;
+    settings_.font_name = font_name_temp_;
     
-    // Calculate scale relative to default 16px
-    float scale = base_size / 16.0f;
+    // Clear and rebuild fonts
+    io.Fonts->Clear();
+    
+    ImFont* font = nullptr;
+    
+    // Try to load user-selected font
+    if (!settings_.font_name.empty()) {
+        #ifdef _WIN32
+        std::vector<std::string> exts = {".ttc", ".ttf", ".otf"}; // Try .ttc first
+        for (const auto& ext : exts) {
+            std::string path = "C:/Windows/Fonts/" + settings_.font_name + ext;
+            font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
+            if (font) break;
+        }
+        #endif
+    }
+    
+    // Fallback to default
+    if (!font) {
+        font = io.Fonts->AddFontDefault();
+    }
+    
+    // Don't call Build() - the backend handles it automatically
+    // Just apply scale
+    float scale = (float)settings_.font_size / 16.0f;
     io.FontGlobalScale = scale;
 }
 
@@ -897,7 +938,6 @@ void EditorApp::render() {
 
     render_menu_bar();
     render_editor_area();
-    if (settings_.show_status_bar) render_status_bar();
 
     // Dialogs
     if (show_find_) render_find_dialog();
@@ -908,6 +948,9 @@ void EditorApp::render() {
     if (show_cmd_palette_) render_command_palette();
 
     ImGui::End();
+
+    // Render status bar AFTER DockSpace ends to avoid nesting issues
+    if (settings_.show_status_bar) render_status_bar();
 }
 
 // ============================================================================
