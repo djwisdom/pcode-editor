@@ -133,7 +133,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
-    return "pCode Editor version 0.1.1 (55c4d44)";
+    return "pCode Editor version 0.1.6 (a10ed45)";
 }
 
 // ============================================================================
@@ -1364,6 +1364,17 @@ bool EditorApp::execute_vim_command(const std::string& cmd) {
         printf("%s\n", get_version().c_str());
         return true;
     }
+    if (command == "d" || command == "diag" || command == "diagnostics") {
+        printf("pCode Editor Diagnostics:\n");
+        printf("Version: %s\n", get_version().c_str());
+        printf("Tabs Open: %zu\n", tabs_.size());
+        printf("Tabs Dirty: ");
+        for (size_t i = 0; i < tabs_.size(); i++) {
+            if (tabs_[i].dirty) printf("%zu ", i);
+        }
+        printf("\n");
+        return true;
+    }
     
     if (command == "q") {
         close_tab(active_tab_);
@@ -1533,6 +1544,8 @@ void EditorApp::render() {
         if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab_as(active_tab_); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_window(); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_P)) { show_cmd_palette_ = true; return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_H)) { split_horizontal(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_V)) { split_vertical(); return; }
     }
     if (io.KeyCtrl && io.KeyAlt && !io.KeyShift) {
         if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_all(); return; }
@@ -1588,6 +1601,7 @@ void EditorApp::render() {
     ImGui::DockBuilderDockWindow("Editor", dockspace_id);
 
     render_menu_bar();
+    render_sidebar();
     render_editor_area();
 
     // Dialogs
@@ -1860,6 +1874,12 @@ void EditorApp::render_editor_with_margins() {
     TextEditor* editor = get_active_editor();
     if (!editor) return;
     
+    // Check if we have splits and render them
+    if (!tab.splits.empty()) {
+        render_splits(active_tab_);
+        return;
+    }
+    
     // Always show gutter for bookmarks (allows adding/removing bookmarks)
     // Also show change history when there are changes
     bool has_bookmarks = true; // Always show bookmark gutter
@@ -1912,6 +1932,130 @@ void EditorApp::render_editor_with_margins() {
     } else {
         // No gutter needed, just render editor
         editor->Render("TextEditor");
+    }
+}
+
+// ============================================================================
+// Sidebar with File Tree, Git, Symbols
+// ============================================================================
+void EditorApp::render_sidebar() {
+    if (!settings_.show_status_bar) return; // Only show with status bar
+    
+    ImGui::Begin("Explorer", nullptr, ImGuiWindowFlags_NoTitleBar);
+    
+    if (ImGui::BeginTabBar("##SidebarTabs")) {
+        if (ImGui::BeginTabItem("Explorer")) {
+            render_file_tree();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Git")) {
+            render_git_changes();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Outline")) {
+            render_symbol_outline();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+    ImGui::End();
+}
+
+void EditorApp::render_file_tree() {
+    ImGui::Text("Files");
+    ImGui::Separator();
+    
+    // Show current directory files
+    std::string dir_path = settings_.last_open_dir.empty() ? "." : settings_.last_open_dir;
+    if (std::filesystem::exists(dir_path) && std::filesystem::is_directory(dir_path)) {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+            std::string name = entry.path().filename().string();
+            if (entry.is_directory()) {
+                ImGui::TextColored(ImVec4(0.8f, 0.6f, 0.2f, 1.0f), "[%s]", name.c_str());
+            } else {
+                ImGui::Text("  %s", name.c_str());
+            }
+        }
+    } else {
+        ImGui::Text("(No directory)");
+        ImGui::Text("Set: :cd /path/to/dir");
+    }
+}
+
+void EditorApp::render_git_changes() {
+    ImGui::Text("Git: %s", git_branch_.c_str());
+    ImGui::Separator();
+    
+    std::vector<std::string> modified_files;
+    
+    // Check for .git directory
+    if (std::filesystem::exists(".git")) {
+        ImGui::Text("Changes:");
+        
+        // Scan current directory for git changes (simplified)
+        for (const auto& entry : std::filesystem::directory_iterator(".")) {
+            if (entry.is_regular_file()) {
+                std::string ext = entry.path().extension().string();
+                if (!ext.empty() && ext != ".git") {
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), " M %s", entry.path().filename().string().c_str());
+                }
+            }
+        }
+    } else {
+        ImGui::Text("(No git repo)");
+    }
+    
+    if (ImGui::Button("Refresh")) {
+        // Would refresh git status
+    }
+}
+
+void EditorApp::render_breadcrumb() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    
+    std::string path = tab.file_path.empty() ? "untitled" : tab.file_path;
+    ImGui::Text("%s", path.c_str());
+}
+
+void EditorApp::render_symbol_outline() {
+    ImGui::Text("Symbols");
+    ImGui::Separator();
+    
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) {
+        ImGui::Text("(No file open)");
+        return;
+    }
+    
+    TextEditor* ed = get_active_editor();
+    if (!ed) return;
+    
+    // Extract symbols from file content
+    std::string text = ed->GetText();
+    std::istringstream iss(text);
+    std::string line;
+    int line_num = 0;
+    
+    while (std::getline(iss, line) && line_num < 100) {
+        line_num++;
+        // Look for function definitions, classes, etc.
+        if (line.find("void ") != std::string::npos || 
+            line.find("int ") != std::string::npos ||
+            line.find("class ") != std::string::npos ||
+            line.find("struct ") != std::string::npos ||
+            line.find("func ") != std::string::npos ||
+            line.find("def ") != std::string::npos ||
+            line.find("fn ") != std::string::npos) {
+            // Trim and show
+            std::string symbol = line;
+            symbol.erase(0, symbol.find_first_not_of(" \t"));
+            if (symbol.length() > 40) symbol = symbol.substr(0, 40) + "...";
+            ImGui::Text("%d: %s", line_num, symbol.c_str());
+        }
+    }
+    
+    if (line_num == 0) {
+        ImGui::Text("(No symbols found)");
     }
 }
 
@@ -2521,6 +2665,8 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
+
 
 
 

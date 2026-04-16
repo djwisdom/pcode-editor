@@ -79,11 +79,37 @@ struct AppSettings {
     bool word_wrap = false;
     bool show_line_numbers = true;
     bool show_spaces = false;
-    int tab_size = 4;          // Tab size in spaces
+    int tab_size = 4;
     int font_size = 16;
-    std::string font_name = ""; // Font family name (empty = default)
-    std::vector<std::string> recent_files;  // Last 10
+    std::string font_name = "";
+    std::vector<std::string> recent_files;
     std::string last_open_dir;
+    
+    // Robustness & Self-healing
+    bool auto_save = true;                    // Auto-save drafts
+    int auto_save_interval = 30;             // Seconds between auto-save
+    int max_undo_levels = 1000;            // Undo history depth
+    bool create_backups = true;             // Create .bak files
+    bool validate_settings = true;          // Validate on load
+    
+    // Monitoring & Diagnostics
+    bool crash_reporting = true;           // Enable crash reports
+    bool usage_telemetry = false;          // Anonymous usage stats
+    bool health_checks = true;           // Periodic health checks
+    
+    // Forgiving UX
+    bool confirm_quit = false;            // Confirm before quit with unsaved
+    bool confirm_delete = true;            // Confirm file delete
+    bool confirm_overwrite = true;       // Confirm overwrite
+    
+    // User-centric preferences
+    bool remember_window_pos = true;       // Restore window position
+    bool remember_open_files = true;     // Restore open files on start
+    int max_recent_files = 10;
+    
+    // Maintenance
+    int max_backup_files = 5;           // Keep up to 5 backups
+    bool auto_update_check = true;       // Check for updates
 };
 
 // ============================================================================
@@ -103,6 +129,18 @@ private:
     void shutdown();
     void load_settings();
     void save_settings();
+    
+    // Robustness & Self-healing
+    void auto_save_timer();
+    void create_backup(const std::string& path);
+    bool validate_settings();
+    void recover_from_crash();
+    void run_health_check();
+    
+    // Monitoring & Assessment
+    void log_event(const std::string& event);
+    void check_for_updates();
+    std::string get_diagnostics();
 
     // Rendering
     void render();
@@ -114,6 +152,11 @@ private:
     void render_menu_recent();
     void render_editor_area();
     void render_status_bar();
+    void render_sidebar();
+    void render_file_tree();
+    void render_git_changes();
+    void render_breadcrumb();
+    void render_symbol_outline();
     void render_find_dialog();
     void render_replace_dialog();
     void render_goto_dialog();
@@ -203,6 +246,13 @@ private:
     bool show_font_ = false;
     bool show_cmd_palette_ = false;
     bool show_spaces_ = false;
+    
+    // Sidebar panels
+    bool show_file_tree_ = true;
+    bool show_git_changes_ = true;
+    bool show_symbol_outline_ = true;
+    std::string git_branch_ = "main";
+    std::vector<std::string> git_modified_files_;
 
     // Find state
     char find_text_[256] = {0};
@@ -239,6 +289,7 @@ private:
     char vim_last_find_char_ = 0;
     bool vim_last_find_reverse_ = false;
     std::string vim_command_buffer_;
+    char vim_command_input_[256] = "";
     bool execute_vim_command(const std::string& cmd);
     std::string vim_key_buffer_;
     
