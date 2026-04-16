@@ -429,6 +429,7 @@ void EditorApp::open_file(const std::string& path) {
     
     // Set active tab to newly opened file
     active_tab_ = tab_idx;
+    ImGui::SetWindowFocus("Editor");
 }
 
 bool EditorApp::save_tab(int idx) {
@@ -688,8 +689,6 @@ void EditorApp::zoom_reset() {
 
 void EditorApp::apply_zoom(int tab_idx) {
     if (tab_idx < 0 || tab_idx >= (int)tabs_.size()) return;
-    float scale = tabs_[tab_idx].zoom_pct / 100.0f;
-    ImGui::GetIO().FontGlobalScale = scale * (settings_.font_size / 16.0f);
 }
 
 void EditorApp::toggle_status_bar() {
@@ -976,11 +975,11 @@ void EditorApp::rebuild_fonts() {
 // ============================================================================
 const char* EditorApp::get_vim_mode_str() const {
     switch (vim_mode_) {
-        case VimMode::Normal: return "-- NORMAL --";
-        case VimMode::Insert: return "-- INSERT --";
-        case VimMode::Visual: return "-- VISUAL --";
-        case VimMode::VisualLine: return "-- VISUAL LINE --";
-        case VimMode::OperatorPending: return "-- OPERATOR PENDING --";
+        case VimMode::Normal: return "NORMAL";
+        case VimMode::Insert: return "INSERT";
+        case VimMode::Visual: return "VISUAL";
+        case VimMode::VisualLine: return "VISUAL LINE";
+        case VimMode::OperatorPending: return "OP PENDING";
         case VimMode::Command: return ":";
         default: return "";
     }
@@ -1884,8 +1883,9 @@ void EditorApp::render_editor_with_margins() {
     // Also show change history when there are changes
     bool has_bookmarks = true; // Always show bookmark gutter
     bool has_changes = !tab.changed_lines.empty();
+    bool show_gutter = (settings_.show_bookmark_margin && has_bookmarks) || (settings_.show_change_history && has_changes);
     
-    if (has_bookmarks || has_changes) {
+    if (show_gutter) {
         float gutter_width = 40.0f;
         
         ImGui::BeginGroup();
@@ -1895,23 +1895,37 @@ void EditorApp::render_editor_with_margins() {
         
         // Render gutter for bookmarks and change history
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2f, 0.2f, 0.24f, 1.0f));
-        if (ImGui::BeginChild("##Gutter", ImVec2(gutter_width, -1), false, ImGuiWindowFlags_NoScrollbar)) {
+        if (ImGui::BeginChild("##Gutter", ImVec2(gutter_width, -1), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar)) {
+            if (ImGui::BeginPopupContextItem("##GutterPopup")) {
+                if (ImGui::MenuItem("Fold All", nullptr, nullptr)) { fold_all(); }
+                if (ImGui::MenuItem("Unfold All", nullptr, nullptr)) { unfold_all(); }
+                ImGui::Separator();
+                ImGui::MenuItem("Line Numbers", nullptr, &settings_.show_line_numbers);
+                ImGui::MenuItem("Bookmark Margin", nullptr, &settings_.show_bookmark_margin);
+                ImGui::MenuItem("Change History", nullptr, &settings_.show_change_history);
+                ImGui::EndPopup();
+            }
+            
             for (int line = 0; line < total_lines; line++) {
                 ImGui::PushID(line);
                 
                 // Bookmark column - clickable to toggle
-                bool is_bookmarked = std::find(tab.bookmarks.begin(), tab.bookmarks.end(), line) != tab.bookmarks.end();
-                if (is_bookmarked) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), ""); // Checkmark symbol
-                } else {
-                    ImGui::Text("");
+                if (settings_.show_bookmark_margin) {
+                    bool is_bookmarked = std::find(tab.bookmarks.begin(), tab.bookmarks.end(), line) != tab.bookmarks.end();
+                    if (is_bookmarked) {
+                        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), ""); // Checkmark symbol
+                    } else {
+                        ImGui::Text("");
+                    }
                 }
                 ImGui::SameLine();
                 
                 // Change history column (highlight modified lines)
-                bool is_changed = std::find(tab.changed_lines.begin(), tab.changed_lines.end(), line) != tab.changed_lines.end();
-                if (is_changed) {
-                    ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), ""); // Dot symbol
+                if (settings_.show_change_history) {
+                    bool is_changed = std::find(tab.changed_lines.begin(), tab.changed_lines.end(), line) != tab.changed_lines.end();
+                    if (is_changed) {
+                        ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), ""); // Dot symbol
+                    }
                 }
                 
                 ImGui::PopID();
@@ -1971,9 +1985,25 @@ void EditorApp::render_file_tree() {
         for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
             std::string name = entry.path().filename().string();
             if (entry.is_directory()) {
-                ImGui::TextColored(ImVec4(0.8f, 0.6f, 0.2f, 1.0f), "[%s]", name.c_str());
+                if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
+                    // Could implement folder navigation here
+                }
             } else {
-                ImGui::Text("  %s", name.c_str());
+                std::string full_path = entry.path().string();
+                if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
+                    // Check if already open
+                    bool already_open = false;
+                    for (size_t i = 0; i < tabs_.size(); i++) {
+                        if (tabs_[i].file_path == full_path) {
+                            active_tab_ = i;
+                            already_open = true;
+                            break;
+                        }
+                    }
+if (!already_open) {
+                        open_file(full_path);
+                    }
+                }
             }
         }
     } else {
@@ -2064,16 +2094,19 @@ void EditorApp::render_symbol_outline() {
 // ============================================================================
 void EditorApp::render_status_bar() {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float height = ImGui::GetFrameHeight();
+    float line_height = 22;
+    float height = line_height * 2;
 
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + viewport->Size.y - height));
     ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, height));
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings
-                           | ImGuiWindowFlags_NoDocking;
+                           | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar
+                           | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 2));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 
     if (ImGui::Begin("StatusBar", nullptr, flags)) {
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
@@ -2081,28 +2114,15 @@ void EditorApp::render_status_bar() {
             TextEditor* editor = get_active_editor();
             auto pos = editor ? editor->GetCursorPosition() : TextEditor::Coordinates();
 
-            // Left section: filename with dirty indicator
-            const char* dirty_indicator = tab.dirty ? "[+]" : "";
-            ImGui::Text("%s%s", tab.display_name.c_str(), dirty_indicator);
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20);
+            ImGui::SetCursorPosY(3);
 
-            // Vim mode display
-            if (vim_mode_ == VimMode::Command) {
-                ImGui::Text("%s", vim_command_buffer_.c_str());
-                ImGui::SameLine();
-                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20);
-            } else if (vim_mode_ != VimMode::Normal) {
-                ImGui::Text("%s", get_vim_mode_str());
-                ImGui::SameLine();
-                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20);
-            }
+            const char* mode_str = get_vim_mode_str();
+            const char* dirty_indicator = tab.dirty ? "*" : "";
+            ImGui::Text("%s \xc2\xb7 %s%s", mode_str, tab.display_name.c_str(), dirty_indicator);
 
-            // Right section - calculate position
             float win_width = ImGui::GetWindowWidth();
-            float right_x = win_width - 380;
+            float right_x = win_width - 420;
 
-            // Cursor position: Ln, Col
             ImGui::SetCursorPosX(right_x);
             ImGui::Text("Ln %d", pos.mLine + 1);
             ImGui::SameLine();
@@ -2110,25 +2130,17 @@ void EditorApp::render_status_bar() {
             ImGui::Text("Col %d", pos.mColumn + 1);
             ImGui::SameLine();
             ImGui::SetCursorPosX(right_x + 110);
-
-            // Current line percentage
             int total_lines = editor ? editor->GetTotalLines() : 1;
             int line_pct = total_lines > 0 ? (int)((pos.mLine + 1) * 100.0f / total_lines) : 0;
             ImGui::Text("%d%%", line_pct);
             ImGui::SameLine();
             ImGui::SetCursorPosX(right_x + 150);
-
-            // Encoding
             ImGui::Text("%s", tab.file_encoding.c_str());
             ImGui::SameLine();
             ImGui::SetCursorPosX(right_x + 200);
-
-            // Line ending
             ImGui::Text("%s", tab.line_ending.c_str());
             ImGui::SameLine();
             ImGui::SetCursorPosX(right_x + 240);
-
-            // File size
             if (tab.file_size > 1024 * 1024) {
                 ImGui::Text("%.1fMB", tab.file_size / (1024.0 * 1024.0));
             } else if (tab.file_size > 1024) {
@@ -2138,19 +2150,20 @@ void EditorApp::render_status_bar() {
             }
             ImGui::SameLine();
             ImGui::SetCursorPosX(right_x + 300);
-
-            // Tab size
             ImGui::Text("Tab: %d", settings_.tab_size);
             ImGui::SameLine();
             ImGui::SetCursorPosX(right_x + 360);
-
-            // Zoom
             ImGui::Text("%d%%", tab.zoom_pct);
+
+            ImGui::SetCursorPosY(line_height + 3);
+
+            const char* cmd = vim_mode_ == VimMode::Command ? vim_command_buffer_.c_str() : "";
+            ImGui::Text("%s", cmd);
         }
 
         ImGui::End();
     }
-    ImGui::PopStyleVar(2);
+    ImGui::PopStyleVar(3);
 }
 
 // ============================================================================
@@ -2456,15 +2469,21 @@ TextEditor* EditorApp::get_active_editor() {
 void EditorApp::split_horizontal() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     auto& tab = tabs_[active_tab_];
-    
     TextEditor* active_editor = get_active_editor();
+    if (!active_editor) return;
     
-    // Create new split that shares the editor (Vim-like)
+    TextEditor* ed = new TextEditor();
+    ed->SetText(active_editor->GetText());
+    auto lang = active_editor->GetLanguageDefinition();
+    ed->SetLanguageDefinition(lang);
+    ed->SetPalette(active_editor->GetPalette());
+    ed->SetTabSize(active_editor->GetTabSize());
+    
     Split* split = new Split();
-    split->editor = active_editor;  // Share the same editor
-    split->editor_owned = false;    // Don't delete - shared with tab.editor or another split
+    split->editor = ed;
+    split->editor_owned = true;
     split->is_horizontal = true;
-    split->ratio = 0.5f;
+    split->ratio = (float)(1.0 / (tab.splits.size() + 1));
     
     tab.splits.push_back(split);
     tab.active_split = (int)tab.splits.size() - 1;
@@ -2473,15 +2492,21 @@ void EditorApp::split_horizontal() {
 void EditorApp::split_vertical() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     auto& tab = tabs_[active_tab_];
-    
     TextEditor* active_editor = get_active_editor();
+    if (!active_editor) return;
     
-    // Create new split that shares the editor (Vim-like)
+    TextEditor* ed = new TextEditor();
+    ed->SetText(active_editor->GetText());
+    auto lang = active_editor->GetLanguageDefinition();
+    ed->SetLanguageDefinition(lang);
+    ed->SetPalette(active_editor->GetPalette());
+    ed->SetTabSize(active_editor->GetTabSize());
+    
     Split* split = new Split();
-    split->editor = active_editor;  // Share the same editor
-    split->editor_owned = false;    // Don't delete - shared with tab.editor or another split
+    split->editor = ed;
+    split->editor_owned = true;
     split->is_horizontal = false;
-    split->ratio = 0.5f;
+    split->ratio = (float)(1.0 / (tab.splits.size() + 1));
     
     tab.splits.push_back(split);
     tab.active_split = (int)tab.splits.size() - 1;
@@ -2556,13 +2581,19 @@ void EditorApp::render_splits(int tab_idx) {
     if (tab_idx < 0 || tab_idx >= (int)tabs_.size()) return;
     auto& tab = tabs_[tab_idx];
     
+    float scale = tab.zoom_pct / 100.0f;
+    float old_scale = ImGui::GetIO().FontGlobalScale;
+    ImGui::GetIO().FontGlobalScale = old_scale * scale;
+    
     if (tab.splits.empty()) {
         tab.editor->Render("TextEditor");
+        ImGui::GetIO().FontGlobalScale = old_scale;
         return;
     }
     
     if (tab.splits.size() == 1) {
         tab.splits[0]->editor->Render("TextEditor");
+        ImGui::GetIO().FontGlobalScale = old_scale;
         return;
     }
     
@@ -2665,6 +2696,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 

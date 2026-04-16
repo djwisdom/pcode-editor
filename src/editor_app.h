@@ -78,6 +78,8 @@ struct AppSettings {
     bool show_status_bar = true;
     bool word_wrap = false;
     bool show_line_numbers = true;
+    bool show_bookmark_margin = true;
+    bool show_change_history = true;
     bool show_spaces = false;
     int tab_size = 4;
     int font_size = 16;
