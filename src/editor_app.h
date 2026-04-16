@@ -23,6 +23,9 @@ struct EditorTab {
     std::vector<int> changed_lines;  // Lines with changes (for change history)
     int last_saved_line_count = 0;  // Line count when last saved
     
+    // Code folding
+    std::vector<std::pair<int, int>> folds;  // (start_line, end_line) pairs
+    
     // Per-tab state
     float scroll_x = 0.0f;
     float scroll_y = 0.0f;
@@ -125,6 +128,11 @@ private:
     // Change history
     void update_change_history();
     void clear_change_history();
+
+    // Code folding
+    void toggle_fold(int line);
+    void fold_all();
+    void unfold_all();
 
     // Gutter rendering
     void render_gutter(int tab_idx, float width);

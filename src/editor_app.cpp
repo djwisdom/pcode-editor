@@ -740,6 +740,75 @@ void EditorApp::clear_bookmarks() {
 }
 
 // ============================================================================
+// Code Folding
+// ============================================================================
+void EditorApp::toggle_fold(int line) {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& folds = tabs_[active_tab_].folds;
+    
+    // Check if there's already a fold starting at this line
+    for (auto it = folds.begin(); it != folds.end(); ++it) {
+        if (it->first == line) {
+            folds.erase(it);
+            return;
+        }
+    }
+    
+    // Find matching closing brace
+    auto& editor = *tabs_[active_tab_].editor;
+    int total_lines = editor.GetTotalLines();
+    int brace_count = 0;
+    int end_line = line;
+    
+    for (int i = line; i < total_lines; i++) {
+        std::string text = editor.GetTextLines()[i];
+        for (char c : text) {
+            if (c == '{') brace_count++;
+            else if (c == '}') brace_count--;
+        }
+        if (brace_count <= 0 && i > line) {
+            end_line = i;
+            break;
+        }
+    }
+    
+    if (end_line > line) {
+        folds.push_back({line, end_line});
+    }
+}
+
+void EditorApp::fold_all() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    tab.folds.clear();
+    
+    auto& editor = *tab.editor;
+    auto& lines = editor.GetTextLines();
+    int brace_count = 0;
+    int fold_start = -1;
+    
+    for (int i = 0; i < (int)lines.size(); i++) {
+        for (char c : lines[i]) {
+            if (c == '{') {
+                if (brace_count == 0) fold_start = i;
+                brace_count++;
+            } else if (c == '}') {
+                brace_count--;
+                if (brace_count == 0 && fold_start >= 0 && i > fold_start) {
+                    tab.folds.push_back({fold_start, i});
+                    fold_start = -1;
+                }
+            }
+        }
+    }
+}
+
+void EditorApp::unfold_all() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    tabs_[active_tab_].folds.clear();
+}
+
+// ============================================================================
 // Change History
 // ============================================================================
 void EditorApp::update_change_history() {
@@ -773,10 +842,10 @@ void EditorApp::load_fonts() {
     
     ImFont* font = nullptr;
     
-    // Try to load user-selected font
+    // Try to load user-selected font (prefer .ttf for better compatibility)
     if (!settings_.font_name.empty()) {
         #ifdef _WIN32
-        std::vector<std::string> exts = {".ttc", ".ttf", ".otf"};
+        std::vector<std::string> exts = {".ttf", ".otf", ".ttc"}; // Try ttf first
         for (const auto& ext : exts) {
             std::string path = "C:/Windows/Fonts/" + settings_.font_name + ext;
             font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
@@ -785,7 +854,7 @@ void EditorApp::load_fonts() {
         #endif
     }
     
-    // Fallback to default
+    // Fallback to built-in default (not system font)
     if (!font) {
         font = io.Fonts->AddFontDefault();
         // Clear font name since we couldn't load the requested one
@@ -810,10 +879,10 @@ void EditorApp::rebuild_fonts() {
     
     ImFont* font = nullptr;
     
-    // Try to load user-selected font
+    // Try to load user-selected font (prefer .ttf for better compatibility)
     if (!font_name_temp_.empty()) {
         #ifdef _WIN32
-        std::vector<std::string> exts = {".ttc", ".ttf", ".otf"};
+        std::vector<std::string> exts = {".ttf", ".otf", ".ttc"};
         for (const auto& ext : exts) {
             std::string path = "C:/Windows/Fonts/" + font_name_temp_ + ext;
             font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
@@ -826,7 +895,7 @@ void EditorApp::rebuild_fonts() {
         #endif
     }
     
-    // Fallback to default if couldn't load
+    // Fallback to built-in default if couldn't load
     if (!font) {
         font = io.Fonts->AddFontDefault();
         // Clear - couldn't load the requested font
@@ -1076,17 +1145,29 @@ void EditorApp::render_menu_view() {
         if (ImGui::MenuItem("Line Numbers", nullptr, &ln)) toggle_line_numbers();
         bool sp = settings_.show_spaces;
         if (ImGui::MenuItem("Show Spaces", nullptr, &sp)) toggle_spaces();
-        ImGui::Separator();
+ImGui::Separator();
         if (ImGui::BeginMenu("Spaces")) {
             if (ImGui::MenuItem("2 Spaces", nullptr, settings_.tab_size == 2)) set_tab_size(2);
             if (ImGui::MenuItem("4 Spaces", nullptr, settings_.tab_size == 4)) set_tab_size(4);
             if (ImGui::MenuItem("8 Spaces", nullptr, settings_.tab_size == 8)) set_tab_size(8);
-            if (ImGui::MenuItem("Custom...")) { show_spaces_ = true; tab_size_temp_ = settings_.tab_size; }
+            if (ImGui::MenuItem("Custom...")) { show_spaces_dialog_ = true; tab_size_temp_ = settings_.tab_size; }
+            ImGui::EndMenu();
+        }
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Code Folding")) {
+            if (ImGui::MenuItem("Fold All", "Ctrl+Shift+[")) fold_all();
+            if (ImGui::MenuItem("Unfold All", "Ctrl+Shift+]")) unfold_all();
+            if (ImGui::MenuItem("Toggle Fold", "Ctrl+[")) {
+                if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                    auto pos = tabs_[active_tab_].editor->GetCursorPosition();
+                    toggle_fold(pos.mLine);
+                }
+            }
             ImGui::EndMenu();
         }
         ImGui::Separator();
         if (ImGui::MenuItem(settings_.dark_theme ? "Light Theme" : "Dark Theme")) toggle_theme();
-        ImGui::EndMenu();
+ImGui::EndMenu();
     }
 }
 
