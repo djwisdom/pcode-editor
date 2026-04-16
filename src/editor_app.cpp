@@ -850,8 +850,11 @@ void EditorApp::load_fonts() {
         
         for (const auto& ext : exts) {
             std::string path = "C:\\Windows\\Fonts\\" + name + ext;
-            font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
-            if (font) break;
+            // Check if file exists before trying to load
+            if (GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
+                font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
+                if (font) break;
+            }
         }
         // If couldn't load, clear the font name
         if (!font) {
@@ -891,10 +894,12 @@ void EditorApp::rebuild_fonts() {
         
         for (const auto& ext : exts) {
             std::string path = "C:\\Windows\\Fonts\\" + name + ext;
-            font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
-            if (font) {
-                settings_.font_name = font_name_temp_;
-                break;
+            if (GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
+                font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
+                if (font) {
+                    settings_.font_name = font_name_temp_;
+                    break;
+                }
             }
         }
         #endif
