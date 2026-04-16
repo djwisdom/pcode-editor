@@ -1,5 +1,10 @@
 #pragma once
 
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2026 pCode Editor Development Team
+// Author: Dennis O. Esternon <djwisdom@serenityos.org>
+// Contributors: see CONTRIBUTORS or git history
+
 #include <string>
 #include <vector>
 #include <memory>
