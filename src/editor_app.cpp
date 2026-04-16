@@ -303,6 +303,14 @@ void EditorApp::new_tab() {
     tab.editor->SetText("");
     tabs_.push_back(std::move(tab));
     active_tab_ = (int)tabs_.size() - 1;
+    
+    // Create initial split for the tab
+    Split* split = new Split();
+    split->editor = get_active_editor();
+    split->is_horizontal = true;
+    split->ratio = 1.0f;
+    tabs_[active_tab_].splits.push_back(split);
+    tabs_[active_tab_].active_split = 0;
 }
 
 void EditorApp::new_window() {
@@ -490,7 +498,7 @@ void EditorApp::add_recent_file(const std::string& path) {
 // ============================================================================
 void EditorApp::find_next() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
-    TextEditor* ed = tabs_[active_tab_].editor;
+    TextEditor* ed = get_active_editor();
     std::string text = ed->GetText();
     std::string search = find_text_;
     if (!find_match_case_) {
@@ -531,7 +539,7 @@ void EditorApp::find_next() {
 void EditorApp::find_prev() {
     // Similar to find_next but search backwards
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
-    TextEditor* ed = tabs_[active_tab_].editor;
+    TextEditor* ed = get_active_editor();
     std::string text = ed->GetText();
     std::string search = find_text_;
     if (!find_match_case_) {
@@ -562,7 +570,7 @@ void EditorApp::find_prev() {
 
 void EditorApp::replace_one() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
-    TextEditor* ed = tabs_[active_tab_].editor;
+    TextEditor* ed = get_active_editor();
     std::string text = ed->GetText();
     std::string search = find_text_;
     if (!find_match_case_) {
@@ -587,7 +595,7 @@ void EditorApp::replace_one() {
 
 void EditorApp::replace_all() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
-    TextEditor* ed = tabs_[active_tab_].editor;
+    TextEditor* ed = get_active_editor();
     std::string text = ed->GetText();
     std::string search = find_text_;
     std::string repl = replace_text_;
@@ -711,12 +719,12 @@ void EditorApp::next_bookmark() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     auto& bookmarks = tabs_[active_tab_].bookmarks;
     if (bookmarks.empty()) return;
-    auto pos = tabs_[active_tab_].editor->GetCursorPosition().mLine;
+    auto pos = get_active_editor()->GetCursorPosition().mLine;
     auto it = std::upper_bound(bookmarks.begin(), bookmarks.end(), pos);
     if (it != bookmarks.end()) {
-        tabs_[active_tab_].editor->SetCursorPosition(TextEditor::Coordinates(*it, 0));
+        get_active_editor()->SetCursorPosition(TextEditor::Coordinates(*it, 0));
     } else if (!bookmarks.empty()) {
-        tabs_[active_tab_].editor->SetCursorPosition(TextEditor::Coordinates(bookmarks[0], 0));
+        get_active_editor()->SetCursorPosition(TextEditor::Coordinates(bookmarks[0], 0));
     }
 }
 
@@ -724,13 +732,13 @@ void EditorApp::prev_bookmark() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     auto& bookmarks = tabs_[active_tab_].bookmarks;
     if (bookmarks.empty()) return;
-    auto pos = tabs_[active_tab_].editor->GetCursorPosition().mLine;
+    auto pos = get_active_editor()->GetCursorPosition().mLine;
     auto it = std::lower_bound(bookmarks.begin(), bookmarks.end(), pos);
     if (it != bookmarks.begin()) {
         --it;
-        tabs_[active_tab_].editor->SetCursorPosition(TextEditor::Coordinates(*it, 0));
+        get_active_editor()->SetCursorPosition(TextEditor::Coordinates(*it, 0));
     } else {
-        tabs_[active_tab_].editor->SetCursorPosition(TextEditor::Coordinates(bookmarks.back(), 0));
+        get_active_editor()->SetCursorPosition(TextEditor::Coordinates(bookmarks.back(), 0));
     }
 }
 
@@ -755,7 +763,7 @@ void EditorApp::toggle_fold(int line) {
     }
     
     // Find matching closing brace
-    auto& editor = *tabs_[active_tab_].editor;
+    auto& editor = *get_active_editor();
     int total_lines = editor.GetTotalLines();
     int brace_count = 0;
     int end_line = line;
@@ -915,7 +923,7 @@ void EditorApp::rebuild_fonts() {
     font_size_temp_ = settings_.font_size;
     font_name_temp_ = settings_.font_name;
     
-float scale = (float)settings_.font_size / 16.0f;
+    float scale = (float)settings_.font_size / 16.0f;
     io.FontGlobalScale = scale;
 }
 
@@ -935,7 +943,8 @@ const char* EditorApp::get_vim_mode_str() const {
 
 void EditorApp::handle_vim_key(int key, int mods) {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
-    TextEditor* ed = tabs_[active_tab_].editor;
+    TextEditor* ed = get_active_editor();
+    if (!ed) return;
     auto pos = ed->GetCursorPosition();
     int line = pos.mLine;
     int col = pos.mColumn;
@@ -1270,7 +1279,7 @@ void EditorApp::render() {
         if (ImGui::IsKeyPressed(ImGuiKey_G)) { show_goto_ = true; return; }
         if (ImGui::IsKeyPressed(ImGuiKey_A)) { 
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                tabs_[active_tab_].editor->SelectAll(); 
+                get_active_editor()->SelectAll(); 
             }
             return; 
         }
@@ -1288,7 +1297,7 @@ void EditorApp::render() {
         if (ImGui::IsKeyPressed(ImGuiKey_F3)) { find_next(); return; }
         if (ImGui::IsKeyPressed(ImGuiKey_F2)) { 
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                auto pos = tabs_[active_tab_].editor->GetCursorPosition();
+                auto pos = get_active_editor()->GetCursorPosition();
                 toggle_bookmark(pos.mLine);
             }
             return; 
@@ -1299,7 +1308,7 @@ void EditorApp::render() {
                 auto t = std::chrono::system_clock::to_time_t(now);
                 char buf[64];
                 strftime(buf, sizeof(buf), "%H:%M %Y-%m-%d", localtime(&t));
-                tabs_[active_tab_].editor->InsertText(buf);
+                get_active_editor()->InsertText(buf);
                 tabs_[active_tab_].dirty = true;
             }
             return;
@@ -1399,28 +1408,28 @@ void EditorApp::render_menu_edit() {
     if (ImGui::BeginMenu("Edit")) {
         if (ImGui::MenuItem("Undo", "Ctrl+Z")) { 
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                tabs_[active_tab_].editor->Undo(); 
+                get_active_editor()->Undo(); 
             }
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Cut", "Ctrl+X")) { 
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                tabs_[active_tab_].editor->Cut(); 
+                get_active_editor()->Cut(); 
             }
         }
         if (ImGui::MenuItem("Copy", "Ctrl+C")) { 
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                tabs_[active_tab_].editor->Copy(); 
+                get_active_editor()->Copy(); 
             }
         }
         if (ImGui::MenuItem("Paste", "Ctrl+V")) { 
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                tabs_[active_tab_].editor->Paste(); 
+                get_active_editor()->Paste(); 
             }
         }
         if (ImGui::MenuItem("Delete", "Del")) { 
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                tabs_[active_tab_].editor->Delete(); 
+                get_active_editor()->Delete(); 
             }
         }
         ImGui::Separator();
@@ -1432,7 +1441,7 @@ void EditorApp::render_menu_edit() {
         ImGui::Separator();
         if (ImGui::MenuItem("Select All", "Ctrl+A")) { 
             if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                tabs_[active_tab_].editor->SelectAll(); 
+                get_active_editor()->SelectAll(); 
             }
         }
         if (ImGui::MenuItem("Time/Date", "F5")) {
@@ -1441,7 +1450,7 @@ void EditorApp::render_menu_edit() {
                 auto t = std::chrono::system_clock::to_time_t(now);
                 char buf[64];
                 strftime(buf, sizeof(buf), "%H:%M %Y-%m-%d", localtime(&t));
-                tabs_[active_tab_].editor->InsertText(buf);
+                get_active_editor()->InsertText(buf);
                 tabs_[active_tab_].dirty = true;
             }
         }
@@ -1482,10 +1491,21 @@ ImGui::Separator();
             if (ImGui::MenuItem("Unfold All", "Ctrl+Shift+]")) unfold_all();
             if (ImGui::MenuItem("Toggle Fold", "Ctrl+[")) {
                 if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                    auto pos = tabs_[active_tab_].editor->GetCursorPosition();
+                    auto pos = get_active_editor()->GetCursorPosition();
                     toggle_fold(pos.mLine);
                 }
             }
+            ImGui::EndMenu();
+        }
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Split")) {
+            if (ImGui::MenuItem("Split Horizontal", "Ctrl+Shift+H")) split_horizontal();
+            if (ImGui::MenuItem("Split Vertical", "Ctrl+Shift+V")) split_vertical();
+            ImGui::Separator();
+            if (ImGui::MenuItem("Close Split", "Ctrl+W")) close_split();
+            ImGui::Separator();
+            if (ImGui::MenuItem("Next Split", "Ctrl+K")) next_split();
+            if (ImGui::MenuItem("Previous Split", "Ctrl+J")) prev_split();
             ImGui::EndMenu();
         }
         ImGui::Separator();
@@ -1561,7 +1581,8 @@ void EditorApp::render_editor_area() {
 void EditorApp::render_editor_with_margins() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     auto& tab = tabs_[active_tab_];
-    TextEditor* editor = tab.editor;
+    TextEditor* editor = get_active_editor();
+    if (!editor) return;
     
     // Always show gutter for bookmarks (allows adding/removing bookmarks)
     // Also show change history when there are changes
@@ -1637,7 +1658,8 @@ void EditorApp::render_status_bar() {
     if (ImGui::Begin("StatusBar", nullptr, flags)) {
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
             auto& tab = tabs_[active_tab_];
-            auto pos = tab.editor->GetCursorPosition();
+            TextEditor* editor = get_active_editor();
+            auto pos = editor ? editor->GetCursorPosition() : TextEditor::Coordinates();
 
             // Left: file name
             ImGui::Text("%s%s", tab.display_name.c_str(), tab.dirty ? " *" : "");
@@ -1755,7 +1777,7 @@ void EditorApp::render_goto_dialog() {
                              ImGuiInputTextFlags_EnterReturnsTrue)) {
             int line = atoi(goto_line_buf_);
             if (line > 0 && active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                tabs_[active_tab_].editor->SetCursorPosition(
+                get_active_editor()->SetCursorPosition(
                     TextEditor::Coordinates(line - 1, 0));
             }
             show_goto_ = false;
@@ -1764,7 +1786,7 @@ void EditorApp::render_goto_dialog() {
         if (ImGui::Button("Go")) {
             int line = atoi(goto_line_buf_);
             if (line > 0 && active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                tabs_[active_tab_].editor->SetCursorPosition(
+                get_active_editor()->SetCursorPosition(
                     TextEditor::Coordinates(line - 1, 0));
             }
             show_goto_ = false;
@@ -1955,5 +1977,115 @@ void EditorApp::render_spaces_dialog() {
         if (ImGui::Button("Cancel")) show_spaces_dialog_ = false;
 
         ImGui::EndPopup();
+    }
+}
+
+// ============================================================================
+// Splits
+// ============================================================================
+TextEditor* EditorApp::get_active_editor() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return nullptr;
+    auto& tab = tabs_[active_tab_];
+    if (tab.splits.empty()) return tab.editor;
+    return tab.splits[tab.active_split]->editor;
+}
+
+void EditorApp::split_horizontal() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    
+    TextEditor* new_editor = new TextEditor();
+    new_editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
+    new_editor->SetTabSize(settings_.tab_size);
+    
+    TextEditor* active_editor = get_active_editor();
+    if (active_editor) {
+        new_editor->SetText(active_editor->GetText());
+    }
+    
+    Split* split = new Split();
+    split->editor = new_editor;
+    split->is_horizontal = true;
+    split->ratio = 0.5f;
+    
+    tab.splits.push_back(split);
+    tab.active_split = (int)tab.splits.size() - 1;
+}
+
+void EditorApp::split_vertical() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    
+    TextEditor* new_editor = new TextEditor();
+    new_editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
+    new_editor->SetTabSize(settings_.tab_size);
+    
+    TextEditor* active_editor = get_active_editor();
+    if (active_editor) {
+        new_editor->SetText(active_editor->GetText());
+    }
+    
+    Split* split = new Split();
+    split->editor = new_editor;
+    split->is_horizontal = false;
+    split->ratio = 0.5f;
+    
+    tab.splits.push_back(split);
+    tab.active_split = (int)tab.splits.size() - 1;
+}
+
+void EditorApp::close_split() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    
+    if (tab.splits.size() <= 1) return;
+    
+    Split* split = tab.splits[tab.active_split];
+    delete split->editor;
+    delete split;
+    
+    tab.splits.erase(tab.splits.begin() + tab.active_split);
+    
+    if (tab.active_split >= (int)tab.splits.size()) {
+        tab.active_split = (int)tab.splits.size() - 1;
+    }
+}
+
+void EditorApp::next_split() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    if (tab.splits.empty()) return;
+    
+    tab.active_split = (tab.active_split + 1) % (int)tab.splits.size();
+}
+
+void EditorApp::prev_split() {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    if (tab.splits.empty()) return;
+    
+    tab.active_split = (tab.active_split - 1 + (int)tab.splits.size()) % (int)tab.splits.size();
+}
+
+void EditorApp::render_splits(int tab_idx) {
+    if (tab_idx < 0 || tab_idx >= (int)tabs_.size()) return;
+    auto& tab = tabs_[tab_idx];
+    
+    if (tab.splits.empty()) {
+        tab.editor->Render("TextEditor");
+        return;
+    }
+    
+    if (tab.splits.size() == 1) {
+        tab.splits[0]->editor->Render("TextEditor");
+        return;
+    }
+    
+    // Multiple splits - for now show active split only (simplified)
+    // Full split rendering needs ImGui splitters for resize
+    for (int i = 0; i < (int)tab.splits.size(); i++) {
+        if (i == tab.active_split) {
+            tab.splits[i]->editor->Render("TextEditor");
+        }
     }
 }

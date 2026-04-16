@@ -7,6 +7,21 @@
 
 struct GLFWwindow;
 class TextEditor;
+struct ImVec2;
+
+// ============================================================================
+// Split — represents a split view within a tab
+// ============================================================================
+struct Split {
+    TextEditor* editor = nullptr;  // The editor for this split
+    float size_x = 0.0f;           // Width (for vertical splits) or stored ratio
+    float size_y = 0.0f;           // Height (for horizontal splits)
+    bool is_active = true;         // Is this split focused
+    
+    // Split layout info
+    bool is_horizontal = true;    // true = horizontal (top/bottom), false = vertical (left/right)
+    float ratio = 0.5f;            // Size ratio relative to container (0.0-1.0)
+};
 
 // ============================================================================
 // Tab — represents one open file
@@ -29,6 +44,10 @@ struct EditorTab {
     // Per-tab state
     float scroll_x = 0.0f;
     float scroll_y = 0.0f;
+    
+    // Splits
+    std::vector<class Split*> splits;
+    int active_split = 0;
 };
 
 struct ChangeHistoryEntry {
@@ -205,4 +224,13 @@ private:
     char vim_last_find_char_ = 0;
     bool vim_last_find_reverse_ = false;
     std::string vim_key_buffer_;
+    
+    // Splits
+    TextEditor* get_active_editor();
+    void split_horizontal();
+    void split_vertical();
+    void close_split();
+    void next_split();
+    void prev_split();
+    void render_splits(int tab_idx);
 };
