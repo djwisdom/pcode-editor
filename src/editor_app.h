@@ -84,6 +84,7 @@ struct AppSettings {
     bool show_spaces = false;
     int tab_size = 4;
     int font_size = 18;
+    int highlight_line = 1;  // 0=none, 1=background, 2=outline
     std::string font_name = "";
     std::vector<std::string> recent_files;
     std::string last_open_dir;

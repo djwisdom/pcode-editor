@@ -69,6 +69,7 @@ static void settings_save(const AppSettings& s, const std::string& path) {
     f << "  \"word_wrap\": " << (s.word_wrap ? "true" : "false") << ",\n";
     f << "  \"show_line_numbers\": " << (s.show_line_numbers ? "true" : "false") << ",\n";
     f << "  \"show_spaces\": " << (s.show_spaces ? "true" : "false") << ",\n";
+    f << "  \"highlight_line\": " << s.highlight_line << ",\n";
     f << "  \"tab_size\": " << s.tab_size << ",\n";
     f << "  \"font_size\": " << s.font_size << ",\n";
     f << "  \"font_name\": \"" << json_escape(s.font_name) << "\",\n";
@@ -122,6 +123,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.show_bookmark_margin = get_bool("show_bookmark_margin", true);
     s.show_change_history = get_bool("show_change_history", true);
     s.show_spaces = get_bool("show_spaces", false);
+    s.highlight_line = get_int("highlight_line", 1);
     s.tab_size = get_int("tab_size", 4);
     s.font_size = get_int("font_size", 16);
     s.font_name = get_str("font_name");
@@ -1809,6 +1811,12 @@ void EditorApp::render_menu_view() {
             if (ImGui::MenuItem("Custom...")) { show_spaces_dialog_ = true; tab_size_temp_ = settings_.tab_size; }
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Highlight Current Line")) {
+            if (ImGui::MenuItem("No highlight", nullptr, settings_.highlight_line == 0)) settings_.highlight_line = 0;
+            if (ImGui::MenuItem("Background color", nullptr, settings_.highlight_line == 1)) settings_.highlight_line = 1;
+            if (ImGui::MenuItem("Outline frame", nullptr, settings_.highlight_line == 2)) settings_.highlight_line = 2;
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
         if (ImGui::BeginMenu("Code Folding")) {
             if (ImGui::MenuItem("Fold All", "Ctrl+Shift+[")) fold_all();
@@ -2019,12 +2027,68 @@ void EditorApp::render_editor_with_margins() {
         // Render the text editor
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
         editor->Render("TextEditor");
+        
+        // Render current line highlight
+        if (settings_.highlight_line > 0 && editor_focused_) {
+            auto cursor = editor->GetCursorPosition();
+            auto lines = editor->GetTextLines();
+            if (cursor.mLine < (int)lines.size()) {
+                // Approximate line height in the editor
+                float line_height = ImGui::GetTextLineHeight();
+                float y_start = ImGui::GetCursorScreenPos().y - line_height * (lines.size() - cursor.mLine - 1);
+                float x_start = ImGui::GetWindowPos().x + ImGui::GetTextLineHeightWithSpacing();
+                float line_width = ImGui::GetWindowWidth() - ImGui::GetTextLineHeightWithSpacing();
+                
+                if (settings_.highlight_line == 1) {
+                    // Background color
+                    ImVec4 bg_color = settings_.dark_theme ? ImVec4(0.3f, 0.3f, 0.35f, 0.5f) : ImVec4(0.8f, 0.8f, 0.7f, 0.5f);
+                    ImGui::GetWindowDrawList()->AddRectFilled(
+                        ImVec2(x_start, y_start),
+                        ImVec2(x_start + line_width, y_start + line_height),
+                        ImColor(bg_color));
+                } else if (settings_.highlight_line == 2) {
+                    // Outline frame
+                    ImVec4 outline_color = ImVec4(0.4f, 0.6f, 0.9f, 1.0f);
+                    ImGui::GetWindowDrawList()->AddRect(
+                        ImVec2(x_start, y_start),
+                        ImVec2(x_start + line_width, y_start + line_height),
+                        ImColor(outline_color), 0.f, 0, 2.f);
+                }
+            }
+        }
+        
         ImGui::PopStyleVar();
         
         ImGui::EndGroup();
     } else {
         // No gutter needed, just render editor
         editor->Render("TextEditor");
+        
+        // Render current line highlight
+        if (settings_.highlight_line > 0 && editor_focused_) {
+            auto cursor = editor->GetCursorPosition();
+            auto lines = editor->GetTextLines();
+            if (cursor.mLine < (int)lines.size()) {
+                float line_height = ImGui::GetTextLineHeight();
+                float y_start = ImGui::GetCursorScreenPos().y - line_height * (lines.size() - cursor.mLine - 1);
+                float x_start = ImGui::GetWindowPos().x + ImGui::GetTextLineHeightWithSpacing();
+                float line_width = ImGui::GetWindowWidth() - ImGui::GetTextLineHeightWithSpacing();
+                
+                if (settings_.highlight_line == 1) {
+                    ImVec4 bg_color = settings_.dark_theme ? ImVec4(0.3f, 0.3f, 0.35f, 0.5f) : ImVec4(0.8f, 0.8f, 0.7f, 0.5f);
+                    ImGui::GetWindowDrawList()->AddRectFilled(
+                        ImVec2(x_start, y_start),
+                        ImVec2(x_start + line_width, y_start + line_height),
+                        ImColor(bg_color));
+                } else if (settings_.highlight_line == 2) {
+                    ImVec4 outline_color = ImVec4(0.4f, 0.6f, 0.9f, 1.0f);
+                    ImGui::GetWindowDrawList()->AddRect(
+                        ImVec2(x_start, y_start),
+                        ImVec2(x_start + line_width, y_start + line_height),
+                        ImColor(outline_color), 0.f, 0, 2.f);
+                }
+            }
+        }
     }
 }
 
@@ -3001,6 +3065,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
