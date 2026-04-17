@@ -1428,6 +1428,47 @@ bool EditorApp::execute_vim_command(const std::string& cmd) {
         ImGui::OpenPopup("##CommandLine");
         return true;
     }
+    
+    // Handle :set commands
+    if (command.substr(0, 4) == "set ") {
+        std::string opt = command.substr(4);
+        bool toggle = (opt.find("no") != 0);
+        std::string opt_name = toggle ? opt : opt.substr(2);
+        
+        if (opt_name == "nu" || opt_name == "number") {
+            settings_.show_line_numbers = toggle;
+            vim_command_buffer_ = opt_name + " " + std::string(toggle ? "enabled" : "disabled");
+        } else if (opt_name == "hl" || opt_name == "hlsearch") {
+            settings_.highlight_line = toggle ? 1 : 0;
+            vim_command_buffer_ = "hlsearch " + std::string(toggle ? "enabled" : "disabled");
+        } else if (opt_name == "list") {
+            settings_.show_spaces = toggle;
+            vim_command_buffer_ = "list " + std::string(toggle ? "enabled" : "disabled");
+        } else if (opt_name == "wrap") {
+            settings_.word_wrap = toggle;
+            vim_command_buffer_ = "wrap " + std::string(toggle ? "enabled" : "disabled");
+        } else if (opt_name == "minimap") {
+            settings_.show_minimap = toggle;
+            vim_command_buffer_ = "minimap " + std::string(toggle ? "enabled" : "disabled");
+        } else if (opt_name == "ws" || opt_name == "whitespace") {
+            vim_command_buffer_ = "whitespace " + std::string(settings_.show_spaces ? "visible" : "hidden");
+        } else if (opt_name == "tab") {
+            vim_command_buffer_ = "tab=" + std::to_string(settings_.tab_size);
+        } else if (opt_name == "all") {
+            vim_command_buffer_ = "number: " + std::to_string(settings_.show_line_numbers) + 
+                              "\nhlsearch: " + std::to_string(settings_.highlight_line > 0) +
+                              "\nlist: " + std::to_string(settings_.show_spaces) +
+                              "\nwrap: " + std::to_string(settings_.word_wrap) +
+                              "\nminimap: " + std::to_string(settings_.show_minimap) +
+                              "\ntab: " + std::to_string(settings_.tab_size);
+        } else {
+            vim_command_buffer_ = "Unknown option: " + opt_name;
+        }
+        vim_mode_ = VimMode::Command;
+        ImGui::OpenPopup("##CommandLine");
+        return true;
+    }
+    
     if (command == "d" || command == "diag" || command == "diagnostics") {
         char buf[512];
         sprintf(buf, "pCode Editor Diagnostics:\nVersion: %s\nTabs Open: %zu\nTabs Dirty:", get_version().c_str(), tabs_.size());
@@ -3441,6 +3482,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
