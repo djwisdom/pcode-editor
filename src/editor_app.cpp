@@ -1611,6 +1611,11 @@ bool EditorApp::execute_vim_command(const std::string& cmd) {
         split_vertical();
         return true;
     }
+    if (command == "sh" || command == "shell" || command == "term") {
+        show_terminal_ = true;
+        if (!terminal_process_) start_terminal();
+        return true;
+    }
     if (command == "on" || command == "only") {
         return true;
     }
@@ -2916,29 +2921,62 @@ void EditorApp::start_terminal() {
     si.wShowWindow = SW_HIDE;
     
     PROCESS_INFORMATION pi = {};
-    const char* cmd = "cmd.exe";
+    const char* shell = getenv("COMSPEC") ? getenv("COMSPEC") : "cmd.exe";
     
-    if (CreateProcessA(nullptr, (LPSTR)cmd, nullptr, nullptr, TRUE, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
+    if (CreateProcessA(nullptr, (LPSTR)shell, nullptr, nullptr, TRUE, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
         terminal_process_ = (void*)pi.hProcess;
         terminal_stdin_ = (void*)hStdInWr;
         terminal_stdout_ = (void*)hStdOutRd;
         CloseHandle(pi.hThread);
         CloseHandle(hStdInRd);
         CloseHandle(hStdOutWr);
-        terminal_output_ = "Terminal started. Type commands below.\r\n";
+        terminal_output_ = "Terminal started: ";
+        terminal_output_ += shell;
+        terminal_output_ += "\r\n";
     } else {
         CloseHandle(hStdInRd);
         CloseHandle(hStdInWr);
         CloseHandle(hStdOutRd);
         CloseHandle(hStdOutWr);
     }
-#endif
 }
+#else
+#include <pty.h>
+#include <utmp.h>
+#include <unistd.h>
+#include <termios.h>
+
+void EditorApp::start_terminal() {
+    if (terminal_process_) return;
+    
+    int master_fd;
+    pid_t pid = forkpty(&master_fd, nullptr, nullptr, nullptr);
+    
+    if (pid < 0) {
+        terminal_output_ = "Failed to fork terminal\r\n";
+        return;
+    }
+    
+    if (pid == 0) {
+        // Child process - exec shell
+        const char* shell = getenv("SHELL") ? getenv("SHELL") : "/bin/sh";
+        execl(shell, shell, nullptr);
+        perror("execl");
+        exit(1);
+    } else {
+        // Parent process
+        terminal_process_ = (void*)(intptr_t)pid;
+        terminal_stdin_ = (void*)(intptr_t)master_fd;
+        terminal_stdout_ = (void*)(intptr_t)master_fd;
+        terminal_output_ = "Terminal started. Type commands.\r\n";
+    }
+}
+#endif
 
 void EditorApp::update_terminal_output() {
-#ifdef _WIN32
     if (!terminal_stdout_ || !terminal_process_) return;
     
+#ifdef _WIN32
     DWORD avail = 0;
     if (PeekNamedPipe((HANDLE)terminal_stdout_, nullptr, 0, nullptr, &avail, nullptr) && avail > 0) {
         char buf[1024] = {};
@@ -2963,6 +3001,33 @@ void EditorApp::update_terminal_output() {
             terminal_stdin_ = nullptr;
             terminal_stdout_ = nullptr;
         }
+    }
+#else
+    int fd = (int)(intptr_t)terminal_stdout_;
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(fd, &read_fds);
+    
+    struct timeval tv = {0, 0};
+    if (select(fd + 1, &read_fds, nullptr, nullptr, &tv) > 0) {
+        char buf[1024] = {};
+        ssize_t n = read(fd, buf, sizeof(buf) - 1);
+        if (n > 0) {
+            terminal_output_ += std::string(buf, n);
+            if (terminal_output_.size() > 10000) {
+                terminal_output_ = terminal_output_.substr(terminal_output_.size() - 5000);
+            }
+        }
+    }
+    
+    int status;
+    if (waitpid((pid_t)(intptr_t)terminal_process_, &status, WNOHANG) > 0) {
+        terminal_output_ += "\r\n[Process exited]\r\n";
+        if (terminal_stdin_) close((int)(intptr_t)terminal_stdin_);
+        if (terminal_stdout_) close((int)(intptr_t)terminal_stdout_);
+        terminal_process_ = nullptr;
+        terminal_stdin_ = nullptr;
+        terminal_stdout_ = nullptr;
     }
 #endif
 }
@@ -3015,10 +3080,12 @@ void EditorApp::render_terminal() {
         if (ImGui::InputText("##term_input", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
             if (terminal_stdin_ && strlen(input_buf) > 0) {
                 std::string cmd = input_buf;
-                cmd += "\r\n";
+                cmd += "\n";
 #ifdef _WIN32
                 DWORD written = 0;
                 WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+#else
+                write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
 #endif
                 terminal_history_.push_back(input_buf);
                 history_index_ = -1;
