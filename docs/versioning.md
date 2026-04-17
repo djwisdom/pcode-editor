@@ -40,6 +40,12 @@ vMAJOR.MINOR.PATCH
 
 **Example:** v0.2.37 → v0.2.38
 
+### Overflow Rule
+
+When PATCH reaches 99, reset to 0 and increment MINOR:
+- `v0.2.99` → `v0.3.0`
+- `v0.99.99` → `v1.0.0`
+
 ---
 
 ## Git Tags
