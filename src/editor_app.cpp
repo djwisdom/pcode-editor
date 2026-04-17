@@ -2707,6 +2707,37 @@ void EditorApp::render_floating_command() {
                 ImGui::SetWindowFocus("Editor");
                 return;
             }
+            
+            // Handle Tab for file autocomplete
+            if (ImGui::IsKeyPressed(ImGuiKey_Tab)) {
+                std::string current = vim_cmd_input_;
+                // Only autocomplete for :e command
+                if (current.substr(0, 2) == ":e " || current.substr(0, 1) == "e") {
+                    std::string prefix = current;
+                    if (current == ":e" || current == "e") prefix = ":e ";
+                    else if (current.substr(0, 2) == ":e") prefix = current + " ";
+                    else if (current.substr(0, 1) == "e") prefix = ":e " + current.substr(1);
+                    
+                    // Get files from explorer tree directory
+                    std::string dir = settings_.last_open_dir.empty() ? "." : settings_.last_open_dir;
+                    std::vector<std::string> matches;
+                    if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
+                        std::string search = "";
+                        if (prefix.substr(2, 1) == " ") search = prefix.substr(3);
+                        
+                        for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+                            std::string name = entry.path().filename().string();
+                            if (search.empty() || name.find(search) == 0) {
+                                if (!entry.is_directory()) matches.push_back(name);
+                            }
+                        }
+                    }
+                    if (!matches.empty()) {
+                        std::sort(matches.begin(), matches.end());
+                        strncpy(vim_cmd_input_, (":e " + matches[0]).c_str(), sizeof(vim_cmd_input_) - 1);
+                    }
+                }
+            }
         }
         
         if (ImGui::InputText("##cmd", vim_cmd_input_, sizeof(vim_cmd_input_), ImGuiInputTextFlags_EnterReturnsTrue)) {
@@ -3408,6 +3439,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
