@@ -1821,8 +1821,6 @@ void EditorApp::render() {
 
     ImGui::End();
 
-    // Render status bar AFTER DockSpace ends to avoid nesting issues
-    if (settings_.show_status_bar) render_status_bar();
     render_command_line();
     render_terminal();
 }
@@ -2033,7 +2031,8 @@ ImGui::EndMenu();
 // Editor Area
 // ============================================================================
 void EditorApp::render_editor_area() {
-    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse);
+    // Editor window - dockable and can float
+    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
     
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow)) {
         editor_focused_ = true;
@@ -2106,6 +2105,60 @@ void EditorApp::render_editor_area() {
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
             render_editor_with_margins();
         }
+    }
+    
+    // Render status bar at bottom of editor window (docked to editor)
+    if (settings_.show_status_bar) {
+        float status_height = 24;
+        ImVec2 editor_pos = ImGui::GetWindowPos();
+        float editor_width = ImGui::GetWindowWidth();
+        float editor_height = ImGui::GetWindowHeight();
+        
+        // Status bar background
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImU32 status_bg = ImColor(0.2f, 0.2f, 0.25f);
+        draw_list->AddRectFilled(
+            ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height),
+            ImVec2(editor_pos.x + editor_width, editor_pos.y + editor_height),
+            status_bg);
+        
+        // Position cursor at bottom
+        ImGui::SetCursorPosY(editor_height - status_height);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+        
+        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+            auto& tab = tabs_[active_tab_];
+            TextEditor* ed = get_active_editor();
+            auto pos = ed ? ed->GetCursorPosition() : TextEditor::Coordinates();
+            
+            ImGui::Text("%s", get_vim_mode_str());
+            ImGui::SameLine();
+            ImGui::Text(" | ");
+            ImGui::SameLine();
+            ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
+            ImGui::SameLine();
+            ImGui::Text(" | ");
+            ImGui::SameLine();
+            ImGui::Text("%s", tab.file_encoding.c_str());
+            ImGui::SameLine();
+            ImGui::Text(" | ");
+            ImGui::SameLine();
+            ImGui::Text("%s", tab.line_ending.c_str());
+            ImGui::SameLine();
+            ImGui::Text(" | ");
+            ImGui::SameLine();
+            ImGui::Text("%d%%", tabs_[active_tab_].zoom_pct);
+            ImGui::SameLine();
+            ImGui::Text(" | ");
+            ImGui::SameLine();
+            ImGui::Text("%s", tab.display_name.c_str());
+            ImGui::SameLine();
+            ImGui::Text(" | v0.2.28");
+        }
+        
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
     }
 
     ImGui::End();
@@ -2607,134 +2660,77 @@ void EditorApp::render_symbol_outline() {
 void EditorApp::render_status_bar() {
     if (!settings_.show_status_bar) return;
     
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float line_height = 28;
-    float status_height = line_height;
-    float cmd_height = vim_mode_ == VimMode::Command ? line_height : 0;
+    float status_height = 24;
+    float cmd_height = vim_mode_ == VimMode::Command ? 24 : 0;
     
-    // Calculate editor area bounds
-    float sidebar_width = show_file_tree_ ? 220.0f : 0.0f;
-    float editor_x = viewport->Pos.x + sidebar_width;
-    float editor_width = viewport->Size.x - sidebar_width;
-    float editor_bottom = viewport->Pos.y + viewport->Size.y - status_height - cmd_height;
+    // Get editor window dimensions - use current window
+    ImVec2 editor_pos = ImGui::GetWindowPos();
+    float editor_width = ImGui::GetWindowWidth();
+    float editor_height = ImGui::GetWindowHeight();
     
-    // Position at bottom of editor window only, not full viewport
-    ImGui::SetNextWindowPos(ImVec2(editor_x, editor_bottom));
-    ImGui::SetNextWindowSize(ImVec2(editor_width, status_height + cmd_height));
-    ImGui::SetNextWindowViewport(viewport->ID);
+    // Position at bottom of current editor window
+    ImGui::SetCursorPosY(editor_height - status_height - cmd_height);
     
-    // Fixed to bottom of editor - no moving or resizing
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
+    // Status bar background - spans full width
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImU32 status_bg = ImColor(0.2f, 0.2f, 0.25f);
+    draw_list->AddRectFilled(
+        ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height - cmd_height),
+        ImVec2(editor_pos.x + editor_width, editor_pos.y + editor_height),
+        status_bg);
+    
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+    
+    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+        auto& tab = tabs_[active_tab_];
+        TextEditor* editor = get_active_editor();
+        auto pos = editor ? editor->GetCursorPosition() : TextEditor::Coordinates();
 
-    if (ImGui::Begin("StatusBar", nullptr, flags)) {
-        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            auto& tab = tabs_[active_tab_];
-            TextEditor* editor = get_active_editor();
-            auto pos = editor ? editor->GetCursorPosition() : TextEditor::Coordinates();
-
-            const char* mode_str = get_vim_mode_str();
-            const char* dirty_indicator = tab.dirty ? "*" : "";
-            const char* sep = "|";
-            
-            // Get directory info - show git branch if in git repo
-            std::string dir_info = ".";
-            if (!tab.file_path.empty()) {
-                std::filesystem::path p(tab.file_path);
-                if (p.has_parent_path()) {
-                    std::string dir = p.parent_path().string();
-                    if (std::filesystem::exists(dir + "/.git")) {
-                        dir_info = git_branch_;
-                    } else {
-                        dir_info = p.parent_path().filename().string();
-                    }
+        const char* mode_str = get_vim_mode_str();
+        const char* sep = " | ";
+        
+        // Get directory info
+        std::string dir_info = ".";
+        if (!tab.file_path.empty()) {
+            std::filesystem::path p(tab.file_path);
+            if (p.has_parent_path()) {
+                std::string dir = p.parent_path().string();
+                if (std::filesystem::exists(dir + "/.git")) {
+                    dir_info = git_branch_;
+                } else {
+                    dir_info = p.parent_path().filename().string();
                 }
-            }
-            
-            // Each section with separator
-            ImGui::Text("%s", mode_str);
-            ImGui::SameLine();
-            ImGui::Text(" %s ", sep);
-            ImGui::SameLine();
-            ImGui::Text("%s%s", tab.display_name.c_str(), dirty_indicator);
-            ImGui::SameLine();
-            ImGui::Text(" %s ", sep);
-            ImGui::SameLine();
-            ImGui::Text("%s", dir_info.c_str());
-            ImGui::SameLine();
-            ImGui::Text(" %s ", sep);
-            ImGui::SameLine();
-            ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
-            ImGui::SameLine();
-            ImGui::Text(" %s ", sep);
-            ImGui::SameLine();
-            
-            // Calculate scroll percentage: 0% = beginning, 100% = end
-            auto lines = editor->GetTextLines();
-            int total_lines = (int)lines.size();
-            int pct = 0;
-            if (total_lines > 1) {
-                pct = (int)((pos.mLine * 100) / (total_lines - 1));
-            }
-            ImGui::Text("%d%%", pct);
-            ImGui::SameLine();
-            ImGui::Text(" %s ", sep);
-            ImGui::SameLine();
-            ImGui::Text("%s", tab.file_encoding.c_str());
-            ImGui::SameLine();
-            ImGui::Text(" %s ", sep);
-            ImGui::SameLine();
-            
-            // Line ending popup - separate clickable
-            std::string le_id = "LE:" + tab.line_ending;
-            if (ImGui::Selectable(le_id.c_str(), false, ImGuiSelectableFlags_None)) {
-                ImGui::OpenPopup("LineEndingPopup");
-            }
-            if (ImGui::BeginPopup("LineEndingPopup")) {
-                ImGui::TextDisabled("Line Ending");
-                ImGui::Separator();
-                if (ImGui::MenuItem("LF", nullptr, tab.line_ending == "LF")) { tab.line_ending = "LF"; }
-                if (ImGui::MenuItem("CRLF", nullptr, tab.line_ending == "CRLF")) { tab.line_ending = "CRLF"; }
-                if (ImGui::MenuItem("CR", nullptr, tab.line_ending == "CR")) { tab.line_ending = "CR"; }
-                ImGui::EndPopup();
-            }
-            ImGui::SameLine();
-            ImGui::Text(" %s ", sep);
-            ImGui::SameLine();
-            
-            // Tab size popup - separate clickable
-            std::string tab_id = "Tab: " + std::to_string(settings_.tab_size);
-            if (ImGui::Selectable(tab_id.c_str(), false, ImGuiSelectableFlags_None)) {
-                ImGui::OpenPopup("TabSizePopup");
-            }
-            if (ImGui::BeginPopup("TabSizePopup")) {
-                ImGui::TextDisabled("Tab Size");
-                ImGui::Separator();
-                if (ImGui::MenuItem("Tab: 1", nullptr, settings_.tab_size == 1)) { settings_.tab_size = 1; for (auto& t : tabs_) t.editor->SetTabSize(1); }
-                if (ImGui::MenuItem("Tab: 2", nullptr, settings_.tab_size == 2)) { settings_.tab_size = 2; for (auto& t : tabs_) t.editor->SetTabSize(2); }
-                if (ImGui::MenuItem("Tab: 3", nullptr, settings_.tab_size == 3)) { settings_.tab_size = 3; for (auto& t : tabs_) t.editor->SetTabSize(3); }
-                if (ImGui::MenuItem("Tab: 4", nullptr, settings_.tab_size == 4)) { settings_.tab_size = 4; for (auto& t : tabs_) t.editor->SetTabSize(4); }
-                if (ImGui::MenuItem("Tab: 5", nullptr, settings_.tab_size == 5)) { settings_.tab_size = 5; for (auto& t : tabs_) t.editor->SetTabSize(5); }
-                if (ImGui::MenuItem("Tab: 6", nullptr, settings_.tab_size == 6)) { settings_.tab_size = 6; for (auto& t : tabs_) t.editor->SetTabSize(6); }
-                if (ImGui::MenuItem("Tab: 7", nullptr, settings_.tab_size == 7)) { settings_.tab_size = 7; for (auto& t : tabs_) t.editor->SetTabSize(7); }
-                if (ImGui::MenuItem("Tab: 8", nullptr, settings_.tab_size == 8)) { settings_.tab_size = 8; for (auto& t : tabs_) t.editor->SetTabSize(8); }
-                if (ImGui::MenuItem("Tab: 9", nullptr, settings_.tab_size == 9)) { settings_.tab_size = 9; for (auto& t : tabs_) t.editor->SetTabSize(9); }
-                if (ImGui::MenuItem("Tab: 10", nullptr, settings_.tab_size == 10)) { settings_.tab_size = 10; for (auto& t : tabs_) t.editor->SetTabSize(10); }
-                ImGui::EndPopup();
             }
         }
         
-        ImGui::End();
+        ImGui::Text("%s", mode_str);
+        ImGui::SameLine();
+        ImGui::Text("%s", sep);
+        ImGui::SameLine();
+        ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
+        ImGui::SameLine();
+        ImGui::Text("%s", sep);
+        ImGui::SameLine();
+        ImGui::Text("%s", tab.file_encoding.c_str());
+        ImGui::SameLine();
+        ImGui::Text("%s", sep);
+        ImGui::SameLine();
+        ImGui::Text("%s", tab.line_ending.c_str());
+        ImGui::SameLine();
+        ImGui::Text("%s", sep);
+        ImGui::SameLine();
+        ImGui::Text("%d%%", tabs_[active_tab_].zoom_pct);
+        ImGui::SameLine();
+        ImGui::Text("%s", sep);
+        ImGui::SameLine();
+        ImGui::Text("%s", tab.display_name.c_str());
+        ImGui::SameLine();
+        ImGui::Text(" | v0.2.28");
     }
-    ImGui::PopStyleVar(3);
     
-    // Render floating command window at bottom of editor
-    if (vim_mode_ == VimMode::Command) {
-        render_floating_command();
-    }
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
 }
 
 void EditorApp::render_minimap(TextEditor* editor) {
