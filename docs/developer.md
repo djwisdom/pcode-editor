@@ -13,19 +13,19 @@ This guide covers **pcode-editor version 0.2.28**.
 pcode-editor is built with a layered architecture:
 
 ```
-┌─────────────────────────────────────────────┐
-│           Main Application              │
-│          (editor_app.cpp)              │
-├─────────────────────────────────────────────┤
-│  Editor Core    │  UI Rendering        │
-│  (TextEditor)  │  (Dear ImGui)       │
-├─────────────────────────────────────────────┤
-│      Input/Window Management          │
-│            (GLFW)                  │
-├─────────────────────────────────────────────┤
-│      Platform-Specific APIs          │
-│    (Win32/Wayland/X11/Cocoa)       │
-└─────────────────────────────────────────────┘
++---------------------------------------------+
+|           Main Application              |
+|          (editor_app.cpp)              |
++-------------------------------------+
+|  Editor Core    |  UI Rendering        |
+|  (TextEditor)  |  (Dear ImGui)       |
++-------------------------------------+
+|      Input/Window Management          |
+|            (GLFW)                  |
++-------------------------------------+
+|      Platform-Specific APIs          |
+|    (Win32/Wayland/X11/Cocoa)       |
++---------------------------------------------+
 ```
 
 ### Source Files
@@ -302,28 +302,28 @@ GIT_TAG v1.91  # Update this
 
 ```
 pcode-editor/
-├── src/
-│   ├── main.cpp           # Entry point
-│   ├── editor_app.h       # Class definitions
-│   └── editor_app.cpp     # Implementation
-│
-├── tests/
-│   └── test_view_features.cpp
-│
-├── scripts/
-│   ├── build.sh              # Universal build
-│   ├── build-linux.sh       # Linux
-│   ├── build-windows.bat   # Windows MSVC
-│   └── build-freebsd.sh    # BSD
-│
-├── .githooks/
-│   └── pre-commit         # Build validation
-│
-├── CMakeLists.txt
-├── pcode-settings.json
-├── VERSION
-├── LICENSE
-└── README.md
++-- src/
+|   +-- main.cpp           # Entry point
+|   +-- editor_app.h       # Class definitions
+|   +-- editor_app.cpp     # Implementation
+|
++-- tests/
+|   +-- test_view_features.cpp
+|
++-- scripts/
+|   +-- build.sh              # Universal build
+|   +-- build-linux.sh       # Linux
+|   +-- build-windows.bat   # Windows MSVC
+|   +-- build-freebsd.sh    # BSD
+|
++-- .githooks/
+|   +-- pre-commit         # Build validation
+|
++-- CMakeLists.txt
++-- pcode-settings.json
++-- VERSION
++-- LICENSE
++-- README.md
 ```
 
 ---
@@ -375,7 +375,7 @@ void EditorApp::start_terminal() {
 
 ---
 
-##贡献 Guidelines
+## Contribution Guidelines
 
 1. **Fork** the repository
 2. **Create** a feature branch
