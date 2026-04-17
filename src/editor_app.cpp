@@ -2123,13 +2123,13 @@ void EditorApp::render_editor_area() {
 
     float status_height = 24;
     float scrollbar_size = ImGui::GetStyle().ScrollbarSize;
-    ImVec2 editor_win_pos = ImGui::GetWindowPos();
-    float editor_width = ImGui::GetWindowWidth();
-    float editor_height = ImGui::GetWindowHeight();
+    // Use available region after sidebar (SameLine moves cursor to right)
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    float editor_area_width = avail.x > 0 ? avail.x : 600;
     float editor_area_height = settings_.show_status_bar 
-        ? editor_height - status_height 
-        : editor_height;
-    float editor_area_width = editor_width;
+        ? avail.y - status_height 
+        : avail.y;
+    if (editor_area_height < 100) editor_area_height = 400;
     
     if (tabs_.empty()) {
         new_tab();
@@ -2449,7 +2449,9 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
 void EditorApp::render_sidebar() {
     if (!show_file_tree_) return;
     
-    ImGui::BeginChild("##Explorer", ImVec2(200, -1), false, ImGuiWindowFlags_NoTitleBar);
+    static float sidebar_width = 200;
+    
+    ImGui::BeginChild("##Explorer", ImVec2(sidebar_width, -1), false, ImGuiWindowFlags_NoTitleBar);
     
     if (ImGui::BeginTabBar("##SidebarTabs", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Files", nullptr, ImGuiTabItemFlags_None)) {
