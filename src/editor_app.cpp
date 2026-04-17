@@ -2410,8 +2410,12 @@ void EditorApp::render_git_changes() {
     
     std::vector<std::string> modified_files;
     
-    // Try to get modified files from git
+    // Try to get modified files from git (cross-platform)
+#ifdef _WIN32
     FILE* pipe = _popen("git diff --name-only --porcelain 2>nul", "r");
+#else
+    FILE* pipe = popen("git diff --name-only --porcelain 2>/dev/null", "r");
+#endif
     if (pipe) {
         char buf[512];
         while (fgets(buf, sizeof(buf), pipe)) {
