@@ -2599,16 +2599,20 @@ void EditorApp::render_status_bar() {
     float line_height = 28;
     float status_height = line_height;
     float cmd_height = vim_mode_ == VimMode::Command ? line_height : 0;
-    float term_height = show_terminal_ ? 200.0f : 0.0f;
     
-    float dock_y = viewport->Pos.y + viewport->Size.y - status_height - cmd_height - term_height;
+    // Calculate editor area bounds
+    float sidebar_width = show_file_tree_ ? 220.0f : 0.0f;
+    float editor_x = viewport->Pos.x + sidebar_width;
+    float editor_width = viewport->Size.x - sidebar_width;
+    float editor_bottom = viewport->Pos.y + viewport->Size.y - status_height - cmd_height;
     
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, dock_y));
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, status_height + cmd_height));
+    // Position at bottom of editor window only, not full viewport
+    ImGui::SetNextWindowPos(ImVec2(editor_x, editor_bottom));
+    ImGui::SetNextWindowSize(ImVec2(editor_width, status_height + cmd_height));
     ImGui::SetNextWindowViewport(viewport->ID);
     
-    // Allow docking and moving - remove NoMove and NoDocking
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
+    // Fixed to bottom of editor - no moving or resizing
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
