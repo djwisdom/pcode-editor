@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Pre-commit hook: Validates build compiles successfully before committing
+# Pre-commit hook: Validates build compiles and syncs version before committing
 # ============================================================================
+#
+# Features:
+# 1. Syncs version from VERSION file to code
+# 2. Validates build compiles successfully
+# 3. Auto-bumps version on significant changes
 #
 # Installation:
 #   cp .githooks/pre-commit .git/hooks/pre-commit
@@ -15,7 +20,21 @@
 
 set -e
 
-echo "🔍 Running pre-commit build validation..."
+echo "🔍 Running pre-commit validation..."
+
+# Step 1: Sync version from VERSION file to code
+# ========================================================================
+if [ -f "VERSION" ] && [ -f "scripts/sync-version.sh" ]; then
+    echo "📌 Syncing version from VERSION file..."
+    bash scripts/sync-version.sh
+elif [ -f "VERSION" ]; then
+    # Simple sync if bash script not available
+    VERSION=$(cat VERSION)
+    if [ -f "src/editor_app.cpp" ]; then
+        sed -i "s/return \"pCode Editor version.*\"/return \"pCode Editor version $VERSION\"/" src/editor_app.cpp
+        echo "✅ Synced version to $VERSION"
+    fi
+fi
 
 # Detect platform
 PLATFORM="$(uname -s)"

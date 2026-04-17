@@ -155,7 +155,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
-    return "pCode Editor version 0.2.27";
+    return "pCode Editor version 0.2.28";
 }
 
 // ============================================================================
@@ -3552,6 +3552,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 

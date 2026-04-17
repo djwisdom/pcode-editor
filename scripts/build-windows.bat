@@ -2,12 +2,23 @@
 REM ============================================================================
 REM Build script for Windows (Win32/MSVC)
 REM Usage: scripts\build-windows.bat [Release|Debug]
+REM
+REM Features:
+REM  - Auto-syncs version from VERSION file before building
+REM  - Builds pcode-editor.exe
 REM ============================================================================
 
 setlocal enabledelayedexpansion
 
 set BUILD_TYPE=%~1
 if "%BUILD_TYPE%"=="" set BUILD_TYPE=Release
+
+REM Step 1: Sync version from VERSION file (if script exists)
+if exist scripts\sync-version.ps1 (
+    echo.
+    echo 📌 Syncing version from VERSION file...
+    powershell -ExecutionPolicy Bypass -File scripts\sync-version.ps1
+)
 
 echo ============================================
 echo   Building pcode-editor for Windows (Win32^)
