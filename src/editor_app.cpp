@@ -168,7 +168,7 @@ std::string EditorApp::get_version() {
         version = "0.2.40"; // fallback if VERSION file missing
     }
     // return: "pCode Editor version 0.2.40"
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.40" + version;
 }
 
 // ============================================================================
@@ -2184,15 +2184,12 @@ void EditorApp::render_editor_area() {
     ImGui::EndChild();
     
     if (settings_.show_status_bar) {
-        ImDrawList* draw_list = ImGui::GetWindowDrawList();
-        ImU32 status_bg = ImColor(0.2f, 0.2f, 0.25f);
-        draw_list->AddRectFilled(
-            ImVec2(editor_win_pos.x, editor_win_pos.y + editor_area_height),
-            ImVec2(editor_win_pos.x + editor_width, editor_win_pos.y + editor_area_height + status_height),
-            status_bg);
+        // Render status bar inside Editor using child window for proper z-order
+        ImGui::SetCursorPos(ImVec2(0, editor_area_height));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2f, 0.2f, 0.25f, 1.0f));
         
-        ImGui::SetCursorPosY(editor_area_height);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
+        ImGui::BeginChild("##StatusBar", ImVec2(editor_width, status_height), false);
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
         
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
@@ -2227,6 +2224,7 @@ void EditorApp::render_editor_area() {
             ImGui::Text(" | %s", version.c_str());
         }
         
+        ImGui::EndChild();
         ImGui::PopStyleColor();
         ImGui::PopStyleVar();
     }
