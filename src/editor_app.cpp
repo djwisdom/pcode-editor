@@ -2031,8 +2031,8 @@ ImGui::EndMenu();
 // Editor Area
 // ============================================================================
 void EditorApp::render_editor_area() {
-    // Editor window - dockable and can float
-    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+    // Editor window - can float and dock
+    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse);
     
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow)) {
         editor_focused_ = true;
@@ -2688,7 +2688,6 @@ void EditorApp::render_status_bar() {
         auto pos = editor ? editor->GetCursorPosition() : TextEditor::Coordinates();
 
         const char* mode_str = get_vim_mode_str();
-        const char* sep = " | ";
         
         // Get directory info
         std::string dir_info = ".";
@@ -2704,29 +2703,75 @@ void EditorApp::render_status_bar() {
             }
         }
         
+        // Status bar sections
+        const char* sep = " | ";
+        
+        // Mode: NORMAL/INSERT
         ImGui::Text("%s", mode_str);
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
+        
+        // Filename with dirty indicator
+        std::string display = tab.display_name + (tab.dirty ? " *" : "");
+        ImGui::Text("%s", display.c_str());
+        ImGui::SameLine();
+        ImGui::Text("%s", sep);
+        ImGui::SameLine();
+        
+        // Line and column
         ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
+        
+        // Git branch or directory
+        ImGui::Text("Git: %s", dir_info.c_str());
+        ImGui::SameLine();
+        ImGui::Text("%s", sep);
+        ImGui::SameLine();
+        
+        // Encoding (read-only display)
         ImGui::Text("%s", tab.file_encoding.c_str());
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
-        ImGui::Text("%s", tab.line_ending.c_str());
+        
+        // Line ending - clickable popup
+        std::string le_id = tab.line_ending;
+        if (ImGui::Selectable(le_id.c_str(), false)) {
+            ImGui::OpenPopup("LineEndingPopup");
+        }
+        if (ImGui::BeginPopup("LineEndingPopup")) {
+            if (ImGui::MenuItem("LF", nullptr, tab.line_ending == "LF")) { tab.line_ending = "LF"; }
+            if (ImGui::MenuItem("CRLF", nullptr, tab.line_ending == "CRLF")) { tab.line_ending = "CRLF"; }
+            if (ImGui::MenuItem("CR", nullptr, tab.line_ending == "CR")) { tab.line_ending = "CR"; }
+            ImGui::EndPopup();
+        }
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
-        ImGui::Text("%d%%", tabs_[active_tab_].zoom_pct);
+        
+        // Tab size - clickable popup
+        std::string tab_id = "Tab: " + std::to_string(settings_.tab_size);
+        if (ImGui::Selectable(tab_id.c_str(), false)) {
+            ImGui::OpenPopup("TabSizePopup");
+        }
+        if (ImGui::BeginPopup("TabSizePopup")) {
+            for (int i = 1; i <= 8; i++) {
+                if (ImGui::MenuItem(("Tab: " + std::to_string(i)).c_str(), nullptr, settings_.tab_size == i)) {
+                    settings_.tab_size = i;
+                    for (auto& t : tabs_) t.editor->SetTabSize(i);
+                }
+            }
+            ImGui::EndPopup();
+        }
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
-        ImGui::Text("%s", tab.display_name.c_str());
-        ImGui::SameLine();
-        ImGui::Text(" | v0.2.28");
+        
+        // Version
+        ImGui::Text("v0.2.28");
     }
     
     ImGui::PopStyleColor();
