@@ -68,6 +68,7 @@ static void settings_save(const AppSettings& s, const std::string& path) {
     f << "  \"show_status_bar\": " << (s.show_status_bar ? "true" : "false") << ",\n";
     f << "  \"word_wrap\": " << (s.word_wrap ? "true" : "false") << ",\n";
     f << "  \"show_line_numbers\": " << (s.show_line_numbers ? "true" : "false") << ",\n";
+    f << "  \"show_minimap\": " << (s.show_minimap ? "true" : "false") << ",\n";
     f << "  \"show_spaces\": " << (s.show_spaces ? "true" : "false") << ",\n";
     f << "  \"highlight_line\": " << s.highlight_line << ",\n";
     f << "  \"show_tabs\": " << (s.show_tabs ? "true" : "false") << ",\n";
@@ -123,6 +124,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.show_line_numbers = get_bool("show_line_numbers", true);
     s.show_bookmark_margin = get_bool("show_bookmark_margin", true);
     s.show_change_history = get_bool("show_change_history", true);
+    s.show_minimap = get_bool("show_minimap", true);
     s.show_spaces = get_bool("show_spaces", false);
     s.highlight_line = get_int("highlight_line", 1);
     s.show_tabs = get_bool("show_tabs", true);
@@ -737,6 +739,10 @@ void EditorApp::toggle_spaces() {
     for (auto& tab : tabs_) {
         tab.editor->SetShowWhitespaces(settings_.show_spaces);
     }
+}
+
+void EditorApp::toggle_minimap() {
+    settings_.show_minimap = !settings_.show_minimap;
 }
 
 void EditorApp::toggle_theme() {
@@ -1794,6 +1800,8 @@ void EditorApp::render_menu_view() {
         if (ImGui::MenuItem("Line Numbers", nullptr, &ln)) toggle_line_numbers();
         bool sp = settings_.show_spaces;
         if (ImGui::MenuItem("Show Spaces", nullptr, &sp)) toggle_spaces();
+        bool mp = settings_.show_minimap;
+        if (ImGui::MenuItem("Minimap", nullptr, &mp)) toggle_minimap();
         ImGui::Separator();
         if (ImGui::BeginMenu("Bookmarks")) {
             if (ImGui::MenuItem("Toggle Bookmark", "F2")) {
@@ -2020,11 +2028,16 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
                             // Toggle bookmark (if clicking on bookmark column)
                             if (settings_.show_bookmark_margin && mouse.x < win_pos.x + 16) {
                                 toggle_bookmark(clicked_line);
-                            }
-                        }
-                    }
-                }
+}
             }
+        }
+        
+        // Render minimap on the right side if enabled
+        if (settings_.show_minimap) {
+            render_minimap(editor);
+        }
+    }
+}
             
             if (ImGui::BeginPopupContextItem("##GutterPopup")) {
                 ImGui::TextDisabled("Gutter");
@@ -2506,7 +2519,32 @@ void EditorApp::render_status_bar() {
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
-            ImGui::Text("Tab:%d", settings_.tab_size);
+            if (ImGui::Selectable(("Tab: " + std::to_string(settings_.tab_size)).c_str(), false, ImGuiSelectableFlags_None)) {
+                ImGui::OpenPopup("##TabSizePopup");
+            }
+            if (ImGui::BeginPopupContextItem("##TabSizePopup", ImGuiPopupFlags_None)) {
+                if (ImGui::MenuItem("Tab: 1", nullptr, settings_.tab_size == 1)) { settings_.tab_size = 1; for (auto& t : tabs_) t.editor->SetTabSize(1); }
+                if (ImGui::MenuItem("Tab: 2", nullptr, settings_.tab_size == 2)) { settings_.tab_size = 2; for (auto& t : tabs_) t.editor->SetTabSize(2); }
+                if (ImGui::MenuItem("Tab: 3", nullptr, settings_.tab_size == 3)) { settings_.tab_size = 3; for (auto& t : tabs_) t.editor->SetTabSize(3); }
+                if (ImGui::MenuItem("Tab: 4", nullptr, settings_.tab_size == 4)) { settings_.tab_size = 4; for (auto& t : tabs_) t.editor->SetTabSize(4); }
+                if (ImGui::MenuItem("Tab: 5", nullptr, settings_.tab_size == 5)) { settings_.tab_size = 5; for (auto& t : tabs_) t.editor->SetTabSize(5); }
+                if (ImGui::MenuItem("Tab: 6", nullptr, settings_.tab_size == 6)) { settings_.tab_size = 6; for (auto& t : tabs_) t.editor->SetTabSize(6); }
+                if (ImGui::MenuItem("Tab: 7", nullptr, settings_.tab_size == 7)) { settings_.tab_size = 7; for (auto& t : tabs_) t.editor->SetTabSize(7); }
+                if (ImGui::MenuItem("Tab: 8", nullptr, settings_.tab_size == 8)) { settings_.tab_size = 8; for (auto& t : tabs_) t.editor->SetTabSize(8); }
+                if (ImGui::MenuItem("Tab: 9", nullptr, settings_.tab_size == 9)) { settings_.tab_size = 9; for (auto& t : tabs_) t.editor->SetTabSize(9); }
+                if (ImGui::MenuItem("Tab: 10", nullptr, settings_.tab_size == 10)) { settings_.tab_size = 10; for (auto& t : tabs_) t.editor->SetTabSize(10); }
+                ImGui::Separator();
+                bool sp = settings_.show_spaces;
+                if (ImGui::MenuItem("Use spaces", nullptr, &sp)) toggle_spaces();
+                ImGui::Separator();
+                if (ImGui::MenuItem("Convert indentation to spaces")) {
+                    // TODO: convert tabs to spaces in current file
+                }
+                if (ImGui::MenuItem("Convert indentation to tabs")) {
+                    // TODO: convert spaces to tabs in current file
+                }
+                ImGui::EndPopup();
+            }
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
@@ -2521,6 +2559,78 @@ void EditorApp::render_status_bar() {
     if (vim_mode_ == VimMode::Command) {
         render_floating_command();
     }
+}
+
+void EditorApp::render_minimap(TextEditor* editor) {
+    if (!editor) return;
+    
+    ImVec2 editor_pos = ImGui::GetWindowPos();
+    float editor_width = ImGui::GetWindowWidth();
+    float editor_height = ImGui::GetWindowHeight();
+    
+    float minimap_width = 80;
+    float minimap_x = editor_pos.x + editor_width - minimap_width - 8;
+    
+    ImGui::SetNextWindowPos(ImVec2(minimap_x, editor_pos.y + 8));
+    ImGui::SetNextWindowSize(ImVec2(minimap_width, editor_height - 16));
+    
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | 
+                            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+                            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground;
+    
+    if (ImGui::Begin("##Minimap", nullptr, flags)) {
+        auto lines = editor->GetTextLines();
+        int total_lines = (int)lines.size();
+        if (total_lines == 0) total_lines = 1;
+        
+        float line_height = (editor_height - 16) / (float)total_lines;
+        if (line_height < 1) line_height = 1;
+        
+        // Calculate visible range
+        auto cursor = editor->GetCursorPosition();
+        int view_lines = (int)((editor_height - 16) / (line_height * 4));
+        if (view_lines < 1) view_lines = 1;
+        
+        // Draw each line as a thin colored line
+        for (int i = 0; i < total_lines; i++) {
+            float y = editor_pos.y + 8 + (i * line_height * 4);
+            if (y < editor_pos.y + 8 || y > editor_pos.y + editor_height - 8) continue;
+            
+            // Check if this is the current line
+            if (i == cursor.mLine) {
+                ImGui::GetWindowDrawList()->AddRectFilled(
+                    ImVec2(minimap_x, y),
+                    ImVec2(minimap_x + minimap_width - 4, y + line_height * 3),
+                    IM_COL32(150, 150, 170, 255));
+            } else {
+                // Draw syntax-colored line representation
+                ImGui::GetWindowDrawList()->AddRectFilled(
+                    ImVec2(minimap_x, y),
+                    ImVec2(minimap_x + minimap_width - 4, y + line_height * 2),
+                    IM_COL32(80, 80, 100, 180));
+            }
+        }
+        
+        // Draw viewport indicator
+        float vp_top = editor_pos.y + 8;
+        float vp_height = view_lines * line_height * 4;
+        ImGui::GetWindowDrawList()->AddRect(
+            ImVec2(minimap_x, vp_top),
+            ImVec2(minimap_x + minimap_width - 4, vp_top + vp_height),
+            IM_COL32(200, 200, 220, 255), 1.f, 0, 2.f);
+        
+        // Handle click on minimap to navigate
+        if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0)) {
+            ImVec2 mouse = ImGui::GetMousePos();
+            float rel_y = mouse.y - (editor_pos.y + 8);
+            int target_line = (int)(rel_y / (line_height * 4));
+            if (target_line < 0) target_line = 0;
+            if (target_line >= total_lines) target_line = total_lines - 1;
+            editor->SetCursorPosition(TextEditor::Coordinates(target_line, 0));
+            editor->SetSelection(TextEditor::Coordinates(target_line, 0), TextEditor::Coordinates(target_line, 0));
+        }
+    }
+    ImGui::End();
 }
 
 void EditorApp::render_floating_command() {
@@ -3274,6 +3384,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 

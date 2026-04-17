@@ -81,6 +81,7 @@ struct AppSettings {
     bool show_line_numbers = true;
     bool show_bookmark_margin = true;
     bool show_change_history = true;
+    bool show_minimap = true;
     bool show_spaces = false;
     bool show_tabs = true;
     int tab_size = 4;
@@ -203,6 +204,8 @@ private:
     void toggle_word_wrap();
     void toggle_line_numbers();
     void toggle_spaces();
+    void toggle_minimap();
+    void render_minimap(TextEditor* editor);
     void toggle_theme();
     void set_tab_size(int size);
     void load_fonts();
