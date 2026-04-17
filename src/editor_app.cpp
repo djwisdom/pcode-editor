@@ -891,6 +891,20 @@ void EditorApp::load_fonts() {
     // Clear existing fonts first
     io.Fonts->Clear();
     
+    // Auto-detect DPI and adjust font size
+    float dpi_scale = 1.0f;
+#if defined(_WIN32)
+    HDC hdc = GetDC(NULL);
+    if (hdc) {
+        dpi_scale = GetDeviceCaps(hdc, 88) / 96.0f; // 88 = LOGPIXELSX
+        ReleaseDC(NULL, hdc);
+    }
+#endif
+    // Apply DPI scaling to default font size
+    int dpi_adjusted_size = (int)(settings_.font_size * dpi_scale);
+    dpi_adjusted_size = (std::max)(8, (std::min)(dpi_adjusted_size, 72));
+    float font_size = (float)dpi_adjusted_size;
+    
     ImFont* font = nullptr;
     
 #if defined(_WIN32)
@@ -903,7 +917,7 @@ void EditorApp::load_fonts() {
             std::string path = std::string("C:\\Windows\\Fonts\\") + name + ext;
             // Check if file exists before trying to load
             if (GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
-                font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
+                font = io.Fonts->AddFontFromFileTTF(path.c_str(), font_size);
                 if (font) break;
             }
         }
@@ -918,7 +932,10 @@ void EditorApp::load_fonts() {
     
     // Fallback to built-in default (not system font)
     if (!font) {
-        font = io.Fonts->AddFontDefault();
+        ImFontConfig* config = new ImFontConfig();
+        config->SizePixels = font_size;
+        font = io.Fonts->AddFontDefault(config);
+        delete config;
     }
     
     font_size_temp_ = settings_.font_size;
@@ -937,6 +954,19 @@ void EditorApp::rebuild_fonts() {
     // Clear and rebuild fonts
     io.Fonts->Clear();
     
+    // Auto-detect DPI and adjust font size
+    float dpi_scale = 1.0f;
+#if defined(_WIN32)
+    HDC hdc = GetDC(NULL);
+    if (hdc) {
+        dpi_scale = GetDeviceCaps(hdc, 88) / 96.0f; // 88 = LOGPIXELSX
+        ReleaseDC(NULL, hdc);
+    }
+#endif
+    int dpi_adjusted_size = (int)(settings_.font_size * dpi_scale);
+    dpi_adjusted_size = (std::max)(8, (std::min)(dpi_adjusted_size, 72));
+    float font_size = (float)dpi_adjusted_size;
+    
     ImFont* font = nullptr;
     
 #if defined(_WIN32)
@@ -948,7 +978,7 @@ void EditorApp::rebuild_fonts() {
         for (const auto& ext : exts) {
             std::string path = std::string("C:\\Windows\\Fonts\\") + name + ext;
             if (GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
-                font = io.Fonts->AddFontFromFileTTF(path.c_str(), (float)settings_.font_size);
+                font = io.Fonts->AddFontFromFileTTF(path.c_str(), font_size);
                 if (font) {
                     settings_.font_name = font_name_temp_;
                     break;
@@ -962,7 +992,10 @@ void EditorApp::rebuild_fonts() {
     
     // Fallback to built-in default (not system font)
     if (!font) {
-        font = io.Fonts->AddFontDefault();
+        ImFontConfig* config = new ImFontConfig();
+        config->SizePixels = font_size;
+        font = io.Fonts->AddFontDefault(config);
+        delete config;
         font_name_temp_ = "";
         settings_.font_name = "";
     }
@@ -1980,36 +2013,66 @@ void EditorApp::render_file_tree() {
     ImGui::Text("Files");
     ImGui::Separator();
     
-    // Show current directory files
+    static std::unordered_map<std::string, bool> expanded_dirs;
+    static std::string current_dir = ".";
+    
     std::string dir_path = settings_.last_open_dir.empty() ? "." : settings_.last_open_dir;
-    if (std::filesystem::exists(dir_path) && std::filesystem::is_directory(dir_path)) {
-        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
-            std::string name = entry.path().filename().string();
-            if (entry.is_directory()) {
-                if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
-                    // Could implement folder navigation here
+    
+    // Allow navigation to parent directory
+    std::filesystem::path parent = std::filesystem::path(dir_path).parent_path();
+    if (!parent.empty() && parent.string() != dir_path) {
+        if (ImGui::Selectable("[..]", false, ImGuiSelectableFlags_DontClosePopups)) {
+            settings_.last_open_dir = parent.string();
+            current_dir = parent.string();
+        }
+    }
+    
+    render_dir_tree(dir_path, expanded_dirs);
+}
+
+void EditorApp::render_dir_tree(const std::string& dir_path, std::unordered_map<std::string, bool>& expanded_dirs) {
+    if (!std::filesystem::exists(dir_path) || !std::filesystem::is_directory(dir_path)) return;
+    
+    for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+        std::string name = entry.path().filename().string();
+        std::string full_path = entry.path().string();
+        
+        if (!name.empty() && name[0] == '.') continue;
+        
+        if (entry.is_directory()) {
+            ImGui::PushID(full_path.c_str());
+            bool is_expanded = expanded_dirs[full_path];
+            
+            std::string arrow = is_expanded ? "[-] " : "[+] ";
+            if (ImGui::Selectable(arrow.c_str(), false)) {
+                expanded_dirs[full_path] = !is_expanded;
+            }
+            ImGui::SameLine();
+            
+            ImGui::Text("%s/", name.c_str());
+            
+            if (is_expanded) {
+                ImGui::Indent(16);
+                render_dir_tree(full_path, expanded_dirs);
+                ImGui::Unindent(16);
+            }
+            
+            ImGui::PopID();
+        } else {
+            if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
+                bool already_open = false;
+                for (size_t i = 0; i < tabs_.size(); i++) {
+                    if (tabs_[i].file_path == full_path) {
+                        active_tab_ = i;
+                        already_open = true;
+                        break;
+                    }
                 }
-            } else {
-                std::string full_path = entry.path().string();
-                if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
-                    // Check if already open
-                    bool already_open = false;
-                    for (size_t i = 0; i < tabs_.size(); i++) {
-                        if (tabs_[i].file_path == full_path) {
-                            active_tab_ = i;
-                            already_open = true;
-                            break;
-                        }
-                    }
-if (!already_open) {
-                        open_file(full_path);
-                    }
+                if (!already_open) {
+                    open_file(full_path);
                 }
             }
         }
-    } else {
-        ImGui::Text("(No directory)");
-        ImGui::Text("Set: :cd /path/to/dir");
     }
 }
 
@@ -2095,7 +2158,7 @@ void EditorApp::render_symbol_outline() {
 // ============================================================================
 void EditorApp::render_status_bar() {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float line_height = 22;
+    float line_height = 28;
     float height = line_height;
     float cmd_height = vim_mode_ == VimMode::Command ? line_height : 0;
     float term_height = show_terminal_ ? 200.0f : 0.0f;
@@ -2109,8 +2172,8 @@ void EditorApp::render_status_bar() {
                            | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 0));
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
 
     if (ImGui::Begin("StatusBar", nullptr, flags)) {
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
@@ -2120,36 +2183,37 @@ void EditorApp::render_status_bar() {
 
             const char* mode_str = get_vim_mode_str();
             const char* dirty_indicator = tab.dirty ? "*" : "";
-            ImGui::Text("%s \xc2\xb7 %s%s", mode_str, tab.display_name.c_str(), dirty_indicator);
-
+            const char* sep = "|";
+            
+            // Each section with separator
+            ImGui::Text("%s", mode_str);
+            ImGui::SameLine();
+            ImGui::Text(" %s ", sep);
+            ImGui::SameLine();
+            ImGui::Text("%s%s", tab.display_name.c_str(), dirty_indicator);
+            ImGui::SameLine();
+            ImGui::Text(" %s ", sep);
+            ImGui::SameLine();
+            ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
+            ImGui::SameLine();
+            ImGui::Text(" %s ", sep);
+            ImGui::SameLine();
+            ImGui::Text("%s", tab.file_encoding.c_str());
+            ImGui::SameLine();
+            ImGui::Text(" %s ", sep);
+            ImGui::SameLine();
+            ImGui::Text("%s", tab.line_ending.c_str());
+            ImGui::SameLine();
+            ImGui::Text(" %s ", sep);
+            ImGui::SameLine();
+            ImGui::Text("Tab:%d", settings_.tab_size);
+            
+            // Right-aligned zoom
             float win_width = ImGui::GetWindowWidth();
-            float right_x = win_width - 420;
-            ImGui::SetCursorPosX(right_x);
-            ImGui::Text("Ln %d", pos.mLine + 1);
+            ImGui::SetCursorPosX(win_width - 70);
+            ImGui::Text(" %s ", sep);
             ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 50);
-            ImGui::Text("Col %d", pos.mColumn + 1);
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 100);
-            ImGui::Text("\xc2\xb7 %s", tab.file_encoding.c_str());
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 150);
-            ImGui::Text("\xc2\xb7 %s", tab.line_ending.c_str());
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 200);
-            if (tab.file_size > 1024 * 1024) {
-                ImGui::Text("\xc2\xb7 %.1fMB", tab.file_size / (1024.0 * 1024.0));
-            } else if (tab.file_size > 1024) {
-                ImGui::Text("\xc2\xb7 %.1fKB", tab.file_size / 1024.0);
-            } else {
-                ImGui::Text("\xc2\xb7 %zuB", tab.file_size);
-            }
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 260);
-            ImGui::Text("\xc2\xb7 Tab %d", settings_.tab_size);
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(right_x + 320);
-            ImGui::Text("\xc2\xb7 %d%%", tab.zoom_pct);
+            ImGui::Text("%d%%", tab.zoom_pct);
         }
 
         ImGui::End();
@@ -2161,8 +2225,7 @@ void EditorApp::render_command_line() {
     if (vim_mode_ != VimMode::Command) return;
 
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float line_height = 22;
-    float status_height = line_height;
+    float line_height = 28;
     float term_height = show_terminal_ ? 200.0f : 0.0f;
 
     float total_bottom = viewport->Pos.y + viewport->Size.y - term_height;
@@ -2174,8 +2237,8 @@ void EditorApp::render_command_line() {
                            | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 2));
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
 
     if (ImGui::Begin("CommandLine", nullptr, flags)) {
         ImVec4 cmd_focus_color = ImVec4(0.2f, 0.4f, 0.8f, 1.0f);
@@ -2277,7 +2340,7 @@ void EditorApp::render_terminal() {
     update_terminal_output();
     
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float line_height = 22;
+    float line_height = 24;
     float height = vim_mode_ == VimMode::Command ? line_height * 2 : line_height;
     float term_height = 200;
     
@@ -2306,16 +2369,24 @@ void EditorApp::render_terminal() {
         ImGui::EndChild();
         
         ImGui::Separator();
-        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 80);
-        if (ImGui::InputText("##term_input", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
-            if (terminal_stdin_ && strlen(input_buf) > 0) {
-                std::string cmd = input_buf;
-                cmd += "\r\n";
+        static bool terminal_input_active = false;
+        ImGui::Text("Click input to type commands");
+        if (ImGui::IsItemClicked()) {
+            terminal_input_active = true;
+        }
+        if (terminal_input_active) {
+            ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 80);
+            if (ImGui::InputText("##term_input", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
+                if (terminal_stdin_ && strlen(input_buf) > 0) {
+                    std::string cmd = input_buf;
+                    cmd += "\r\n";
 #ifdef _WIN32
-                DWORD written = 0;
-                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+                    DWORD written = 0;
+                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
 #endif
-                input_buf[0] = '\0';
+                    input_buf[0] = '\0';
+                }
+                terminal_input_active = false;
             }
         }
         ImGui::SameLine();
@@ -2870,6 +2941,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 

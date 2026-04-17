@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include <array>
+#include <unordered_map>
 
 struct GLFWwindow;
 class TextEditor;
@@ -82,7 +83,7 @@ struct AppSettings {
     bool show_change_history = true;
     bool show_spaces = false;
     int tab_size = 4;
-    int font_size = 16;
+    int font_size = 18;
     std::string font_name = "";
     std::vector<std::string> recent_files;
     std::string last_open_dir;
@@ -160,6 +161,7 @@ private:
     void update_terminal_output();
     void render_sidebar();
     void render_file_tree();
+    void render_dir_tree(const std::string& dir_path, std::unordered_map<std::string, bool>& expanded_dirs);
     void render_git_changes();
     void render_breadcrumb();
     void render_symbol_outline();
