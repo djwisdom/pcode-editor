@@ -2650,10 +2650,15 @@ void EditorApp::render_status_bar() {
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
-            if (ImGui::Selectable(tab.line_ending.c_str(), false, ImGuiSelectableFlags_None)) {
-                ImGui::OpenPopup("##LineEndingPopup");
+            
+            // Line ending popup - separate clickable
+            std::string le_id = "LE:" + tab.line_ending;
+            if (ImGui::Selectable(le_id.c_str(), false, ImGuiSelectableFlags_None)) {
+                ImGui::OpenPopup("LineEndingPopup");
             }
-            if (ImGui::BeginPopupContextItem("##LineEndingPopup", ImGuiPopupFlags_None)) {
+            if (ImGui::BeginPopup("LineEndingPopup")) {
+                ImGui::TextDisabled("Line Ending");
+                ImGui::Separator();
                 if (ImGui::MenuItem("LF", nullptr, tab.line_ending == "LF")) { tab.line_ending = "LF"; }
                 if (ImGui::MenuItem("CRLF", nullptr, tab.line_ending == "CRLF")) { tab.line_ending = "CRLF"; }
                 if (ImGui::MenuItem("CR", nullptr, tab.line_ending == "CR")) { tab.line_ending = "CR"; }
@@ -2662,10 +2667,15 @@ void EditorApp::render_status_bar() {
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
-            if (ImGui::Selectable(("Tab: " + std::to_string(settings_.tab_size)).c_str(), false, ImGuiSelectableFlags_None)) {
-                ImGui::OpenPopup("##TabSizePopup");
+            
+            // Tab size popup - separate clickable
+            std::string tab_id = "Tab: " + std::to_string(settings_.tab_size);
+            if (ImGui::Selectable(tab_id.c_str(), false, ImGuiSelectableFlags_None)) {
+                ImGui::OpenPopup("TabSizePopup");
             }
-            if (ImGui::BeginPopupContextItem("##TabSizePopup", ImGuiPopupFlags_None)) {
+            if (ImGui::BeginPopup("TabSizePopup")) {
+                ImGui::TextDisabled("Tab Size");
+                ImGui::Separator();
                 if (ImGui::MenuItem("Tab: 1", nullptr, settings_.tab_size == 1)) { settings_.tab_size = 1; for (auto& t : tabs_) t.editor->SetTabSize(1); }
                 if (ImGui::MenuItem("Tab: 2", nullptr, settings_.tab_size == 2)) { settings_.tab_size = 2; for (auto& t : tabs_) t.editor->SetTabSize(2); }
                 if (ImGui::MenuItem("Tab: 3", nullptr, settings_.tab_size == 3)) { settings_.tab_size = 3; for (auto& t : tabs_) t.editor->SetTabSize(3); }
@@ -3542,6 +3552,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 

@@ -3,7 +3,7 @@
   "window_h": 800,
   "dark_theme": true,
   "show_status_bar": true,
-  "word_wrap": false,
+  "word_wrap": true,
   "show_line_numbers": true,
   "show_minimap": true,
   "show_spaces": true,
@@ -13,5 +13,5 @@
   "font_size": 18,
   "font_name": "GeistMonoNerdFontPropo-Regular",
   "last_open_dir": ".\\src",
-  "recent_files": [".\\src\\editor_app.cpp", "VERSION", ".\\src\\main.cpp", ".\\CMakeLists.txt", ".\\IMPLEMENTATION_SUMMARY.md", ".\\\\\\\\BUILD_SYSTEM.md", ".\\\\\\\\TESTS.md", ".\\\\\\\\\\\\\\\\BUILD_SYSTEM.md", ".\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\README.md", ".\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\BUILD_SYSTEM.md"]
+  "recent_files": [".\\src\\main.cpp", ".\\src\\editor_app.cpp", "VERSION", ".\\CMakeLists.txt", ".\\IMPLEMENTATION_SUMMARY.md", ".\\\\\\\\BUILD_SYSTEM.md", ".\\\\\\\\TESTS.md", ".\\\\\\\\\\\\\\\\BUILD_SYSTEM.md", ".\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\README.md", ".\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\BUILD_SYSTEM.md"]
 }
