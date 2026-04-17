@@ -159,7 +159,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
-    return "pCode Editor version 0.2.32";
+    return "pCode Editor version 0.2.33";
 }
 
 // ============================================================================
@@ -2799,7 +2799,7 @@ void EditorApp::render_status_bar() {
         ImGui::SameLine();
         
         // Version with git hash
-        ImGui::Text("v0.2.33");
+        ImGui::Text("v0.2.34");
     }
     
 ImGui::PopStyleColor();
