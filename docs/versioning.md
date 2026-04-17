@@ -26,9 +26,11 @@ vMAJOR.MINOR.PATCH
 ## Version Bump Rule
 
 **Every commit must bump the version number** in:
-1. `VERSION` file (contains just the version string, e.g. `0.2.38`)
+1. `VERSION` file (contains version and git hash, e.g. `0.2.41 (289522c)`)
 2. Status bar (displays version from VERSION file)
 3. Commit message format: `v{version} ({git_hash})`
+
+**Format:** `VERSION` file must be `MAJOR.MINOR.PATCH (hash)` - always include git hash
 
 **Important:** `get_version()` reads directly from VERSION file - no version string hardcoded in code.
 
