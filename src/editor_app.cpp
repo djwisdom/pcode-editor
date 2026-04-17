@@ -159,7 +159,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
-    return "pCode Editor version 0.2.28";
+    return "pCode Editor version 0.2.29";
 }
 
 // ============================================================================
@@ -1786,7 +1786,7 @@ void EditorApp::render() {
         }
     }
 
-// Main dockspace window
+// Main dockspace window with docking support
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);
     ImGui::SetNextWindowSize(viewport->Size);
@@ -1802,21 +1802,27 @@ void EditorApp::render() {
     ImGui::Begin("MainDock", nullptr, flags);
     ImGui::PopStyleVar(3);
 
+    // Dockspace allows windows to dock into main
+    ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
+    ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
+
     // Menu and sidebar in main window
     render_menu_bar();
     render_sidebar();
 
     ImGui::End();
 
-    // Floating editor window - can be dragged anywhere and docked
+    // Floating editor window - can float and dock to main window
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + 60, viewport->Pos.y + 60));
     ImGui::SetNextWindowSize(ImVec2(800, 600));
     ImGui::SetNextWindowViewport(viewport->ID);
 
-    ImGuiWindowFlags editor_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+    ImGuiWindowFlags editor_flags = ImGuiWindowFlags_NoSavedSettings;
     editor_flags |= ImGuiWindowFlags_UnsavedDocument;
     
     if (ImGui::Begin("Editor", nullptr, editor_flags)) {
+        // Register with dockspace for docking
+        ImGui::DockBuilderDockWindow("Editor", dockspace_id);
         render_editor_area();
         ImGui::End();
     }
