@@ -168,7 +168,7 @@ std::string EditorApp::get_version() {
         version = "0.2.38"; // fallback if VERSION file missing
     }
     // return: "pCode Editor version 0.2.38" - pattern for pre-commit sync
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.38" + version;
 }
 
 // ============================================================================
