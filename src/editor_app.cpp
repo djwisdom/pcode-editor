@@ -159,7 +159,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
-    return "pCode Editor version 0.2.31";
+    return "pCode Editor version 0.2.32";
 }
 
 // ============================================================================
@@ -1786,7 +1786,7 @@ void EditorApp::render() {
         }
     }
 
-// Main window - just sidebar
+// Main window - empty (just holds the viewport)
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);
     ImGui::SetNextWindowSize(viewport->Size);
@@ -1801,16 +1801,20 @@ void EditorApp::render() {
     ImGui::Begin("pcode-editor", nullptr, flags);
     ImGui::PopStyleVar(3);
 
-    render_sidebar();
-
     ImGui::End();
 
-    // Editor as independent floating window - fully movable, with menu inside
+    // Editor as independent floating window - fully movable, with menu and sidebar inside
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + 80, viewport->Pos.y + 80), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
     
     if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_MenuBar)) {
         render_menu_bar();
+        
+        // Sidebar on left, editor on right
+        render_sidebar();
+        ImGui::SameLine();
+        
+        // Editor area takes remaining space
         render_editor_area();
         ImGui::End();
     }
@@ -2795,7 +2799,7 @@ void EditorApp::render_status_bar() {
         ImGui::SameLine();
         
         // Version with git hash
-        ImGui::Text("v0.2.32");
+        ImGui::Text("v0.2.33");
     }
     
 ImGui::PopStyleColor();
