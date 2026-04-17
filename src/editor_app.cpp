@@ -167,7 +167,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "0.2.37";
     }
-    return "pCode Editor version 0.2.37" + version;
+    return "pCode Editor version 0.2.38" + version;
 }
 
 // ============================================================================

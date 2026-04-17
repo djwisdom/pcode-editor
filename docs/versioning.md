@@ -16,10 +16,29 @@ vMAJOR.MINOR.PATCH
 
 ### Current Version
 
-**v0.2.28** (2026-04-17)
+**v0.2.38** (2026-04-18)
 
 - 0.x series indicates pre-release (experimental)
 - Will become v1.0.0 when feature-complete
+
+---
+
+## Version Bump Rule
+
+**Every commit must bump the version number** in:
+1. `VERSION` file (contains just the version string)
+2. Status bar (displays version)
+3. Commit message format: `v{version} ({git_hash})`
+
+### When to Increment
+
+| Change Type | Increment |
+|------------|----------|
+| Bug fix | PATCH (+1) |
+| New feature | MINOR (+1) |
+| Breaking change | MAJOR (+1) |
+
+**Example:** v0.2.37 → v0.2.38
 
 ---
 
