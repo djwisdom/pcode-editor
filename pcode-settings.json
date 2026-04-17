@@ -5,13 +5,13 @@
   "show_status_bar": true,
   "word_wrap": true,
   "show_line_numbers": true,
-  "show_minimap": true,
+  "show_minimap": false,
   "show_spaces": true,
   "highlight_line": 2,
   "show_tabs": true,
   "tab_size": 4,
-  "font_size": 18,
+  "font_size": 17,
   "font_name": "CascadiaMono",
   "last_open_dir": ".\\src",
-  "recent_files": [".\\src\\editor_app.h", ".\\src\\editor_app.cpp", ".\\docs\\versioning.md", ".\\docs\\imgui_tutorial.md", ".\\docs\\VIM_MOTIONS_SPEC.md", "./src/editor_app.h", "./src/main.cpp", "./src/editor_app.cpp", "VERSION", "./CMakeLists.txt"]
+  "recent_files": [".\\src\\editor_app.h", ".\\src\\main.cpp", ".\\src\\editor_app.cpp", ".\\docs\\versioning.md", ".\\docs\\imgui_tutorial.md", ".\\docs\\VIM_MOTIONS_SPEC.md", "./src/editor_app.h", "./src/main.cpp", "./src/editor_app.cpp", "VERSION"]
 }

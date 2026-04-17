@@ -1786,7 +1786,7 @@ void EditorApp::render() {
         }
     }
 
-    // Full-screen dockspace
+    // Full-screen dockspace - allows docking to edges
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);
     ImGui::SetNextWindowSize(viewport->Size);
@@ -1794,7 +1794,6 @@ void EditorApp::render() {
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
     flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
-    flags |= ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
