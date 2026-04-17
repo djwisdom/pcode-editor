@@ -1,8 +1,8 @@
 # pcode-editor
 
-Personal Code Editor — A lightweight, cross-platform Vim-like GUI text editor for programmers.
+Personal Code Editor - A lightweight, cross-platform Vim-like GUI text editor for programmers.
 
-Built with **Dear ImGui** + **GLFW** + **ImGuiColorTextEdit** — one codebase, runs everywhere.
+Built with **Dear ImGui** + **GLFW** + **ImGuiColorTextEdit** - one codebase, runs everywhere.
 
 ## Version
 
@@ -283,26 +283,26 @@ Settings are stored in `pcode-settings.json`:
 
 ```
 src/
-├── main.cpp          — Entry point
-├── editor_app.h      — Class definitions
-└── editor_app.cpp    — Main implementation
++-- main.cpp          - Entry point
++-- editor_app.h      - Class definitions
++-- editor_app.cpp    - Main implementation
 
 scripts/
-├── build.sh          — Universal build script
-├── build-freebsd.sh  — BSD (X11)
-├── build-linux.sh    — Linux (Wayland)
-├── build-windows.bat — Windows (MSVC)
-└── build-windows-mingw.ps1 — Windows (MinGW)
++-- build.sh          - Universal build script
++-- build-freebsd.sh  - BSD (X11)
++-- build-linux.sh    - Linux (Wayland)
++-- build-windows.bat - Windows (MSVC)
++-- build-windows-mingw.ps1 - Windows (MinGW)
 
 docs/
-├── userguide.md      — User documentation
-├── developer.md     — Developer guide
-├── imgui_tutorial.md — Dear ImGui guide
-└── faq.md           — FAQ
++-- userguide.md      - User documentation
++-- developer.md     - Developer guide
++-- imgui_tutorial.md - Dear ImGui guide
++-- faq.md           - FAQ
 
-CMakeLists.txt        — Cross-platform build config
-VERSION              — Version file
-pcode-settings.json — User settings
+CMakeLists.txt        - Cross-platform build config
+VERSION              - Version file
+pcode-settings.json - User settings
 ```
 
 ---
@@ -322,10 +322,10 @@ All dependencies are fetched automatically via CMake FetchContent:
 
 ## Design Principles
 
-1. **Keyboard-first** — every action has a keybinding
-2. **Fast** — immediate mode rendering, minimal dependencies
-3. **Minimal** — no bloat, no telemetry, no auto-updates
-4. **Portable** — one codebase, Windows + Linux + BSD + macOS
+1. **Keyboard-first** - every action has a keybinding
+2. **Fast** - immediate mode rendering, minimal dependencies
+3. **Minimal** - no bloat, no telemetry, no auto-updates
+4. **Portable** - one codebase, Windows + Linux + BSD + macOS
 
 ---
 
@@ -352,14 +352,14 @@ Click on the terminal window to focus it before typing.
 
 ## Documentation
 
-- [User Guide](docs/userguide.md) — For end users
-- [Developer Guide](docs/developer.md) — For contributors
-- [Dear ImGui Tutorial](docs/imgui_tutorial.md) — ImGui learning resource
-- [Versioning Strategy](docs/versioning.md) — Release and tagging process
-- [FAQ](docs/faq.md) — Common issues and solutions
+- [User Guide](docs/userguide.md) - For end users
+- [Developer Guide](docs/developer.md) - For contributors
+- [Dear ImGui Tutorial](docs/imgui_tutorial.md) - ImGui learning resource
+- [Versioning Strategy](docs/versioning.md) - Release and tagging process
+- [FAQ](docs/faq.md) - Common issues and solutions
 
 ---
 
 ## License
 
-BSD 2-Clause License — see LICENSE file.
+BSD 2-Clause License - see LICENSE file.
