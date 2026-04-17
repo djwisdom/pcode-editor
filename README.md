@@ -1,30 +1,71 @@
 # pcode-editor
 
-Personal Code Editor — A lightweight, cross-platform GUI text editor for programmers.
+Personal Code Editor — A lightweight, cross-platform Vim-like GUI text editor for programmers.
 
 Built with **Dear ImGui** + **GLFW** + **ImGuiColorTextEdit** — one codebase, runs everywhere.
+
+## Version
+
+**pcode-editor v0.2.28** (2026-04-17)
+
+---
 
 ## Supported Platforms
 
 | Platform | Backend | Status |
 |----------|---------|--------|
-| **Windows** | Win32 | ✅ Supported |
-| **Linux** | Wayland | ✅ Supported |
-| **FreeBSD** | X11 | ✅ Supported |
-| **OpenBSD** | X11 | ✅ Supported |
-| **NetBSD** | X11 | ✅ Supported |
-| **macOS** | Cocoa | ✅ Supported |
+| **Windows** | Win32 | Supported |
+| **Linux** | Wayland | Supported |
+| **FreeBSD** | X11 | Supported |
+| **OpenBSD** | X11 | Supported |
+| **NetBSD** | X11 | Supported |
+| **macOS** | Cocoa | Supported |
+
+---
 
 ## Features
 
+### Editing
 - Syntax highlighting for 20+ languages (C, C++, Python, JavaScript, etc.)
-- Line numbers and code folding
-- Dockable UI panels (file tree, output, terminal)
-- Command palette (Ctrl+P)
-- Keyboard-first navigation
-- Dark/light theme support
-- Native file dialogs on all platforms
-- <1MB binary, zero runtime dependencies
+- Line numbers with change history tracking
+- Code folding
+- Bookmarks
+- Multiple tabs with split windows
+- Find and replace
+- Word wrap
+
+### Vim Mode
+- NORMAL mode for navigation and commands
+- INSERT mode for text entry
+- COMMAND mode for ex commands (`:w`, `:q`, `:sp`, etc.)
+- Visual mode support
+
+### Interface
+- Split windows (`:sp` horizontal, `:vsp` vertical)
+- Minimap for quick navigation
+- Floating command palette (Ctrl+P)
+- Sidebar with Files/Git/Symbols
+- Status bar with mode, cursor position, encoding
+- Gutter with line numbers and change indicators
+
+### Terminal Integration
+- Built-in terminal (`:term`, `:shell`, `:sh`)
+- Direct keyboard input to shell
+- Independent font zoom for terminal (Ctrl++/-)
+
+### Settings
+- Cross-platform settings file (`pcode-settings.json`)
+- Font customization (size, family)
+- Theme toggle (dark/light)
+- Recent files management
+
+### Keyboard Shortcuts
+- Full keyboard-first navigation
+- Vim-style keybindings
+- Ctrl+W for split navigation
+- Command palette
+
+---
 
 ## Quick Start
 
@@ -51,69 +92,22 @@ scripts\build-windows.bat Release
 .\scripts\build-windows-mingw.ps1 Release
 ```
 
+### Running the Editor
+
+```bash
+# Windows
+.\build\Release\pcode-editor.exe
+
+# Linux/macOS/BSD
+./build/Release/pcode-editor
+
+# Open a file
+pcode-editor filename.cpp
+```
+
+---
+
 ## Detailed Build Instructions
-
-### FreeBSD / OpenBSD / NetBSD (X11)
-
-**Install dependencies:**
-```bash
-# FreeBSD
-sudo pkg install cmake xorg-libX11 xorgproto gtk3 mesa-libs pkgconf
-
-# OpenBSD
-sudo pkg_add cmake xorg-libraries gtk+3 mesa-drivers
-
-# NetBSD
-sudo pkgin install cmake xorg-libraries gtk3 mesa
-```
-
-**Build:**
-```bash
-mkdir -p build && cd build
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DGLFW_BUILD_WAYLAND=OFF \
-  -DGLFW_BUILD_X11=ON
-make -j$(sysctl -n hw.ncpu)
-./pcode-editor
-```
-
-**Or use the build script:**
-```bash
-./scripts/build-freebsd.sh Release
-```
-
-### Linux (Wayland)
-
-**Install dependencies:**
-```bash
-# Ubuntu/Debian
-sudo apt install cmake build-essential libwayland-dev wayland-protocols \
-  libxkbcommon-dev libgtk-3-dev libgl1-mesa-dev pkg-config
-
-# Fedora
-sudo dnf install cmake gcc-c++ wayland-devel libxkbcommon-devel \
-  gtk3-devel mesa-libGL-devel pkg-config
-
-# Arch Linux
-sudo pacman -S cmake base-devel wayland libxkbcommon gtk3 mesa
-```
-
-**Build:**
-```bash
-mkdir -p build && cd build
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DGLFW_BUILD_WAYLAND=ON \
-  -DGLFW_BUILD_X11=OFF
-make -j$(nproc)
-./pcode-editor
-```
-
-**Or use the build script:**
-```bash
-./scripts/build-linux.sh Release
-```
 
 ### Windows (MSVC)
 
@@ -121,7 +115,7 @@ make -j$(nproc)
 - Visual Studio 2022 (or Build Tools)
 - CMake 3.16+
 
-**Build (Developer Command Prompt):**
+**Build:**
 ```cmd
 mkdir build && cd build
 cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
@@ -134,16 +128,37 @@ cmake --build . --config Release
 scripts\build-windows.bat Release
 ```
 
-### Windows (MinGW-w64 / MSYS2)
+### Linux (Wayland)
 
-**Install dependencies (MSYS2):**
+**Install dependencies:**
 ```bash
-pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc make
+# Ubuntu/Debian
+sudo apt install cmake build-essential libwayland-dev wayland-protocols \
+  libxkbcommon-dev libgtk-3-dev libgl1-mesa-dev pkg-config
 ```
 
-**Build (PowerShell):**
-```powershell
-.\scripts\build-windows-mingw.ps1 Release
+**Build:**
+```bash
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DGLFW_BUILD_WAYLAND=ON
+make -j$(nproc)
+./pcode-editor
+```
+
+### FreeBSD / OpenBSD / NetBSD (X11)
+
+**Install dependencies:**
+```bash
+# FreeBSD
+sudo pkg install cmake xorg-libX11 xorgproto gtk3 mesa-libs pkgconf
+```
+
+**Build:**
+```bash
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DGLFW_BUILD_X11=ON
+make -j$(sysctl -n hw.ncpu)
+./pcode-editor
 ```
 
 ### macOS
@@ -161,32 +176,136 @@ make -j$(sysctl -n hw.ncpu)
 ./pcode-editor
 ```
 
-## Continuous Integration
+---
 
-This repository uses GitHub Actions to build and test all supported platforms on every push:
+## Command Reference
 
-- **Linux (Wayland)** - Ubuntu 22.04
-- **Windows (Win32)** - Windows Server 2022 with MSVC
-- **FreeBSD (X11)** - FreeBSD 14.4
+### File Commands
 
-Build artifacts are automatically uploaded and can be downloaded from the Actions tab.
+| Command | Action |
+|---------|--------|
+| `:w` | Save file |
+| `:q` | Close tab |
+| `:q!` | Close without saving |
+| `:wq` | Save and close |
+| `:e filename` | Open file |
 
-## Pre-commit Hook
+### View Commands
 
-A pre-commit hook is provided to validate builds before committing:
+| Command | Action |
+|---------|--------|
+| `:sp` | Horizontal split |
+| `:vsp` | Vertical split |
+| `:set nu` | Show line numbers |
+| `:set nonu` | Hide line numbers |
+| `:set wrap` | Enable word wrap |
+| `:set nowrap` | Disable word wrap |
 
-**Option 1: Install the hook**
-```bash
-cp .githooks/pre-commit .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
+### Terminal Commands
+
+| Command | Action |
+|---------|--------|
+| `:term` | Open terminal |
+| `:shell` | Open default shell |
+| `:sh` | Open default shell |
+
+### Zoom Commands
+
+| Command | Action |
+|---------|--------|
+| `Ctrl++` | Zoom in |
+| `Ctrl+-` | Zoom out |
+| `Ctrl+0` | Reset zoom |
+
+---
+
+## Keyboard Shortcuts
+
+### File Operations
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+N` | New tab |
+| `Ctrl+O` | Open file |
+| `Ctrl+S` | Save |
+| `Ctrl+W` | Close tab |
+
+### Edit Operations
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+C` | Copy |
+| `Ctrl+V` | Paste |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Y` | Redo |
+| `Ctrl+F` | Find |
+
+### View Operations
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+P` | Command palette |
+| `Ctrl+\`` | Toggle terminal |
+
+### Split Navigation
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+W` h | Focus left |
+| `Ctrl+W` j | Focus down |
+| `Ctrl+W` k | Focus up |
+| `Ctrl+W` l | Focus right |
+| `Ctrl+W` o | Close others |
+
+---
+
+## Settings
+
+Settings are stored in `pcode-settings.json`:
+
+```json
+{
+  "window_w": 1280,
+  "window_h": 800,
+  "dark_theme": true,
+  "font_size": 18,
+  "font_name": "JetBrains Mono",
+  "tab_size": 4,
+  "word_wrap": true,
+  "show_line_numbers": true,
+  "show_minimap": true
+}
 ```
 
-**Option 2: Configure git to use the hooks directory**
-```bash
-git config core.hooksPath .githooks
+---
+
+## Architecture
+
+```
+src/
+├── main.cpp          — Entry point
+├── editor_app.h      — Class definitions
+└── editor_app.cpp    — Main implementation
+
+scripts/
+├── build.sh          — Universal build script
+├── build-freebsd.sh  — BSD (X11)
+├── build-linux.sh    — Linux (Wayland)
+├── build-windows.bat — Windows (MSVC)
+└── build-windows-mingw.ps1 — Windows (MinGW)
+
+docs/
+├── userguide.md      — User documentation
+├── developer.md     — Developer guide
+├── imgui_tutorial.md — Dear ImGui guide
+└── faq.md           — FAQ
+
+CMakeLists.txt        — Cross-platform build config
+VERSION              — Version file
+pcode-settings.json — User settings
 ```
 
-The hook will automatically build your code on commit and reject the commit if the build fails. Skip with `git commit --no-verify`.
+---
 
 ## Dependencies
 
@@ -196,60 +315,51 @@ All dependencies are fetched automatically via CMake FetchContent:
 |---------|---------|---------|
 | [Dear ImGui](https://github.com/ocornut/imgui) | Immediate mode GUI | MIT |
 | [GLFW](https://github.com/glfw/glfw) | Window/input management | zlib |
-| [ImGuiColorTextEdit](https://github.com/BalazsJako/ImGuiColorTextEdit) | Syntax highlighting, line numbers | MIT |
+| [ImGuiColorTextEdit](https://github.com/BalazsJako/ImGuiColorTextEdit) | Syntax highlighting | MIT |
 | [Native File Dialog](https://github.com/btzy/nativefiledialog-extended) | Cross-platform file dialogs | zlib |
 
-## Architecture
-
-```
-src/
-├── main.cpp          — Entry point
-├── editor_app.h      — Application interface
-├── editor_app.cpp    — Main application logic (UI, file I/O, commands)
-
-scripts/
-├── build.sh          — Universal build script
-├── build-freebsd.sh  — BSD (X11) build script
-├── build-linux.sh    — Linux (Wayland) build script
-├── build-windows.bat — Windows (MSVC) build script
-└── build-windows-mingw.ps1 — Windows (MinGW) build script
-
-.githooks/
-└── pre-commit        — Pre-commit build validation hook
-
-.github/workflows/
-└── build.yml         — CI/CD for all platforms
-
-CMakeLists.txt        — Cross-platform build configuration
-```
+---
 
 ## Design Principles
 
 1. **Keyboard-first** — every action has a keybinding
-2. **Fast** — immediate mode rendering, <1ms frame time
+2. **Fast** — immediate mode rendering, minimal dependencies
 3. **Minimal** — no bloat, no telemetry, no auto-updates
 4. **Portable** — one codebase, Windows + Linux + BSD + macOS
 
+---
+
 ## Troubleshooting
 
-### FreeBSD: "library not found" errors
-Ensure `/usr/local/lib` is in your library path:
-```bash
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+### Fonts too small on HDPI
+
+Edit `pcode-settings.json`:
+```json
+"font_size": 18
 ```
 
-### Linux: Wayland not working
-Make sure you're running on a Wayland session. You can fall back to X11:
-```bash
-cmake .. -DGLFW_BUILD_WAYLAND=OFF -DGLFW_BUILD_X11=ON
-```
+### Terminal not responding
 
-### Windows: CMake generator errors
-Specify the correct Visual Studio version:
-```cmd
-cmake .. -G "Visual Studio 17 2022" -A x64
-```
+Click on the terminal window to focus it before typing.
+
+### Build fails
+
+1. Ensure all platform-specific dependencies are installed
+2. Use the provided build scripts
+3. See `docs/faq.md` for detailed solutions
+
+---
+
+## Documentation
+
+- [User Guide](docs/userguide.md) — For end users
+- [Developer Guide](docs/developer.md) — For contributors
+- [Dear ImGui Tutorial](docs/imgui_tutorial.md) — ImGui learning resource
+- [Versioning Strategy](docs/versioning.md) — Release and tagging process
+- [FAQ](docs/faq.md) — Common issues and solutions
+
+---
 
 ## License
 
-MIT — see LICENSE file.
+BSD 2-Clause License — see LICENSE file.

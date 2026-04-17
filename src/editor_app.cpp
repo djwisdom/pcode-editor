@@ -133,7 +133,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.highlight_line = get_int("highlight_line", 1);
     s.show_tabs = get_bool("show_tabs", true);
     s.tab_size = get_int("tab_size", 4);
-    s.font_size = get_int("font_size", 16);
+    s.font_size = get_int("font_size", 18);
     s.font_name = get_str("font_name");
     s.last_open_dir = get_str("last_open_dir");
 
@@ -721,6 +721,18 @@ void EditorApp::zoom_reset() {
 
 void EditorApp::apply_zoom(int tab_idx) {
     if (tab_idx < 0 || tab_idx >= (int)tabs_.size()) return;
+}
+
+void EditorApp::terminal_zoom_in() {
+    terminal_zoom_pct_ = (std::min)(200, terminal_zoom_pct_ + 10);
+}
+
+void EditorApp::terminal_zoom_out() {
+    terminal_zoom_pct_ = (std::max)(50, terminal_zoom_pct_ - 10);
+}
+
+void EditorApp::terminal_zoom_reset() {
+    terminal_zoom_pct_ = 100;
 }
 
 void EditorApp::toggle_status_bar() {
@@ -3043,68 +3055,119 @@ void EditorApp::render_terminal() {
     
     ImGui::SetNextWindowSize(ImVec2(600, 300));
     
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar;
     
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     
     if (ImGui::Begin("Terminal", nullptr, flags)) {
-        static char input_buf[256] = "";
+        float term_scale = terminal_zoom_pct_ / 100.0f;
+        float old_scale = ImGui::GetIO().FontGlobalScale;
+        ImGui::GetIO().FontGlobalScale = old_scale * term_scale;
         
+        // Show terminal output - scrollable
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
         
-        ImGui::BeginChild("term_output", ImVec2(ImGui::GetWindowWidth(), ImGui::GetWindowHeight() - 50), true);
+        ImGui::BeginChild("term_output", ImVec2(ImGui::GetWindowWidth(), ImGui::GetWindowHeight() - 30), true);
         ImGui::Text("%s", terminal_output_.c_str());
-        if (ImGui::GetScrollY() < ImGui::GetScrollMaxY()) {
-            ImGui::SetScrollHereY(1.0f);
-        }
+        ImGui::SetScrollHereY(1.0f);
         ImGui::EndChild();
         
+        ImGui::GetIO().FontGlobalScale = old_scale;
+        
+        // Simple input at bottom
         ImGui::Separator();
-        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 80);
+        static char input_buf[256] = "";
+        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 40);
         
-        // Handle up/down arrow for history
-        ImGuiIO& io = ImGui::GetIO();
-        if (ImGui::IsItemActive()) {
-            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
-                if (!terminal_history_.empty() && history_index_ < (int)terminal_history_.size() - 1) {
-                    history_index_++;
-                    strncpy(input_buf, terminal_history_[history_index_].c_str(), sizeof(input_buf) - 1);
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
-                if (history_index_ > 0) {
-                    history_index_--;
-                    strncpy(input_buf, terminal_history_[history_index_].c_str(), sizeof(input_buf) - 1);
-                } else if (history_index_ == 0) {
-                    history_index_ = -1;
-                    input_buf[0] = '\0';
-                }
-            }
-        }
-        
-        if (ImGui::InputText("##term_input", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
+        if (ImGui::InputText("##term", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
             if (terminal_stdin_ && strlen(input_buf) > 0) {
                 std::string cmd = input_buf;
                 cmd += "\n";
 #ifdef _WIN32
-                DWORD written = 0;
+                DWORD written;
                 WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
 #else
                 write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
 #endif
                 terminal_history_.push_back(input_buf);
-                history_index_ = -1;
                 input_buf[0] = '\0';
-                terminal_input_active_ = true;  // Keep focus
             }
         }
-        // Check if input is active AFTER rendering it
-        terminal_input_active_ = ImGui::IsItemActive();
         
-        ImGui::SameLine();
-        if (ImGui::Button("Clear")) {
-            terminal_output_ = "";
+ImGui::SameLine();
+        if (ImGui::Button("x")) {
+            show_terminal_ = false;
         }
-        ImGui::PopStyleVar();
+        
+        // Direct keyboard input when terminal is focused
+        static std::string current_line;
+        
+        if (ImGui::IsWindowFocused()) {
+            ImGuiIO& io = ImGui::GetIO();
+            
+            // Terminal zoom (Ctrl++/-)
+            if (io.KeyCtrl && !io.KeyAlt) {
+                if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) { terminal_zoom_in(); return; }
+                if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) { terminal_zoom_out(); return; }
+                if (ImGui::IsKeyPressed(ImGuiKey_0)) { terminal_zoom_reset(); return; }
+            }
+            
+            // Handle Enter - send command
+            if (ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+                if (terminal_stdin_ && !current_line.empty()) {
+                    std::string cmd = current_line + "\n";
+#ifdef _WIN32
+                    DWORD written;
+                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+#else
+                    write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
+#endif
+                    terminal_history_.push_back(current_line);
+                }
+                current_line.clear();
+            }
+            // Handle Backspace
+            else if (ImGui::IsKeyPressed(ImGuiKey_Backspace) && !current_line.empty()) {
+                current_line.pop_back();
+                char bs = 8;
+                if (terminal_stdin_) {
+#ifdef _WIN32
+                    DWORD written;
+                    WriteFile((HANDLE)terminal_stdin_, &bs, 1, &written, nullptr);
+#else
+                    write((int)(intptr_t)terminal_stdin_, &bs, 1);
+#endif
+                }
+            }
+            // Handle Escape - clear
+            else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                current_line.clear();
+            }
+            // Handle printable ASCII keys
+            else {
+                for (int i = 32; i <= 126; i++) {
+                    if (ImGui::IsKeyPressed((ImGuiKey)i)) {
+                        char c = (char)i;
+                        current_line += c;
+                        if (terminal_stdin_) {
+#ifdef _WIN32
+                            DWORD written;
+                            WriteFile((HANDLE)terminal_stdin_, &c, 1, &written, nullptr);
+#else
+                            write((int)(intptr_t)terminal_stdin_, &c, 1);
+#endif
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Show prompt > and current line
+        ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.2f, 1.0f), "> ");
+        ImGui::SameLine();
+        ImGui::Text("%s_", current_line.c_str());  // _ is cursor
+        
+ImGui::PopStyleVar();
         ImGui::End();
     }
     ImGui::PopStyleVar();

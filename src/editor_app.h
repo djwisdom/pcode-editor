@@ -199,6 +199,9 @@ private:
     void zoom_in();
     void zoom_out();
     void zoom_reset();
+    void terminal_zoom_in();
+    void terminal_zoom_out();
+    void terminal_zoom_reset();
     void toggle_status_bar();
     void toggle_explorer();
     void toggle_word_wrap();
@@ -297,6 +300,7 @@ private:
     void* terminal_stdout_ = nullptr;
     std::string terminal_output_;
     int tab_size_temp_ = 4;
+    int terminal_zoom_pct_ = 100;
 
     // Command palette
     char cmd_buf_[256] = {0};
