@@ -159,7 +159,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
-    return "pCode Editor version 0.2.33";
+    return "pCode Editor version 0.2.34";
 }
 
 // ============================================================================
@@ -2799,7 +2799,7 @@ void EditorApp::render_status_bar() {
         ImGui::SameLine();
         
         // Version with git hash
-        ImGui::Text("v0.2.34");
+        ImGui::Text("v0.2.35");
     }
     
 ImGui::PopStyleColor();
@@ -2809,27 +2809,24 @@ ImGui::PopStyleColor();
 void EditorApp::render_minimap(TextEditor* editor) {
     if (!editor) return;
     
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImVec2 vp = viewport->Pos;
-    ImVec2 vs = viewport->Size;
+    // Use current window dimensions instead of main viewport
+    ImVec2 window_pos = ImGui::GetWindowPos();
+    float window_width = ImGui::GetWindowWidth();
+    float window_height = ImGui::GetWindowHeight();
     
-    float sidebar_width = show_file_tree_ ? 220.0f : 0.0f;
-    float editor_x = vp.x + sidebar_width + 60;
-    float editor_width = vs.x - sidebar_width - 60 - 90;
-    float editor_height = vs.y - 80;
-    float minimap_width = 80;
-    float minimap_x = editor_x + editor_width + 5;
+    float minimap_width = 70;
+    float minimap_x = window_pos.x + window_width - minimap_width - 8;
+    float minimap_height = window_height - 48; // account for menu
     
     auto lines = editor->GetTextLines();
     int total_lines = (int)lines.size();
     if (total_lines == 0) total_lines = 1;
-    float scale = (editor_height - 20) / (float)total_lines;
-    if (scale > 4) scale = 4;
+    float scale = (minimap_height - 20) / (float)total_lines;
+    if (scale > 3) scale = 3;
     if (scale < 0.5f) scale = 0.5f;
     
-    ImGui::SetNextWindowPos(ImVec2(minimap_x, vp.y + 8));
-    ImGui::SetNextWindowSize(ImVec2(minimap_width, editor_height - 16));
-    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::SetNextWindowPos(ImVec2(minimap_x, window_pos.y + 28));
+    ImGui::SetNextWindowSize(ImVec2(minimap_width, minimap_height));
     
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | 
                             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
@@ -2840,8 +2837,8 @@ void EditorApp::render_minimap(TextEditor* editor) {
         auto cursor = editor->GetCursorPosition();
         
         for (int i = 0; i < total_lines; i++) {
-            float y = vp.y + 10 + (i * scale);
-            if (y < vp.y + 10 || y > vp.y + editor_height - 10) continue;
+            float y = window_pos.y + 30 + (i * scale);
+            if (y < window_pos.y + 30 || y > window_pos.y + minimap_height + 20) continue;
             
             if (i == cursor.mLine) {
                 ImGui::GetWindowDrawList()->AddRectFilled(
@@ -2864,7 +2861,7 @@ void EditorApp::render_minimap(TextEditor* editor) {
         if (ImGui::IsMouseClicked(0)) {
             ImVec2 mouse = ImGui::GetMousePos();
             if (mouse.x >= minimap_x && mouse.x < minimap_x + minimap_width) {
-                float rel_y = mouse.y - (vp.y + 10);
+                float rel_y = mouse.y - (window_pos.y + 30);
                 int target_line = (int)(rel_y / scale);
                 if (target_line < 0) target_line = 0;
                 if (target_line >= total_lines) target_line = total_lines - 1;

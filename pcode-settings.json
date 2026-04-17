@@ -5,7 +5,7 @@
   "show_status_bar": true,
   "word_wrap": true,
   "show_line_numbers": true,
-  "show_minimap": false,
+  "show_minimap": true,
   "show_spaces": true,
   "highlight_line": 2,
   "show_tabs": true,
@@ -13,5 +13,5 @@
   "font_size": 17,
   "font_name": "CascadiaMono",
   "last_open_dir": ".\\src",
-  "recent_files": [".\\src\\main.cpp", ".\\src\\editor_app.cpp", ".\\src\\editor_app.h", ".\\docs\\versioning.md", ".\\docs\\imgui_tutorial.md", ".\\docs\\VIM_MOTIONS_SPEC.md", "./src/editor_app.h", "./src/main.cpp", "./src/editor_app.cpp", "VERSION"]
+  "recent_files": [".\\src\\editor_app.h", ".\\src\\main.cpp", ".\\src\\editor_app.cpp", ".\\docs\\versioning.md", ".\\docs\\imgui_tutorial.md", ".\\docs\\VIM_MOTIONS_SPEC.md", "./src/editor_app.h", "./src/main.cpp", "./src/editor_app.cpp", "VERSION"]
 }
