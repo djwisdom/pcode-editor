@@ -13,26 +13,25 @@ This guide covers **pcode-editor version 0.2.28**.
 pcode-editor is built with a layered architecture:
 
 ```
-.====================================================================.
-|                        LAYER ARCHITECTURE                      |
-+====================================================================+
-|                                                                 |
-|  +-----------------------------------------------------------+  |
-|  |                    EDITOR APP CORE                         |  |
-|  |              (editor_app.cpp main loop)                    |  |
-|  +----------------------+------------------------------------+  |
-|  |      TEXT EDITOR      |         UI RENDERING               |  |
-|  |   (ImGuiColorText   |      (Dear ImGui widgets)          |  |
-|  |    TextEdit)        |                                 |  |
-|  +----------------------+------------------------------------+  |
-|  +-----------------------------------------------------------+  |
-|  |                 INPUT & WINDOW MANAGEMENT                  |  |
-|  |                      (GLFW)                             |  |
-|  +-----------------------------------------------------------+  |
-|  |                 PLATFORM BACKENDS                      |  |
-|  |      Win32  |  Wayland  |  X11  |  Cocoa               |  |
-|  +----------------------+------------------------------------+  |
-'===================================================================='
+┌──────────────────────────────────────────────────────────────────────┐
+│                        LAYER ARCHITECTURE                      │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │                    EDITOR APP CORE                     │  │
+│  │              (editor_app.cpp main loop)                  │  │
+│  ├──────────────────────────┬─────────────────────────────┤  │
+│  │      TEXT EDITOR         │      UI RENDERING            │  │
+│  │  (ImGuiColorTextEdit)    │   (Dear ImGui widgets)     │  │
+│  └──────────────────────────┴─────────────────────────────┘  │
+│  ├──────────────────────────────────────────────────────────────┤  │
+│  │              INPUT & WINDOW MANAGEMENT                  │  │
+│  │                       (GLFW)                             │  │
+│  ├──────────────────────────────────────────────────────────────┤  │
+│  │              PLATFORM BACKENDS                            │  │
+│  │      Win32  │  Wayland  │  X11  │  Cocoa                 │  │
+│  └──────────────────────────┴─���───────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Source Files
@@ -308,40 +307,41 @@ GIT_TAG v1.91  # Update this
 ## Project Structure
 
 ```
-.====================================================================.
-|                       PROJECT STRUCTURE                      |
-+====================================================================+
-|                                                                 |
-|  pcode-editor/                                                 |
-|  |                                                            |
-|  +--- src/                                                    |
-|  |   +-- main.cpp           -- Entry point                    |
-|  |   +-- editor_app.h       -- Class definitions              |
-|  |   +-- editor_app.cpp     -- Main implementation            |
-|  |                                                            |
-|  +--- tests/                                                 |
-|  |   +-- test_view_features.cpp                             |
-|  |                                                            |
-|  +--- scripts/                                               |
-|  |   +-- build.sh              -- Universal build             |
-|  |   +-- build-linux.sh       -- Linux (Wayland)             |
-|  |   +-- build-windows.bat   -- Windows (MSVC)                 |
-|  |   +-- build-freebsd.sh    -- BSD (X11)                  |
-|  |                                                            |
-|  +--- .githooks/                                            |
-|  |   +-- pre-commit         -- Build validation               |
-|  |                                                            |
-|  +--- docs/                                                  |
-|  |   +-- userguide.md                                       |
-|  |   +-- developer.md                                      |
-|  |   +-- faq.md                                           |
-|  |                                                            |
-|  +--- CMakeLists.txt                                        |
-|  +--- pcode-settings.json                                  |
-|  +--- VERSION                                             |
-|  +--- LICENSE                                             |
-|  +--- README.md                                            |
-'===================================================================='
+┌──────────────────────────────────────────────────────────────────────┐
+│                       PROJECT STRUCTURE                      │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                              │
+│  pcode-editor/                                                 │
+│  │                                                            │
+│  ├── src/                                                      │
+│  │   ├── main.cpp           ── Entry point                    │
+│  │   ├── editor_app.h       ── Class definitions              │
+│  │   └── editor_app.cpp     ── Main implementation            │
+│  │                                                            │
+│  ├── tests/                                                   │
+│  │   └── test_view_features.cpp                             │
+│  │                                                            │
+│  ├── scripts/                                                 │
+│  │   ├── build.sh              ── Universal build          │
+│  │   ├── build-linux.sh       ── Linux (Wayland)         │
+│  │   ├── build-windows.bat   ── Windows (MSVC)        │
+│  │   └── build-freebsd.sh    ── BSD (X11)              │
+│  │                                                            │
+│  ├── .githooks/                                             │
+│  │   └── pre-commit         ── Build validation          │
+│  │                                                            │
+│  ├── docs/                                                   │
+│  │   ├── userguide.md                                       │
+│  │   ├── developer.md                                      │
+│  │   ├── faq.md                                           │
+│  │   └── versioning.md                                    │
+│  │                                                            │
+│  ├── CMakeLists.txt                                         │
+│  ├── pcode-settings.json                                  │
+│  ├── VERSION                                             │
+│  ├── LICENSE                                             │
+│  └── README.md                                           │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
