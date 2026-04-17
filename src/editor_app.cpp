@@ -159,7 +159,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
-    return "pCode Editor version 0.2.34";
+    return "pCode Editor version 0.2.35";
 }
 
 // ============================================================================
@@ -2195,9 +2195,10 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
         int max_line = total_lines;
         int digit_count = 1;
         while (max_line >= 10) { max_line /= 10; digit_count++; }
-        float gutter_width = 16.0f + (digit_count * 8.0f) + 8.0f; // padding + digits + margin
+        float line_num_width = digit_count * 8.0f + 8.0f;
+        float gutter_width = line_num_width + 48.0f; // line numbers + markers on right
         
-        // Build markers for lookup (using vector search is fine for small sets)
+        // Build markers for lookup
         auto& bookmarks = tab.bookmarks;
         auto& changed_lines = tab.changed_lines;
         auto& folds = tab.folds;
@@ -2262,23 +2263,24 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
             for (int line = 0; line < total_lines; line++) {
                 ImGui::PushID(line);
                 
-                // Right-align line numbers with padding
+                // Line numbers on LEFT side
                 if (settings_.show_line_numbers) {
                     int line_display = line + 1;
                     char line_num[16];
                     sprintf(line_num, "%*d", digit_count, line_display);
                     
-                    // Check if current line for highlight
                     bool is_current_line = (line == editor->GetCursorPosition().mLine);
                     if (is_current_line) {
                         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.4f, 1.0f), line_num);
                     } else {
                         ImGui::TextColored(ImVec4(0.4f, 0.4f, 0.5f, 1.0f), line_num);
                     }
-                    ImGui::SameLine();
                 }
                 
-                // Bookmark column (far left, 16px)
+                // Move to right side of gutter
+                ImGui::SetCursorPosX(ImGui::GetItemRectMin().x + line_num_width);
+                
+                // Bookmark column (right side)
                 if (settings_.show_bookmark_margin) {
                     bool is_bookmarked = std::find(bookmarks.begin(), bookmarks.end(), line) != bookmarks.end();
                     if (is_bookmarked) {
@@ -2289,7 +2291,7 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
                     ImGui::SameLine();
                 }
                 
-                // Change history indicator (shows modified lines in green/red)
+                // Change history indicator (right side)
                 if (settings_.show_change_history) {
                     bool is_changed = std::find(changed_lines.begin(), changed_lines.end(), line) != changed_lines.end();
                     if (is_changed) {
@@ -2298,7 +2300,7 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
                     ImGui::SameLine();
                 }
                 
-                // Fold indicator (+ or -)
+                // Fold indicator (rightmost)
                 bool is_fold_start = false, is_fold_end = false;
                 for (const auto& f : folds) {
                     if (f.first == line) is_fold_start = true;
@@ -2799,7 +2801,7 @@ void EditorApp::render_status_bar() {
         ImGui::SameLine();
         
         // Version with git hash
-        ImGui::Text("v0.2.35");
+        ImGui::Text("v0.2.36");
     }
     
 ImGui::PopStyleColor();
