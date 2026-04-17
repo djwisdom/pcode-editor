@@ -1804,7 +1804,7 @@ void EditorApp::render() {
     ImGui::PopStyleVar(3);
 
     ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
+    ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderDockWindow("Editor", dockspace_id);
 
     render_menu_bar();
@@ -2953,7 +2953,33 @@ if (history_index_ > 0) {
 }
 
 void EditorApp::render_command_line() {
-    return;
+    if (vim_mode_ != VimMode::Command) return;
+    
+    float cmd_height = 28;
+    ImVec2 editor_pos = ImGui::GetWindowPos();
+    float editor_width = ImGui::GetWindowWidth();
+    float editor_height = ImGui::GetWindowHeight();
+    
+    ImGui::SetCursorPosY(editor_height - 24 - cmd_height);
+    
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImU32 cmd_bg = ImColor(0.1f, 0.1f, 0.2f);
+    draw_list->AddRectFilled(
+        ImVec2(editor_pos.x, editor_pos.y + editor_height - cmd_height),
+        ImVec2(editor_pos.x + editor_width, editor_pos.y + editor_height),
+        cmd_bg);
+    
+    ImGui::SetCursorPosY(editor_height - cmd_height);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
+    
+    ImGui::Text(":");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(editor_width - 40);
+    ImGui::InputText("##cmd", vim_command_input_, sizeof(vim_command_input_), ImGuiInputTextFlags_EnterReturnsTrue, nullptr, this);
+    
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
 }
 
 #ifdef _WIN32
