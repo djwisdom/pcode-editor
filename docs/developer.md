@@ -11,41 +11,11 @@ This guide covers **pcode-editor version 0.2.28**.
 ## Architecture Overview
 
 pcode-editor is built with a layered architecture:
-
-```
-┌────────────────────────────────┐
-│        EDITOR APP CORE                │
-│    (editor_app.cpp, main loop)        │
-├─────────────────┬──────────────┤
-│   TEXT EDITOR       │   UI            │
-│(ImGuiColorText)     │(Dear ImGui)     │
-├─────────────────┼──────────────┤
-│     INPUT & WINDOW (GLFW)             │
-├─────────────────┼──────────────┤
-│         PLATFORM BACKENDS             │
-│     Win32 │ Wayland │   X11 │ Cocoa  │
-└─────────────────┴──────────────┘
-```
-┌───────────────────────────────────────────────────────────────┐
-│                        LAYER ARCHITECTURE                                   │
-├───────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                    EDITOR APP CORE                                    │  │
-│  │              (editor_app.cpp main loop)                               │  │
-│  ├──────────────────────────┬───────────────────────────────┤  │
-│  │            TEXT EDITOR         │      UI RENDERING                    │  │
-│  │        (ImGuiColorTextEdit)    │   (Dear ImGui widgets)               │  │
-│  └──────────────────────────┴───────────────────────────────┘  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │              INPUT & WINDOW MANAGEMENT                                │  │
-│  │                       (GLFW)                                          │  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │                               PLATFORM BACKENDS                       │  │
-│  │             Win32  │  Wayland  │  X11  │  Cocoa                      │  │
-│  └──────────────────────────┴───────────────────────────────┘  │
-└───────────────────────────────────────────────────────────────┘
-```
+- Editor App Core: Main loop in editor_app.cpp
+- Text Editor: ImGuiColorTextEdit for code editing
+- UI Rendering: Dear ImGui widgets
+- Input & Window: GLFW
+- Platform: Win32, Wayland, X11, Cocoa
 
 ### Source Files
 

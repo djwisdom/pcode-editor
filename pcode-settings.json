@@ -13,5 +13,5 @@
   "font_size": 17,
   "font_name": "CascadiaMono",
   "last_open_dir": ".",
-  "recent_files": [".\\VERSION", ".\\README.md", "./src\\\\editor_app.h", "./src\\\\main.cpp", "./src\\\\editor_app.cpp", "./src/main.cpp", ".\\\\src\\\\editor_app.h", ".\\\\src\\\\editor_app.cpp", ".\\\\src\\\\main.cpp", ".\\\\docs\\\\versioning.md"]
+  "recent_files": [".\\TESTS.md", ".\\IMPLEMENTATION_SUMMARY.md", ".\\imgui.ini", ".\\README.md", ".\\VERSION", "./src\\\\editor_app.h", "./src\\\\main.cpp", "./src\\\\editor_app.cpp", "./src/main.cpp", ".\\\\src\\\\editor_app.h"]
 }

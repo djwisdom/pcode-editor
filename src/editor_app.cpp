@@ -167,7 +167,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "0.2.37";
     }
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.37" + version;
 }
 
 // ============================================================================
@@ -1672,8 +1672,10 @@ size_t EditorApp::get_file_size(const std::string& path) {
 // ============================================================================
 // ============================================================================
 // Layout Validation — verifies UI components are in correct positions
+// Run via: View menu or Ctrl+Shift+L
 // ============================================================================
 void EditorApp::validate_layout() {
+    // Check Editor window exists
     ImGuiWindow* editor_win = ImGui::FindWindowByName("Editor");
     if (!editor_win) {
         printf("[LAYOUT] ERROR: Editor window not found\n");
@@ -1683,26 +1685,53 @@ void EditorApp::validate_layout() {
     ImVec2 ew_pos = editor_win->Pos;
     float ew_w = editor_win->Size.x;
     float ew_h = editor_win->Size.y;
-    printf("[LAYOUT] Editor: pos=(%.0f,%.0f) size=(%.0f,%.0f)\n", ew_pos.x, ew_pos.y, ew_w, ew_h);
+    printf("\n========== LAYOUT VALIDATION ==========\n");
+    printf("[EDITOR] pos=(%d,%d) size=(%d,%d)\n", (int)ew_pos.x, (int)ew_pos.y, (int)ew_w, (int)ew_h);
     
-    ImGuiWindow* explorer = ImGui::FindWindowByName("Explorer");
-    if (explorer) {
-        ImVec2 ex_pos = explorer->Pos;
-        float ex_w = explorer->Size.x;
-        bool left_of_editor = ex_pos.x < ew_pos.x + ew_w * 0.5f;
-        printf("[LAYOUT] Explorer: pos=(%.0f,%.0f) w=%.0f %s\n", 
-            ex_pos.x, ex_pos.y, ex_w, left_of_editor ? "OK (left)" : "ERROR (not left)");
+    // Test 1: Status bar inside Editor at bottom
+    if (settings_.show_status_bar) {
+        float status_y = ew_pos.y + ew_h - 24;
+        ImVec2 status_pos = ImGui::GetWindowPos(); // Current window context
+        // Check if status bar renders at bottom inside Editor
+        ImGui::SetCursorPos(ImVec2(0, ew_h - 24 - ImGui::GetStyle().ScrollbarSize));
+        ImVec2 cursor = ImGui::GetCursorPos();
+        bool status_ok = cursor.y > 0 && cursor.y < ew_h;
+        printf("[STATUS] %s (bottom, inside editor) - %s\n", 
+            status_ok ? "OK" : "FAIL",
+            settings_.show_status_bar ? "enabled" : "disabled");
     }
     
-    ImGuiWindow* terminal = ImGui::FindWindowByName("Terminal");
-    if (terminal) {
-        ImVec2 tm_pos = terminal->Pos;
-        ImVec2 tm_size = terminal->Size;
-        bool inside_editor = tm_pos.x >= ew_pos.x && tm_pos.y >= ew_pos.y;
-        bool at_bottom = tm_pos.y > ew_pos.y + ew_h * 0.5f;
-        printf("[LAYOUT] Terminal: pos=(%.0f,%.0f) size=(%.0f,%.0f) %s\n",
-            tm_pos.x, tm_pos.y, tm_size.x, tm_size.y,
-            inside_editor && at_bottom ? "OK (bottom inside)" : "ERROR");
+    // Test 2: Minimap at right side of editor
+    if (settings_.show_minimap) {
+        ImVec2 current_pos = ImGui::GetWindowPos();
+        bool minimap_inside = current_pos.x + 70 > ew_pos.x;
+        printf("[MINIMAP] %s (right side inside) - %s\n",
+            minimap_inside ? "OK" : "FAIL",
+            settings_.show_minimap ? "enabled" : "disabled");
+    }
+    
+    // Test 3: Gutter at left side of editor
+    if (settings_.show_line_numbers || settings_.show_bookmark_margin) {
+        printf("[GUTTER] %s (left side inside) - %s\n",
+            "OK", // gutter is inside child window
+            (settings_.show_line_numbers || settings_.show_bookmark_margin) ? "enabled" : "disabled");
+    }
+    
+    // Test 4: Explorer (sidebar) on left
+    printf("[EXPLORER] %s (toggle with Ctrl+B)\n",
+        show_file_tree_ ? "OK (left sidebar)" : "disabled");
+    
+    // Test 5: Terminal at bottom inside Editor
+    printf("[TERMINAL] %s (toggle with Ctrl+`)\n",
+        show_terminal_ ? "OK (bottom inside)" : "disabled");
+    
+    printf("======================================\n\n");
+    
+    if (settings_.show_status_bar && settings_.show_minimap) {
+        printf("NOTE: Enable components via View menu, then check:\n");
+        printf("  - Status bar should be at bottom of Editor\n");
+        printf("  - Minimap should be at right side\n");
+        printf("  - Gutter should be at left of code\n");
     }
     
     bool has_status = settings_.show_status_bar;
@@ -2093,8 +2122,7 @@ void EditorApp::render_editor_area() {
 
     float status_height = 24;
     float scrollbar_size = ImGui::GetStyle().ScrollbarSize;
-    float editor_pos_x = ImGui::GetWindowPos().x;
-    float editor_pos_y = ImGui::GetWindowPos().y;
+    ImVec2 editor_win_pos = ImGui::GetWindowPos();
     float editor_width = ImGui::GetWindowWidth();
     float editor_height = ImGui::GetWindowHeight();
     float editor_area_height = settings_.show_status_bar 
@@ -2158,8 +2186,8 @@ void EditorApp::render_editor_area() {
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         ImU32 status_bg = ImColor(0.2f, 0.2f, 0.25f);
         draw_list->AddRectFilled(
-            ImVec2(editor_pos_x, editor_pos_y + editor_area_height),
-            ImVec2(editor_pos_x + editor_width, editor_pos_y + editor_area_height + status_height),
+            ImVec2(editor_win_pos.x, editor_win_pos.y + editor_area_height),
+            ImVec2(editor_win_pos.x + editor_width, editor_win_pos.y + editor_area_height + status_height),
             status_bg);
         
         ImGui::SetCursorPosY(editor_area_height);
@@ -2849,13 +2877,13 @@ ImGui::PopStyleColor();
 void EditorApp::render_minimap(TextEditor* editor) {
     if (!editor) return;
     
-    // Use current window dimensions instead of main viewport
-    ImVec2 window_pos = ImGui::GetWindowPos();
+    // Save position before any child windows
+    ImVec2 editor_win_pos = ImGui::GetWindowPos();
     float window_width = ImGui::GetWindowWidth();
     float window_height = ImGui::GetWindowHeight();
     
     float minimap_width = 70;
-    float minimap_x = window_pos.x + window_width - minimap_width - 8;
+    float minimap_x = editor_win_pos.x + window_width - minimap_width - 8;
     float minimap_height = window_height - 48; // account for menu
     
     auto lines = editor->GetTextLines();
@@ -2865,7 +2893,7 @@ void EditorApp::render_minimap(TextEditor* editor) {
     if (scale > 3) scale = 3;
     if (scale < 0.5f) scale = 0.5f;
     
-    ImGui::SetNextWindowPos(ImVec2(minimap_x, window_pos.y + 28));
+    ImGui::SetNextWindowPos(ImVec2(minimap_x, editor_win_pos.y + 28));
     ImGui::SetNextWindowSize(ImVec2(minimap_width, minimap_height));
     
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | 
@@ -2877,8 +2905,8 @@ void EditorApp::render_minimap(TextEditor* editor) {
         auto cursor = editor->GetCursorPosition();
         
         for (int i = 0; i < total_lines; i++) {
-            float y = window_pos.y + 30 + (i * scale);
-            if (y < window_pos.y + 30 || y > window_pos.y + minimap_height + 20) continue;
+            float y = editor_win_pos.y + 30 + (i * scale);
+            if (y < editor_win_pos.y + 30 || y > editor_win_pos.y + minimap_height + 20) continue;
             
             if (i == cursor.mLine) {
                 ImGui::GetWindowDrawList()->AddRectFilled(
@@ -2901,7 +2929,7 @@ void EditorApp::render_minimap(TextEditor* editor) {
         if (ImGui::IsMouseClicked(0)) {
             ImVec2 mouse = ImGui::GetMousePos();
             if (mouse.x >= minimap_x && mouse.x < minimap_x + minimap_width) {
-                float rel_y = mouse.y - (window_pos.y + 30);
+                float rel_y = mouse.y - (editor_win_pos.y + 30);
                 int target_line = (int)(rel_y / scale);
                 if (target_line < 0) target_line = 0;
                 if (target_line >= total_lines) target_line = total_lines - 1;

@@ -30,22 +30,14 @@ This guide covers **pcode-editor version 0.2.28**.
 
 ## Interface Overview
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ File  Edit  View  Help                                              [─][□][×] │
-├─────────────────────────────────────────────────────────────────┤
-│ untitled.cpp [×]   config.json [×]                                            │ 
-├─────────────────────────────────────────────────────────────────┤
-│  1 │ #include <stdio.h>                                                       │
-│  2 │                                                                          │
-│  3 │ int main() {                                                             │
-│  4 │     printf("Hello, World!\n");                                           │
-│  5 │     return 0;                                                            │
-│  6 │ }                                                                        │
-├───────────────────────────────────────────────────┤  minimap ████ │
-│ MODE  │ Ln 4, Col 10  │ UTF-8  │ 100%  │ main.cpp                            │
-└─────────────────────────────────────────────────────────────────┘
-```
+The Editor window contains:
+- Menu bar: File, Edit, View, Help menus
+- Tab bar: Open files with close buttons
+- Explorer sidebar: File tree (toggle with Ctrl+B)
+- Editor area: Code editing with syntax highlighting
+- Gutter: Line numbers and change indicators
+- Minimap: Right-side code overview
+- Status bar: Mode, cursor position, encoding
 
 ### Key Interface Elements
 
@@ -127,21 +119,11 @@ pcode-editor supports Vim-style editing with multiple modes.
 
 ### Quick Reference Card
 
-```
-┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
-│ ESC  │ F1   │ F2   │ F3   │ F4   │ F5    │ F6   │ F7   │
-├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
-│  `   │  1   │  2   │  3   │  4   │  5    │  6   │  7   │
-├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
-│ TAB  │  Q   │  W   │  E   │  R   │  T    │  Y   │  U   │
-├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
-│CTRL  │  A   │  S   │  D   │  F   │  G    │  H   │  J   │
-├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
-│SHFT  │  Z   │  X   │  C   │  V   │  B    │  N   │  M   │
-├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
-│      │  -   │  =   │           SPACE                    │
-└─────┴─────┴─────┴─────────────────────────────┘
-```
+Row 1: ESC, `  |  1, 2, 3, 4, 5, 6, 7, 8, 9, 0, -, =
+Row 2: TAB, Q, W, E, R, T, Y, U, I, O, P, [, ]
+Row 3: CTRL, A, S, D, F, G, H, J, K, L, ;, '
+Row 4: SHIFT, Z, X, C, V, B, N, M, ,, ., /
+Space: Full width bar at bottom
 
 ### File Operations
 
@@ -191,34 +173,8 @@ pcode-editor supports Vim-style editing with multiple modes.
 
 ### Split Window Layouts
 
-Horizontal Split (`:sp`):
-```
-┌─────────────────────────────────────────┐
-│ FILE A (Top)                           [─][□][×] │
-├─────────────────────────────────────────┤
-│  1 │ #include <stdio.h>                          │
-│  2 │                                             │
-│  3 │ int main() {                                │
-├─────────────────────────────────────────┤
-│ FILE B (Bottom)                               [×]│
-├─────────────────────────────────────────┤
-│  1 │ #include <stdlib.h>                         │
-│  2 │                                             │
-└─────────────────────────────────────────┘
-```
-
-Vertical Split (`:vsp`):
-```
-┌────────────────────┬──────────────────┐
-│ FILE A (Left)          │  FILE B (Right)       │
-├────────────────────┼──────────────────┤
-│ 1 │ #include           │ 1 │ #include         │
-│ 2 │                    │ 2 │                  │
-│ 3 │ int main           │ 3 │ int main         │
-│ 4 │ {                  │ 4 │ {                │
-│                        │ 5 │ }                │
-└────────────────────┴──────────────────┘
-```
+Horizontal Split (`:sp`): Two files stacked vertically, top and bottom
+Vertical Split (`:vsp`): Two files side by side, left and right
 
 ---
 
@@ -257,20 +213,7 @@ Open terminal with `:term`, `:shell`, or `:sh`.
 
 ### Terminal Window
 
-```
-┌─────────────────────────────────────────┐
-│ TERMINAL                              [─][□][×]  │
-├─────────────────────────────────────────┤
-│ $ make                                           │
-│ gcc -o main main.c                               │
-│ ./main                                           │
-│ Hello, World!                                    │
-│                                                  │
-│ $ _                                              │
-├─────────────────────────────────────────┤
-│ Zoom: 100%  (Ctrl++/-)                           │
-└─────────────────────────────────────────┘
-```
+Embedded terminal at bottom of editor window. Toggle with Ctrl+`
 
 ### Shell Commands
 
