@@ -2554,12 +2554,14 @@ void EditorApp::render_symbol_outline() {
         
         if (symbol.length() > 35) symbol = symbol.substr(0, 35) + "...";
         
+        ImGui::PushID(line_num);
         if (ImGui::Selectable((icon + symbol).c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
             // Jump to this line
             ed->SetCursorPosition(TextEditor::Coordinates(line_num - 1, 0));
             ed->SetSelection(TextEditor::Coordinates(line_num - 1, 0), TextEditor::Coordinates(line_num - 1, 0));
             ImGui::SetWindowFocus("Editor");
         }
+        ImGui::PopID();
         symbol_count++;
     }
     
