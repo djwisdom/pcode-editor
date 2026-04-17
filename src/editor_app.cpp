@@ -2124,13 +2124,13 @@ void EditorApp::render_editor_area() {
 
     float status_height = 24;
     float scrollbar_size = ImGui::GetStyle().ScrollbarSize;
-    // Use available region after sidebar (SameLine moves cursor to right)
-    ImVec2 avail = ImGui::GetContentRegionAvail();
-    float editor_area_width = avail.x > 0 ? avail.x : 600;
+    // Use window dimensions directly for consistency
+    float editor_width = ImGui::GetWindowWidth();
+    float editor_height = ImGui::GetWindowHeight();
+    float editor_area_width = editor_width;
     float editor_area_height = settings_.show_status_bar 
-        ? avail.y - status_height 
-        : avail.y;
-    if (editor_area_height < 100) editor_area_height = 400;
+        ? editor_height - status_height 
+        : editor_height;
     
     if (tabs_.empty()) {
         new_tab();
