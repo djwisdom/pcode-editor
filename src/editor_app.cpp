@@ -2450,7 +2450,9 @@ void EditorApp::render_sidebar() {
     if (!show_file_tree_) return;
     
     static float sidebar_width = 200;
+    static bool dragging = false;
     
+    // Sidebar with resize handle
     ImGui::BeginChild("##Explorer", ImVec2(sidebar_width, -1), false, ImGuiWindowFlags_NoTitleBar);
     
     if (ImGui::BeginTabBar("##SidebarTabs", ImGuiTabBarFlags_None)) {
@@ -2470,6 +2472,22 @@ void EditorApp::render_sidebar() {
     }
     
     ImGui::EndChild();
+    
+    // Resizable splitter - drag to resize sidebar
+    float available_height = ImGui::GetContentRegionAvail().y;
+    ImGui::InvisibleButton("##Splitter", ImVec2(6, available_height > 0 ? available_height : 200));
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    }
+    if (ImGui::IsItemClicked(0)) {
+        dragging = true;
+    }
+    if (dragging && ImGui::IsMouseDown(0)) {
+        sidebar_width += ImGui::GetIO().MouseDelta.x;
+        sidebar_width = (sidebar_width < 100) ? 100 : (sidebar_width > 400) ? 400 : sidebar_width;
+    } else {
+        dragging = false;
+    }
 }
 
 void EditorApp::render_file_tree() {
