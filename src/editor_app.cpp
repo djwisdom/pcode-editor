@@ -1525,11 +1525,12 @@ void EditorApp::render() {
     // Global keyboard shortcuts
     ImGuiIO& io = ImGui::GetIO();
     
-    // Only process vim keys when editor window is focused
-    bool editor_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow);
+    // Reset vim input skip flag at start of each frame
+    skip_texteditor_input_ = false;
     
     // Handle Vim mode keys first (skip when terminal input is active or editor not focused)
-    if (!terminal_input_active_ && editor_focused && vim_mode_ != VimMode::Insert) {
+    // Only handle vim keys when in Normal mode and editor is focused
+    if (vim_mode_ == VimMode::Normal && !terminal_input_active_) {
         bool vim_key_handled = false;
         for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
             if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); vim_key_handled = true; break; }
@@ -1548,8 +1549,23 @@ void EditorApp::render() {
         if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Period)) { handle_vim_key(ImGuiKey_Period, 0); vim_key_handled = true; }
         if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Semicolon) && io.KeyShift) { vim_mode_ = VimMode::Command; vim_command_buffer_ = ":"; return; }
         
-        // If vim key was handled, return immediately to prevent key from being inserted into editor
-        if (vim_key_handled) return;
+        // After vim key handling, clear keys to prevent TextEditor from receiving them
+        if (vim_key_handled) {
+            // Clear the keys we just handled so TextEditor doesn't see them
+            io.KeysDown[ImGuiKey_J] = false;
+            io.KeysDown[ImGuiKey_K] = false;
+            io.KeysDown[ImGuiKey_H] = false;
+            io.KeysDown[ImGuiKey_L] = false;
+            for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
+                io.KeysDown[key] = false;
+            }
+            for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
+                io.KeysDown[key] = false;
+            }
+            io.KeysDown[ImGuiKey_Space] = false;
+            io.KeysDown[ImGuiKey_Backspace] = false;
+            io.KeysDown[ImGuiKey_Tab] = false;
+        }
     }
     
     // Command mode - don't process vim keys or shortcuts, let status bar handle input
@@ -2985,6 +3001,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 

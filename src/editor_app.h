@@ -295,12 +295,13 @@ private:
     // Command palette
     char cmd_buf_[256] = {0};
 
-    // Vim mode state
+// Vim mode state
     enum class VimMode { Normal, Insert, Visual, VisualLine, OperatorPending, Command };
-VimMode vim_mode_ = VimMode::Normal;
+    VimMode vim_mode_ = VimMode::Normal;
     std::string vim_command_buffer_;
     char vim_cmd_input_[256] = {0};
     bool editor_focused_ = true;
+    bool skip_texteditor_input_ = false;
     std::vector<std::string> terminal_history_;
     std::vector<std::string> command_history_;
     int history_index_ = -1;
