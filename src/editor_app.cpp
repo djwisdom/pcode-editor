@@ -2807,7 +2807,7 @@ void EditorApp::render_status_bar() {
         ImGui::SameLine();
         
         // Version with git hash
-        ImGui::Text("v0.2.29");
+        ImGui::Text("v0.2.30");
     }
     
 ImGui::PopStyleColor();
