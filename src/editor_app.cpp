@@ -1663,6 +1663,25 @@ void EditorApp::render() {
         if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Period)) { handle_vim_key(ImGuiKey_Period, 0); vim_key_handled = true; }
         if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Semicolon) && io.KeyShift) { vim_mode_ = VimMode::Command; vim_command_buffer_ = ":"; return; }
         
+        // Handle Ctrl+W for split navigation (Vim style)
+        // First check Ctrl+W was just pressed
+        static bool ctrl_w_pressed = false;
+        if (ImGui::IsKeyPressed(ImGuiKey_W) && io.KeyCtrl) { ctrl_w_pressed = true; }
+        // Then check for second key while Ctrl is still held or was held
+        if (ctrl_w_pressed) {
+            if (ImGui::IsKeyPressed(ImGuiKey_W)) { next_split(); ctrl_w_pressed = false; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_H)) { prev_split(); ctrl_w_pressed = false; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_J)) { next_split(); ctrl_w_pressed = false; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_K)) { prev_split(); ctrl_w_pressed = false; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_L)) { next_split(); ctrl_w_pressed = false; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_P)) { prev_split(); ctrl_w_pressed = false; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_C)) { close_split(); ctrl_w_pressed = false; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_S)) { split_horizontal(); ctrl_w_pressed = false; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_V)) { split_vertical(); ctrl_w_pressed = false; return; }
+            // Clear ctrl_w if no second key was pressed
+            if (!io.KeyCtrl) ctrl_w_pressed = false;
+        }
+        
         // After vim key handling, clear keys to prevent TextEditor from receiving them
         if (vim_key_handled) {
             // Clear the keys we just handled so TextEditor doesn't see them
@@ -3523,6 +3542,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
