@@ -1554,11 +1554,50 @@ bool EditorApp::execute_vim_command(const std::string& cmd) {
         new_window();
         return true;
     }
+    // Handle :sp [file] - split horizontally and optionally open file
+    if (command.substr(0, 3) == "sp ") {
+        std::string path = command.substr(3);
+        if (path.empty()) {
+            split_horizontal();
+        } else {
+            split_horizontal();
+            open_file_split(path);
+        }
+        return true;
+    }
     if (command == "sp") {
         split_horizontal();
         return true;
     }
+    
+    // Handle :vsp [file] - split vertically and optionally open file
+    if (command.substr(0, 4) == "vsp ") {
+        std::string path = command.substr(4);
+        if (path.empty()) {
+            split_vertical();
+        } else {
+            split_vertical();
+            open_file_split(path);
+        }
+        return true;
+    }
     if (command == "vsp") {
+        split_vertical();
+        return true;
+    }
+    
+    // Handle :vs - alias for :vsp
+    if (command.substr(0, 3) == "vs ") {
+        std::string path = command.substr(3);
+        if (path.empty()) {
+            split_vertical();
+        } else {
+            split_vertical();
+            open_file_split(path);
+        }
+        return true;
+    }
+    if (command == "vs") {
         split_vertical();
         return true;
     }
@@ -3484,6 +3523,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
