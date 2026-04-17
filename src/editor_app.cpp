@@ -1786,29 +1786,40 @@ void EditorApp::render() {
         }
     }
 
-    // Full-screen dockspace - allows docking to edges
+// Main dockspace window
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);
     ImGui::SetNextWindowSize(viewport->Size);
     ImGui::SetNextWindowViewport(viewport->ID);
 
-    ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
     flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
     flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::Begin("DockSpace", nullptr, flags);
+    ImGui::Begin("MainDock", nullptr, flags);
     ImGui::PopStyleVar(3);
 
-    ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
-    ImGui::DockBuilderDockWindow("Editor", dockspace_id);
-
+    // Menu and sidebar in main window
     render_menu_bar();
     render_sidebar();
-    render_editor_area();
+
+    ImGui::End();
+
+    // Floating editor window - can be dragged anywhere and docked
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + 60, viewport->Pos.y + 60));
+    ImGui::SetNextWindowSize(ImVec2(800, 600));
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+    ImGuiWindowFlags editor_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+    editor_flags |= ImGuiWindowFlags_UnsavedDocument;
+    
+    if (ImGui::Begin("Editor", nullptr, editor_flags)) {
+        render_editor_area();
+        ImGui::End();
+    }
 
     // Dialogs
     if (show_find_) render_find_dialog();
@@ -1817,8 +1828,6 @@ void EditorApp::render() {
     if (show_font_) render_font_dialog();
     if (show_spaces_dialog_) render_spaces_dialog();
     if (show_cmd_palette_) render_command_palette();
-
-    ImGui::End();
 
     render_terminal();
 }
