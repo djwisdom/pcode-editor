@@ -2127,9 +2127,9 @@ void EditorApp::render_editor_area() {
     float editor_width = ImGui::GetWindowWidth();
     float editor_height = ImGui::GetWindowHeight();
     float editor_area_height = settings_.show_status_bar 
-        ? editor_height - status_height - scrollbar_size 
-        : editor_height - scrollbar_size;
-    float editor_area_width = editor_width - scrollbar_size;
+        ? editor_height - status_height 
+        : editor_height;
+    float editor_area_width = editor_width;
     
     ImGui::BeginChild("##EditorContent", ImVec2(editor_area_width, editor_area_height), false);
     
