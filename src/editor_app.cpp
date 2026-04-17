@@ -2264,10 +2264,11 @@ void EditorApp::render_status_bar() {
     float dock_y = viewport->Pos.y + viewport->Size.y - status_height - cmd_height - term_height;
     
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, dock_y));
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, status_height));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, status_height + cmd_height));
     ImGui::SetNextWindowViewport(viewport->ID);
     
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    // Allow docking and moving - remove NoMove and NoDocking
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
@@ -3065,6 +3066,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
