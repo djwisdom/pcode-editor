@@ -76,14 +76,14 @@ struct AppSettings {
     int window_w = 1280;
     int window_h = 800;
     bool dark_theme = true;
-    bool show_status_bar = true;
+    bool show_status_bar = false;
     bool word_wrap = false;
-    bool show_line_numbers = true;
-    bool show_bookmark_margin = true;
-    bool show_change_history = true;
-    bool show_minimap = true;
+    bool show_line_numbers = false;
+    bool show_bookmark_margin = false;
+    bool show_change_history = false;
+    bool show_minimap = false;
     bool show_spaces = false;
-    bool show_tabs = true;
+    bool show_tabs = false;
     int tab_size = 4;
     int font_size = 18;
     int highlight_line = 1;  // 0=none, 1=background, 2=outline
@@ -267,9 +267,9 @@ private:
     bool show_spaces_ = false;
     
     // Sidebar panels
-    bool show_file_tree_ = true;
-    bool show_git_changes_ = true;
-    bool show_symbol_outline_ = true;
+    bool show_file_tree_ = false;
+    bool show_git_changes_ = false;
+    bool show_symbol_outline_ = false;
     std::string git_branch_ = "main";
     std::vector<std::string> git_modified_files_;
 

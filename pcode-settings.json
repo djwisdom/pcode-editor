@@ -2,7 +2,7 @@
   "window_w": 1280,
   "window_h": 800,
   "dark_theme": true,
-  "show_status_bar": false,
+  "show_status_bar": true,
   "word_wrap": true,
   "show_line_numbers": true,
   "show_minimap": true,
@@ -13,5 +13,5 @@
   "font_size": 17,
   "font_name": "CascadiaMono",
   "last_open_dir": ".",
-  "recent_files": [".\\IMPLEMENTATION_SUMMARY.md", ".\\README.md", ".\\BUILD_SYSTEM.md", ".\\src\\main.cpp", ".\\src\\editor_app.cpp", ".\\TESTS.md", ".\\imgui.ini", ".\\VERSION", "./src\\\\editor_app.h", "./src\\\\main.cpp"]
+  "recent_files": [".\\README.md", ".\\IMPLEMENTATION_SUMMARY.md", ".\\BUILD_SYSTEM.md", ".\\src\\main.cpp", ".\\src\\editor_app.cpp", ".\\TESTS.md", ".\\imgui.ini", ".\\VERSION", "./src\\\\editor_app.h", "./src\\\\main.cpp"]
 }
