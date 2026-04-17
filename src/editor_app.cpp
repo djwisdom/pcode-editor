@@ -2515,7 +2515,15 @@ void EditorApp::render_status_bar() {
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
-            ImGui::Text("%s", tab.line_ending.c_str());
+            if (ImGui::Selectable(tab.line_ending.c_str(), false, ImGuiSelectableFlags_None)) {
+                ImGui::OpenPopup("##LineEndingPopup");
+            }
+            if (ImGui::BeginPopupContextItem("##LineEndingPopup", ImGuiPopupFlags_None)) {
+                if (ImGui::MenuItem("LF", nullptr, tab.line_ending == "LF")) { tab.line_ending = "LF"; }
+                if (ImGui::MenuItem("CRLF", nullptr, tab.line_ending == "CRLF")) { tab.line_ending = "CRLF"; }
+                if (ImGui::MenuItem("CR", nullptr, tab.line_ending == "CR")) { tab.line_ending = "CR"; }
+                ImGui::EndPopup();
+            }
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
@@ -2545,10 +2553,6 @@ void EditorApp::render_status_bar() {
                 }
                 ImGui::EndPopup();
             }
-            ImGui::SameLine();
-            ImGui::Text(" %s ", sep);
-            ImGui::SameLine();
-            ImGui::Text("%d%%", tab.zoom_pct);
         }
         
         ImGui::End();
@@ -2564,70 +2568,68 @@ void EditorApp::render_status_bar() {
 void EditorApp::render_minimap(TextEditor* editor) {
     if (!editor) return;
     
-    ImVec2 editor_pos = ImGui::GetWindowPos();
-    float editor_width = ImGui::GetWindowWidth();
-    float editor_height = ImGui::GetWindowHeight();
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImVec2 vp = viewport->Pos;
+    ImVec2 vs = viewport->Size;
     
+    float sidebar_width = show_file_tree_ ? 220.0f : 0.0f;
+    float editor_x = vp.x + sidebar_width + 60;
+    float editor_width = vs.x - sidebar_width - 60 - 90;
+    float editor_height = vs.y - 80;
     float minimap_width = 80;
-    float minimap_x = editor_pos.x + editor_width - minimap_width - 8;
+    float minimap_x = editor_x + editor_width + 5;
     
-    ImGui::SetNextWindowPos(ImVec2(minimap_x, editor_pos.y + 8));
+    auto lines = editor->GetTextLines();
+    int total_lines = (int)lines.size();
+    if (total_lines == 0) total_lines = 1;
+    float scale = (editor_height - 20) / (float)total_lines;
+    if (scale > 4) scale = 4;
+    if (scale < 0.5f) scale = 0.5f;
+    
+    ImGui::SetNextWindowPos(ImVec2(minimap_x, vp.y + 8));
     ImGui::SetNextWindowSize(ImVec2(minimap_width, editor_height - 16));
+    ImGui::SetNextWindowViewport(viewport->ID);
     
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | 
                             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-                            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground;
+                            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground |
+                            ImGuiWindowFlags_NoInputs;
     
     if (ImGui::Begin("##Minimap", nullptr, flags)) {
-        auto lines = editor->GetTextLines();
-        int total_lines = (int)lines.size();
-        if (total_lines == 0) total_lines = 1;
-        
-        float line_height = (editor_height - 16) / (float)total_lines;
-        if (line_height < 1) line_height = 1;
-        
-        // Calculate visible range
         auto cursor = editor->GetCursorPosition();
-        int view_lines = (int)((editor_height - 16) / (line_height * 4));
-        if (view_lines < 1) view_lines = 1;
         
-        // Draw each line as a thin colored line
         for (int i = 0; i < total_lines; i++) {
-            float y = editor_pos.y + 8 + (i * line_height * 4);
-            if (y < editor_pos.y + 8 || y > editor_pos.y + editor_height - 8) continue;
+            float y = vp.y + 10 + (i * scale);
+            if (y < vp.y + 10 || y > vp.y + editor_height - 10) continue;
             
-            // Check if this is the current line
             if (i == cursor.mLine) {
                 ImGui::GetWindowDrawList()->AddRectFilled(
                     ImVec2(minimap_x, y),
-                    ImVec2(minimap_x + minimap_width - 4, y + line_height * 3),
-                    IM_COL32(150, 150, 170, 255));
+                    ImVec2(minimap_x + minimap_width - 4, y + scale - 1),
+                    IM_COL32(120, 120, 150, 255));
             } else {
-                // Draw syntax-colored line representation
                 ImGui::GetWindowDrawList()->AddRectFilled(
                     ImVec2(minimap_x, y),
-                    ImVec2(minimap_x + minimap_width - 4, y + line_height * 2),
-                    IM_COL32(80, 80, 100, 180));
+                    ImVec2(minimap_x + minimap_width - 4, y + scale - 1),
+                    IM_COL32(70, 70, 90, 200));
             }
         }
-        
-        // Draw viewport indicator
-        float vp_top = editor_pos.y + 8;
-        float vp_height = view_lines * line_height * 4;
-        ImGui::GetWindowDrawList()->AddRect(
-            ImVec2(minimap_x, vp_top),
-            ImVec2(minimap_x + minimap_width - 4, vp_top + vp_height),
-            IM_COL32(200, 200, 220, 255), 1.f, 0, 2.f);
-        
-        // Handle click on minimap to navigate
-        if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0)) {
+    }
+    ImGui::End();
+    
+    if (ImGui::Begin("##MinimapInput", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | 
+                            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+                            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::IsMouseClicked(0)) {
             ImVec2 mouse = ImGui::GetMousePos();
-            float rel_y = mouse.y - (editor_pos.y + 8);
-            int target_line = (int)(rel_y / (line_height * 4));
-            if (target_line < 0) target_line = 0;
-            if (target_line >= total_lines) target_line = total_lines - 1;
-            editor->SetCursorPosition(TextEditor::Coordinates(target_line, 0));
-            editor->SetSelection(TextEditor::Coordinates(target_line, 0), TextEditor::Coordinates(target_line, 0));
+            if (mouse.x >= minimap_x && mouse.x < minimap_x + minimap_width) {
+                float rel_y = mouse.y - (vp.y + 10);
+                int target_line = (int)(rel_y / scale);
+                if (target_line < 0) target_line = 0;
+                if (target_line >= total_lines) target_line = total_lines - 1;
+                editor->SetCursorPosition(TextEditor::Coordinates(target_line, 0));
+                editor->SetSelection(TextEditor::Coordinates(target_line, 0), TextEditor::Coordinates(target_line, 0));
+            }
         }
     }
     ImGui::End();
@@ -3384,6 +3386,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
