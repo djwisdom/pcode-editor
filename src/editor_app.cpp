@@ -1965,65 +1965,135 @@ void EditorApp::render_editor_with_margins() {
         return;
     }
     
-    bool show_margins = settings_.show_bookmark_margin || settings_.show_change_history;
+bool show_margins = settings_.show_bookmark_margin || settings_.show_change_history || settings_.show_line_numbers;
     
-    // Always show gutter with line numbers (default on)
-    if (show_margins || settings_.show_line_numbers || true) {
+    if (show_margins) {
         ImGui::BeginGroup();
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
         
-        int total_lines = editor->GetTotalLines();
+        auto lines = editor->GetTextLines();
+        int total_lines = (int)lines.size();
+        if (total_lines == 0) total_lines = 1;
         
-        // Render gutter columns
-        if (show_margins) {
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2f, 0.2f, 0.24f, 1.0f));
-            if (ImGui::BeginChild("##Margins", ImVec2(60, -1), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar)) {
-                if (ImGui::BeginPopupContextItem("##MarginsPopup")) {
-                    if (ImGui::MenuItem("Fold All", nullptr, nullptr)) { fold_all(); }
-                    if (ImGui::MenuItem("Unfold All", nullptr, nullptr)) { unfold_all(); }
-                    ImGui::Separator();
-                    ImGui::MenuItem("Line Numbers", nullptr, &settings_.show_line_numbers);
-                    ImGui::MenuItem("Bookmark Margin", nullptr, &settings_.show_bookmark_margin);
-                    ImGui::MenuItem("Change History", nullptr, &settings_.show_change_history);
-                    ImGui::EndPopup();
-                }
-                
-                for (int line = 0; line < total_lines; line++) {
-                    ImGui::PushID(line);
-                    
-                    // Bookmark column (left)
-                    if (settings_.show_bookmark_margin) {
-                        bool is_bookmarked = std::find(tab.bookmarks.begin(), tab.bookmarks.end(), line) != tab.bookmarks.end();
-                        if (is_bookmarked) {
-                            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), ""); // Bookmark icon
+        // Calculate gutter width based on line number digits
+        int max_line = total_lines;
+        int digit_count = 1;
+        while (max_line >= 10) { max_line /= 10; digit_count++; }
+        float gutter_width = 16.0f + (digit_count * 8.0f) + 8.0f; // padding + digits + margin
+        
+        // Build markers for lookup (using vector search is fine for small sets)
+        auto& bookmarks = tab.bookmarks;
+        auto& changed_lines = tab.changed_lines;
+        auto& folds = tab.folds;
+        
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.18f, 0.18f, 0.21f, 1.0f));
+        if (ImGui::BeginChild("##Gutter", ImVec2(gutter_width, -1), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMouseInputs)) {
+            if (ImGui::IsMouseClicked(0, false) && !ImGui::IsPopupOpen(0)) {
+                // Check for click on gutter
+                ImVec2 mouse = ImGui::GetMousePos();
+                ImVec2 win_pos = ImGui::GetWindowPos();
+                if (mouse.x >= win_pos.x && mouse.x < win_pos.x + gutter_width) {
+                    float line_height = ImGui::GetTextLineHeightWithSpacing();
+                    int clicked_line = (int)((mouse.y - win_pos.y) / line_height);
+                    if (clicked_line >= 0 && clicked_line < total_lines) {
+                        // Check if clicked on fold indicator (right side of gutter)
+                        float fold_indicator_x = gutter_width - 16;
+                        if (mouse.x >= win_pos.x + fold_indicator_x) {
+                            // Check for fold at this line
+                            bool found_start = false, found_end = false;
+                            for (const auto& f : folds) {
+                                if (f.first == clicked_line) found_start = true;
+                                if (f.second == clicked_line) found_end = true;
+                            }
+                            if (found_start) {
+                                toggle_fold(clicked_line);
+                            } else if (found_end) {
+                                // Go to fold start to unfold
+                                for (const auto& f : folds) {
+                                    if (f.second == clicked_line) {
+                                        toggle_fold(f.first);
+                                        break;
+                                    }
+                                }
+                            }
                         } else {
-                            ImGui::Text(" ");
-                        }
-                        ImGui::SameLine();
-                    }
-                    
-                    // Code fold indicator (middle)
-                    bool is_fold_start = false; // Would need fold state
-                    ImGui::Text(is_fold_start ? "-" : " ");
-                    ImGui::SameLine();
-                    
-                    // Change history (right)
-                    if (settings_.show_change_history) {
-                        bool has_changes = !tab.changed_lines.empty();
-                        if (has_changes) {
-                            bool is_changed = std::find(tab.changed_lines.begin(), tab.changed_lines.end(), line) != tab.changed_lines.end();
-                            if (is_changed) {
-                                ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), ""); // Changed indicator
+                            // Toggle bookmark (if clicking on bookmark column)
+                            if (settings_.show_bookmark_margin && mouse.x < win_pos.x + 16) {
+                                toggle_bookmark(clicked_line);
                             }
                         }
                     }
-                    
-                    ImGui::PopID();
                 }
             }
-            ImGui::EndChild();
-            ImGui::PopStyleColor();
+            
+            if (ImGui::BeginPopupContextItem("##GutterPopup")) {
+                ImGui::TextDisabled("Gutter");
+                ImGui::Separator();
+                if (ImGui::MenuItem("Fold All", nullptr, nullptr)) { fold_all(); }
+                if (ImGui::MenuItem("Unfold All", nullptr, nullptr)) { unfold_all(); }
+                ImGui::Separator();
+                ImGui::MenuItem("Line Numbers", nullptr, &settings_.show_line_numbers);
+                ImGui::MenuItem("Bookmark", nullptr, &settings_.show_bookmark_margin);
+                ImGui::MenuItem("Change History", nullptr, &settings_.show_change_history);
+                ImGui::EndPopup();
+            }
+            
+            for (int line = 0; line < total_lines; line++) {
+                ImGui::PushID(line);
+                
+                // Right-align line numbers with padding
+                if (settings_.show_line_numbers) {
+                    int line_display = line + 1;
+                    char line_num[16];
+                    sprintf(line_num, "%*d", digit_count, line_display);
+                    
+                    // Check if current line for highlight
+                    bool is_current_line = (line == editor->GetCursorPosition().mLine);
+                    if (is_current_line) {
+                        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.4f, 1.0f), line_num);
+                    } else {
+                        ImGui::TextColored(ImVec4(0.4f, 0.4f, 0.5f, 1.0f), line_num);
+                    }
+                    ImGui::SameLine();
+                }
+                
+                // Bookmark column (far left, 16px)
+                if (settings_.show_bookmark_margin) {
+                    bool is_bookmarked = std::find(bookmarks.begin(), bookmarks.end(), line) != bookmarks.end();
+                    if (is_bookmarked) {
+                        ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), ">");
+                    } else {
+                        ImGui::TextDisabled(" ");
+                    }
+                    ImGui::SameLine();
+                }
+                
+                // Change history indicator (shows modified lines in green/red)
+                if (settings_.show_change_history) {
+                    bool is_changed = std::find(changed_lines.begin(), changed_lines.end(), line) != changed_lines.end();
+                    if (is_changed) {
+                        ImGui::TextColored(ImVec4(0.3f, 0.8f, 0.4f, 1.0f), "|");
+                    }
+                    ImGui::SameLine();
+                }
+                
+                // Fold indicator (+ or -)
+                bool is_fold_start = false, is_fold_end = false;
+                for (const auto& f : folds) {
+                    if (f.first == line) is_fold_start = true;
+                    if (f.second == line) is_fold_end = true;
+                }
+                if (is_fold_start) {
+                    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.6f, 1.0f), "-");
+                } else if (is_fold_end) {
+                    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.6f, 1.0f), "+");
+                }
+                
+                ImGui::PopID();
+            }
         }
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
         
         ImGui::SameLine();
         ImGui::PopStyleVar();
@@ -3177,6 +3247,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
