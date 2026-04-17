@@ -1463,9 +1463,24 @@ bool EditorApp::execute_vim_command(const std::string& cmd) {
         open_file("");
         return true;
     }
-    if (command.substr(0, 1) == "e" && command.length() > 1) {
+    if ((command.substr(0, 2) == "e " || command.substr(0, 3) == "e! ") && command.length() > 2) {
         std::string path = command.substr(2);
-        open_file(path);
+        if (path.empty()) {
+            open_file("");
+            return true;
+        }
+        if (!std::filesystem::exists(path)) {
+            // Try relative to current directory
+            std::string cwd = std::filesystem::current_path().string();
+            std::string full_path = cwd + "\\" + path;
+            if (std::filesystem::exists(full_path)) {
+                open_file(full_path);
+            } else {
+                fprintf(stderr, "Failed to open: %s\n", path.c_str());
+            }
+        } else {
+            open_file(path);
+        }
         return true;
     }
     if (command == "new") {
@@ -3386,6 +3401,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
