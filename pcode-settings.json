@@ -13,5 +13,5 @@
   "font_size": 18,
   "font_name": "CascadiaMono",
   "last_open_dir": ".\\src",
-  "recent_files": [".\\src\\editor_app.cpp", ".\\src\\editor_app.h", ".\\docs\\versioning.md", ".\\docs\\imgui_tutorial.md", ".\\docs\\VIM_MOTIONS_SPEC.md", "./src/editor_app.h", "./src/main.cpp", "./src/editor_app.cpp", "VERSION", "./CMakeLists.txt"]
+  "recent_files": [".\\src\\editor_app.h", ".\\src\\editor_app.cpp", ".\\docs\\versioning.md", ".\\docs\\imgui_tutorial.md", ".\\docs\\VIM_MOTIONS_SPEC.md", "./src/editor_app.h", "./src/main.cpp", "./src/editor_app.cpp", "VERSION", "./CMakeLists.txt"]
 }

@@ -1792,7 +1792,7 @@ void EditorApp::render() {
     ImGui::SetNextWindowSize(viewport->Size);
     ImGui::SetNextWindowViewport(viewport->ID);
 
-    ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
     flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
     flags |= ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
@@ -1804,7 +1804,7 @@ void EditorApp::render() {
     ImGui::PopStyleVar(3);
 
     ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::DockBuilderDockWindow("Editor", dockspace_id);
 
     render_menu_bar();
@@ -2031,8 +2031,8 @@ ImGui::EndMenu();
 // Editor Area
 // ============================================================================
 void EditorApp::render_editor_area() {
-    // Editor window - can float and dock
-    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse);
+    // Editor window - can float, dock, and resize
+    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
     
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow)) {
         editor_focused_ = true;
