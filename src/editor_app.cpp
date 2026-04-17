@@ -2174,18 +2174,20 @@ void EditorApp::render_sidebar() {
     
     ImGui::Begin("Explorer", nullptr, ImGuiWindowFlags_NoTitleBar);
     
-    render_file_tree();
-    
-    ImGui::Separator();
-    
-    if (show_git_changes_) {
-        render_git_changes();
-    }
-    
-    ImGui::Separator();
-    
-    if (show_symbol_outline_) {
-        render_symbol_outline();
+    if (ImGui::BeginTabBar("##SidebarTabs", ImGuiTabBarFlags_None)) {
+        if (ImGui::BeginTabItem("Files", nullptr, ImGuiTabItemFlags_None)) {
+            render_file_tree();
+            ImGui::EndTabItem();
+        }
+        if (show_git_changes_ && ImGui::BeginTabItem("Git", nullptr, ImGuiTabItemFlags_None)) {
+            render_git_changes();
+            ImGui::EndTabItem();
+        }
+        if (show_symbol_outline_ && ImGui::BeginTabItem("Symbols", nullptr, ImGuiTabItemFlags_None)) {
+            render_symbol_outline();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
     }
     
     ImGui::End();
@@ -3247,6 +3249,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
