@@ -159,7 +159,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
-    return "pCode Editor version 0.2.30";
+    return "pCode Editor version 0.2.31";
 }
 
 // ============================================================================
@@ -1786,14 +1786,13 @@ void EditorApp::render() {
         }
     }
 
-// Main window with menu and sidebar
+// Main window - just sidebar
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);
     ImGui::SetNextWindowSize(viewport->Size);
     ImGui::SetNextWindowViewport(viewport->ID);
 
-    ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
-    flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
     flags |= ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
@@ -1802,16 +1801,16 @@ void EditorApp::render() {
     ImGui::Begin("pcode-editor", nullptr, flags);
     ImGui::PopStyleVar(3);
 
-    render_menu_bar();
     render_sidebar();
 
     ImGui::End();
 
-    // Editor as independent floating window - fully movable
+    // Editor as independent floating window - fully movable, with menu inside
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + 80, viewport->Pos.y + 80), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
     
-    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_MenuBar)) {
+        render_menu_bar();
         render_editor_area();
         ImGui::End();
     }
@@ -2796,7 +2795,7 @@ void EditorApp::render_status_bar() {
         ImGui::SameLine();
         
         // Version with git hash
-        ImGui::Text("v0.2.31");
+        ImGui::Text("v0.2.32");
     }
     
 ImGui::PopStyleColor();
