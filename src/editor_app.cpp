@@ -1556,19 +1556,19 @@ void EditorApp::render() {
         // After vim key handling, clear keys to prevent TextEditor from receiving them
         if (vim_key_handled) {
             // Clear the keys we just handled so TextEditor doesn't see them
-            io.KeysDown[ImGuiKey_J] = false;
-            io.KeysDown[ImGuiKey_K] = false;
-            io.KeysDown[ImGuiKey_H] = false;
-            io.KeysDown[ImGuiKey_L] = false;
+            io.AddKeyEvent(ImGuiKey_J, false);
+            io.AddKeyEvent(ImGuiKey_K, false);
+            io.AddKeyEvent(ImGuiKey_H, false);
+            io.AddKeyEvent(ImGuiKey_L, false);
             for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
-                io.KeysDown[key] = false;
+                io.AddKeyEvent((ImGuiKey)key, false);
             }
             for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
-                io.KeysDown[key] = false;
+                io.AddKeyEvent((ImGuiKey)key, false);
             }
-            io.KeysDown[ImGuiKey_Space] = false;
-            io.KeysDown[ImGuiKey_Backspace] = false;
-            io.KeysDown[ImGuiKey_Tab] = false;
+            io.AddKeyEvent(ImGuiKey_Space, false);
+            io.AddKeyEvent(ImGuiKey_Backspace, false);
+            io.AddKeyEvent(ImGuiKey_Tab, false);
         }
     }
     
@@ -2097,7 +2097,7 @@ void EditorApp::render_editor_with_margins() {
 }
 
 // ============================================================================
-// Sidebar - just file explorer
+// Sidebar - file explorer, git changes, and symbol outline
 // ============================================================================
 void EditorApp::render_sidebar() {
     if (!show_file_tree_) return;
@@ -2105,6 +2105,18 @@ void EditorApp::render_sidebar() {
     ImGui::Begin("Explorer", nullptr, ImGuiWindowFlags_NoTitleBar);
     
     render_file_tree();
+    
+    ImGui::Separator();
+    
+    if (show_git_changes_) {
+        render_git_changes();
+    }
+    
+    ImGui::Separator();
+    
+    if (show_symbol_outline_) {
+        render_symbol_outline();
+    }
     
     ImGui::End();
 }
@@ -2164,6 +2176,7 @@ void EditorApp::render_dir_tree(const std::string& dir_path, std::unordered_map<
                 for (size_t i = 0; i < tabs_.size(); i++) {
                     if (tabs_[i].file_path == full_path) {
                         active_tab_ = i;
+                        ImGui::SetWindowFocus("Editor");
                         already_open = true;
                         break;
                     }
@@ -2177,30 +2190,69 @@ void EditorApp::render_dir_tree(const std::string& dir_path, std::unordered_map<
 }
 
 void EditorApp::render_git_changes() {
-    ImGui::Text("Git: %s", git_branch_.c_str());
+    if (!show_git_changes_) return;
+    
+    ImGui::TextColored(ImVec4(0.8f, 0.4f, 0.0f, 1.0f), "Git: %s", git_branch_.c_str());
     ImGui::Separator();
+    
+    if (!std::filesystem::exists(".git")) {
+        ImGui::TextDisabled("(Not a git repository)");
+        return;
+    }
     
     std::vector<std::string> modified_files;
     
-    // Check for .git directory
-    if (std::filesystem::exists(".git")) {
-        ImGui::Text("Changes:");
-        
-        // Scan current directory for git changes (simplified)
-        for (const auto& entry : std::filesystem::directory_iterator(".")) {
+    // Try to get modified files from git
+    FILE* pipe = _popen("git diff --name-only --porcelain 2>nul", "r");
+    if (pipe) {
+        char buf[512];
+        while (fgets(buf, sizeof(buf), pipe)) {
+            std::string line = buf;
+            if (!line.empty() && line[0] == ' ' || line[0] == '?') {
+                std::string path = line.substr(2);
+                path.erase(path.find('\n'), std::string::npos);
+                if (!path.empty()) modified_files.push_back(path);
+            }
+        }
+        _pclose(pipe);
+    }
+    
+    // Fallback: scan all files in current dir if no git
+    if (modified_files.empty()) {
+        std::string dir_path = settings_.last_open_dir.empty() ? "." : settings_.last_open_dir;
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
             if (entry.is_regular_file()) {
-                std::string ext = entry.path().extension().string();
-                if (!ext.empty() && ext != ".git") {
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), " M %s", entry.path().filename().string().c_str());
+                std::string name = entry.path().filename().string();
+                if (!name.empty() && name[0] != '.') {
+                    modified_files.push_back(entry.path().string());
                 }
             }
         }
-    } else {
-        ImGui::Text("(No git repo)");
     }
     
-    if (ImGui::Button("Refresh")) {
-        // Would refresh git status
+    if (modified_files.empty()) {
+        ImGui::TextDisabled("(No modified files)");
+        return;
+    }
+    
+    ImGui::Text("Changes (%zu):", modified_files.size());
+    for (const auto& path : modified_files) {
+        std::string name = std::filesystem::path(path).filename().string();
+        if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
+            // Switch to or open the file
+            bool already_open = false;
+            for (size_t i = 0; i < tabs_.size(); i++) {
+                if (tabs_[i].file_path == path) {
+                    active_tab_ = i;
+                    ImGui::SetWindowFocus("Editor");
+                    already_open = true;
+                    break;
+                }
+            }
+            if (!already_open) {
+                open_file(path);
+            }
+        }
     }
 }
 
@@ -2213,43 +2265,98 @@ void EditorApp::render_breadcrumb() {
 }
 
 void EditorApp::render_symbol_outline() {
-    ImGui::Text("Symbols");
-    ImGui::Separator();
+    if (!show_symbol_outline_) return;
     
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) {
-        ImGui::Text("(No file open)");
+        ImGui::TextDisabled("Symbols (no file)");
         return;
     }
     
     TextEditor* ed = get_active_editor();
     if (!ed) return;
     
-    // Extract symbols from file content
     std::string text = ed->GetText();
     std::istringstream iss(text);
     std::string line;
     int line_num = 0;
+    int symbol_count = 0;
     
-    while (std::getline(iss, line) && line_num < 100) {
+    while (std::getline(iss, line)) {
         line_num++;
-        // Look for function definitions, classes, etc.
-        if (line.find("void ") != std::string::npos || 
-            line.find("int ") != std::string::npos ||
-            line.find("class ") != std::string::npos ||
-            line.find("struct ") != std::string::npos ||
-            line.find("func ") != std::string::npos ||
-            line.find("def ") != std::string::npos ||
-            line.find("fn ") != std::string::npos) {
-            // Trim and show
-            std::string symbol = line;
-            symbol.erase(0, symbol.find_first_not_of(" \t"));
-            if (symbol.length() > 40) symbol = symbol.substr(0, 40) + "...";
-            ImGui::Text("%d: %s", line_num, symbol.c_str());
+        
+        // Skip comments and empty lines
+        std::string trimmed = line;
+        trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+        if (trimmed.empty() || trimmed.substr(0, 2) == "//" || trimmed.substr(0, 2) == "/*") continue;
+        
+        // Look for different symbol types with better patterns
+        std::string icon;
+        ImVec4 color(0.6f, 0.6f, 0.6f, 1.0f);
+        
+        if (trimmed.find("class ") == 0) {
+            icon = "[C] ";
+            color = ImVec4(0.4f, 0.6f, 1.0f, 1.0f);  // blue
+        } else if (trimmed.find("struct ") == 0) {
+            icon = "[S] ";
+            color = ImVec4(0.4f, 0.7f, 0.5f, 1.0f);  // green
+        } else if (trimmed.find("enum ") == 0) {
+            icon = "[E] ";
+            color = ImVec4(0.7f, 0.5f, 0.3f, 1.0f);  // brown
+        } else if (trimmed.find("void ") != std::string::npos || 
+                  trimmed.find("int ") != std::string::npos ||
+                  trimmed.find("bool ") != std::string::npos ||
+                  trimmed.find("std::") != std::string::npos ||
+                  trimmed.find("auto ") != std::string::npos) {
+            // Try to detect function (has paren after type)
+            size_t paren = trimmed.find('(');
+            size_t name_start = trimmed.find_first_of(" \t*&");
+            if (paren != std::string::npos && name_start != std::string::npos && name_start < paren) {
+                icon = "[F] ";
+                color = ImVec4(1.0f, 0.8f, 0.4f, 1.0f);  // yellow
+            } else {
+                continue;  // Skip variable declarations
+            }
+        } else if (trimmed.find("def ") == 0 || trimmed.find("fn ") == 0 || trimmed.find("func ") == 0) {
+            icon = "[F] ";
+            color = ImVec4(1.0f, 0.8f, 0.4f, 1.0f);
+        } else if (trimmed.find("#define ") == 0) {
+            icon = "[D] ";
+            color = ImVec4(0.8f, 0.4f, 0.8f, 1.0f);  // purple
+        } else if (trimmed.find("const ") != std::string::npos && trimmed.find('=') != std::string::npos) {
+            icon = "[V] ";
+            color = ImVec4(0.5f, 0.8f, 0.8f, 1.0f);  // cyan
+        } else {
+            continue;
         }
+        
+        // Trim and clean the symbol display
+        std::string symbol = line;
+        symbol.erase(0, symbol.find_first_not_of(" \t"));
+        
+        // Remove trailing comments and braces
+        size_t comment_pos = symbol.find("//");
+        if (comment_pos != std::string::npos) symbol = symbol.substr(0, comment_pos);
+        size_t brace_pos = symbol.find('{');
+        if (brace_pos != std::string::npos) symbol = symbol.substr(0, brace_pos);
+        
+        // Trim end
+        while (!symbol.empty() && (symbol.back() == ' ' || symbol.back() == '\t' || symbol.back() == ';')) {
+            symbol.pop_back();
+        }
+        
+        if (symbol.length() > 35) symbol = symbol.substr(0, 35) + "...";
+        
+        if (ImGui::Selectable((icon + symbol).c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
+            // Jump to this line
+            ed->SetCursorPosition(TextEditor::Coordinates(line_num - 1, 0));
+            ed->SetSelection(TextEditor::Coordinates(line_num - 1, 0), TextEditor::Coordinates(line_num - 1, 0));
+            ImGui::SetWindowFocus("Editor");
+        }
+        symbol_count++;
     }
     
-    if (line_num == 0) {
-        ImGui::Text("(No symbols found)");
+    if (symbol_count == 0) {
+        ImGui::TextDisabled("(No symbols found)");
     }
 }
 
@@ -3070,6 +3177,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
