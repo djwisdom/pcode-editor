@@ -1422,19 +1422,21 @@ bool EditorApp::execute_vim_command(const std::string& cmd) {
     std::string command = cmd;
     if (command[0] == ':') command = command.substr(1);
     
-    if (command == "version") {
-        printf("%s\n", get_version().c_str());
+    if (command == "version" || command == "version\n") {
+        vim_command_buffer_ = get_version();
+        vim_mode_ = VimMode::Command;
+        ImGui::OpenPopup("##CommandLine");
         return true;
     }
     if (command == "d" || command == "diag" || command == "diagnostics") {
-        printf("pCode Editor Diagnostics:\n");
-        printf("Version: %s\n", get_version().c_str());
-        printf("Tabs Open: %zu\n", tabs_.size());
-        printf("Tabs Dirty: ");
+        char buf[512];
+        sprintf(buf, "pCode Editor Diagnostics:\nVersion: %s\nTabs Open: %zu\nTabs Dirty:", get_version().c_str(), tabs_.size());
         for (size_t i = 0; i < tabs_.size(); i++) {
-            if (tabs_[i].dirty) printf("%zu ", i);
+            if (tabs_[i].dirty) sprintf(buf + strlen(buf), " %zu", i);
         }
-        printf("\n");
+        vim_command_buffer_ = buf;
+        vim_mode_ = VimMode::Command;
+        ImGui::OpenPopup("##CommandLine");
         return true;
     }
     
@@ -3439,6 +3441,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
