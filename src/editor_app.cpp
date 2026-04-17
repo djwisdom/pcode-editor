@@ -18,6 +18,10 @@
 #include <TextEditor.h>
 #include <nfd.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <cstdio>
 #include <cmath>
 #include <fstream>
@@ -370,10 +374,16 @@ void EditorApp::new_tab() {
 
 void EditorApp::new_window() {
     // Launch a new instance of the same executable
+    // Using execl is safer than system()
 #ifdef _WIN32
-    system("start pcode-editor.exe");
+    STARTUPINFO si = {0};
+    PROCESS_INFORMATION pi = {0};
+    si.cb = sizeof(si);
+    CreateProcess("pcode-editor.exe", NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 #else
-    system("./pcode-editor &");
+    if (fork() == 0) {
+        execl("./pcode-editor", "./pcode-editor", NULL);
+    }
 #endif
 }
 
@@ -2808,10 +2818,11 @@ void EditorApp::render_floating_command() {
                     strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
                 }
             } else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
-                if (history_index_ > 0) {
+if (history_index_ > 0) {
                     history_index_--;
                     strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
-                } else if (history_index_ == 0) {
+                    vim_cmd_input_[sizeof(vim_cmd_input_) - 1] = '\0';
+                    } else if (history_index_ == 0) {
                     history_index_ = -1;
                     vim_cmd_input_[0] = '\0';
                 }
