@@ -2131,8 +2131,6 @@ void EditorApp::render_editor_area() {
         : editor_height;
     float editor_area_width = editor_width;
     
-    ImGui::BeginChild("##EditorContent", ImVec2(editor_area_width, editor_area_height), false);
-    
     if (tabs_.empty()) {
         new_tab();
     }
@@ -2146,6 +2144,7 @@ void EditorApp::render_editor_area() {
     }
     prev_active_tab = active_tab_;
     
+    // Render tabs FIXED at top (not inside scrolling child)
     if (show_tabs) {
         ImGuiTabBarFlags tab_flags = ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs;
         if (ImGui::BeginTabBar("##Tabs", tab_flags)) {
@@ -2163,9 +2162,6 @@ void EditorApp::render_editor_area() {
                         active_tab_ = i;
                         ImGui::SetWindowFocus("Editor");
                     }
-                    
-                    render_editor_with_margins();
-                    
                     ImGui::EndTabItem();
                 }
                 if (!open) {
@@ -2175,10 +2171,13 @@ void EditorApp::render_editor_area() {
             }
             ImGui::EndTabBar();
         }
-    } else {
-        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            render_editor_with_margins();
-        }
+    }
+    
+    // Now scrollable editor content
+    ImGui::BeginChild("##EditorContent", ImVec2(editor_area_width, editor_area_height), false);
+    
+    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+        render_editor_with_margins();
     }
     
     ImGui::EndChild();

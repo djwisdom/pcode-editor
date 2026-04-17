@@ -5,7 +5,7 @@
   "show_status_bar": true,
   "word_wrap": true,
   "show_line_numbers": true,
-  "show_minimap": false,
+  "show_minimap": true,
   "show_spaces": true,
   "highlight_line": 1,
   "show_tabs": true,
