@@ -1820,7 +1820,6 @@ void EditorApp::render() {
 
     ImGui::End();
 
-    render_command_line();
     render_terminal();
 }
 
@@ -2030,8 +2029,8 @@ ImGui::EndMenu();
 // Editor Area
 // ============================================================================
 void EditorApp::render_editor_area() {
-    // Editor window - can float, dock, and resize
-    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+    // Editor window - dockable
+    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoSavedSettings);
     
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow)) {
         editor_focused_ = true;
@@ -2659,22 +2658,53 @@ void EditorApp::render_symbol_outline() {
 void EditorApp::render_status_bar() {
     if (!settings_.show_status_bar) return;
     
-    float status_height = 24;
-    float cmd_height = vim_mode_ == VimMode::Command ? 24 : 0;
+    float status_height = 22;
+    float cmd_height = vim_mode_ == VimMode::Command ? 22 : 0;
     
-    // Get editor window dimensions - use current window
+    // Get editor window dimensions
     ImVec2 editor_pos = ImGui::GetWindowPos();
     float editor_width = ImGui::GetWindowWidth();
     float editor_height = ImGui::GetWindowHeight();
     
-    // Position at bottom of current editor window
-    ImGui::SetCursorPosY(editor_height - status_height - cmd_height);
+    // Command bar - inside editor, one line high, positioned at very bottom of editor
+    if (vim_mode_ == VimMode::Command) {
+        float cmd_y = editor_height - cmd_height;
+        ImGui::SetCursorPosY(cmd_y);
+        
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImU32 cmd_bg = ImColor(0.1f, 0.1f, 0.2f);
+        draw_list->AddRectFilled(
+            ImVec2(editor_pos.x, editor_pos.y + cmd_y),
+            ImVec2(editor_pos.x + editor_width, editor_pos.y + editor_height),
+            cmd_bg);
+        
+        ImGui::SetCursorPosY(cmd_y);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
+        
+        ImGui::Text(":");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(editor_width - 30);
+        if (ImGui::InputText("##cmd", vim_command_input_, sizeof(vim_command_input_), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            execute_vim_command(vim_command_input_);
+            vim_command_input_[0] = '\0';
+            vim_mode_ = VimMode::Normal;
+        }
+        
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
+        
+        // Move status bar above command bar
+        editor_height -= cmd_height;
+    }
     
-    // Status bar background - spans full width
+    // Status bar at bottom of editor
+    ImGui::SetCursorPosY(editor_height - status_height);
+    
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     ImU32 status_bg = ImColor(0.2f, 0.2f, 0.25f);
     draw_list->AddRectFilled(
-        ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height - cmd_height),
+        ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height),
         ImVec2(editor_pos.x + editor_width, editor_pos.y + editor_height),
         status_bg);
     
@@ -2687,6 +2717,7 @@ void EditorApp::render_status_bar() {
         auto pos = editor ? editor->GetCursorPosition() : TextEditor::Coordinates();
 
         const char* mode_str = get_vim_mode_str();
+        const char* sep = "|";
         
         // Get directory info
         std::string dir_info = ".";
@@ -2702,56 +2733,47 @@ void EditorApp::render_status_bar() {
             }
         }
         
-        // Status bar sections
-        const char* sep = " | ";
-        
-        // Mode: NORMAL/INSERT
+        // Exact format: | MODE | filename | * | Ln,Col | Git:branch | encoding | CRLF | Tab:n | v0.2.28 |
         ImGui::Text("%s", mode_str);
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
         
-        // Filename with dirty indicator
         std::string display = tab.display_name + (tab.dirty ? " *" : "");
         ImGui::Text("%s", display.c_str());
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
         
-        // Line and column
         ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
         
-        // Git branch or directory
         ImGui::Text("Git: %s", dir_info.c_str());
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
         
-        // Encoding (read-only display)
         ImGui::Text("%s", tab.file_encoding.c_str());
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
         
-        // Line ending - clickable popup
-        std::string le_id = tab.line_ending;
-        if (ImGui::Selectable(le_id.c_str(), false)) {
+        // Line ending - clickable
+        if (ImGui::Selectable(tab.line_ending.c_str(), false)) {
             ImGui::OpenPopup("LineEndingPopup");
         }
         if (ImGui::BeginPopup("LineEndingPopup")) {
             if (ImGui::MenuItem("LF", nullptr, tab.line_ending == "LF")) { tab.line_ending = "LF"; }
             if (ImGui::MenuItem("CRLF", nullptr, tab.line_ending == "CRLF")) { tab.line_ending = "CRLF"; }
-            if (ImGui::MenuItem("CR", nullptr, tab.line_ending == "CR")) { tab.line_ending = "CR"; }
             ImGui::EndPopup();
         }
         ImGui::SameLine();
         ImGui::Text("%s", sep);
         ImGui::SameLine();
         
-        // Tab size - clickable popup
+        // Tab size - clickable
         std::string tab_id = "Tab: " + std::to_string(settings_.tab_size);
         if (ImGui::Selectable(tab_id.c_str(), false)) {
             ImGui::OpenPopup("TabSizePopup");
@@ -2769,11 +2791,11 @@ void EditorApp::render_status_bar() {
         ImGui::Text("%s", sep);
         ImGui::SameLine();
         
-        // Version
+        // Version with git hash
         ImGui::Text("v0.2.28");
     }
     
-    ImGui::PopStyleColor();
+ImGui::PopStyleColor();
     ImGui::PopStyleVar();
 }
 
@@ -2952,33 +2974,7 @@ if (history_index_ > 0) {
 }
 
 void EditorApp::render_command_line() {
-    if (vim_mode_ != VimMode::Command) return;
-    
-    float cmd_height = 28;
-    ImVec2 editor_pos = ImGui::GetWindowPos();
-    float editor_width = ImGui::GetWindowWidth();
-    float editor_height = ImGui::GetWindowHeight();
-    
-    ImGui::SetCursorPosY(editor_height - 24 - cmd_height);
-    
-    ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    ImU32 cmd_bg = ImColor(0.1f, 0.1f, 0.2f);
-    draw_list->AddRectFilled(
-        ImVec2(editor_pos.x, editor_pos.y + editor_height - cmd_height),
-        ImVec2(editor_pos.x + editor_width, editor_pos.y + editor_height),
-        cmd_bg);
-    
-    ImGui::SetCursorPosY(editor_height - cmd_height);
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
-    
-    ImGui::Text(":");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(editor_width - 40);
-    ImGui::InputText("##cmd", vim_command_input_, sizeof(vim_command_input_), ImGuiInputTextFlags_EnterReturnsTrue, nullptr, this);
-    
-    ImGui::PopStyleColor();
-    ImGui::PopStyleVar();
+    // Command line is now rendered inside render_status_bar
 }
 
 #ifdef _WIN32
