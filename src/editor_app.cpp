@@ -165,10 +165,10 @@ std::string EditorApp::get_version() {
     if (ver_file.is_open()) {
         std::getline(ver_file, version);
     } else {
-        version = "0.2.42"; // fallback if VERSION file missing
+        version = "0.2.46"; // fallback if VERSION file missing
     }
     // return: "pCode Editor version X.Y.Z (hash)"
-    return "pCode Editor version 0.2.45 (bb8f0ee)" + version;
+    return "pCode Editor version " + version;
 }
 
 // ============================================================================
@@ -1874,8 +1874,19 @@ void EditorApp::render() {
     ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
     
-    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoBringToFrontOnFocus)) {
+    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_MenuBar)) {
+        // Render menu bar
         render_menu_bar();
+        
+        // Right-click context menu
+        if (ImGui::BeginPopupContextWindow("##ContextMenu")) {
+            if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
+            if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
+            ImGui::Separator();
+            if (ImGui::MenuItem("Toggle Explorer", "Ctrl+B")) show_file_tree_ = !show_file_tree_;
+            if (ImGui::MenuItem("Toggle Terminal", "Ctrl+`")) show_terminal_ = !show_terminal_;
+            ImGui::EndPopup();
+        }
         
         render_sidebar();
         ImGui::SameLine();
@@ -2127,16 +2138,15 @@ void EditorApp::render_editor_area() {
     // Use window dimensions directly for consistency
     float editor_width = ImGui::GetWindowWidth();
     float editor_height = ImGui::GetWindowHeight();
-    float editor_area_width = editor_width;
-    float editor_area_height = settings_.show_status_bar 
-        ? editor_height - status_height 
-        : editor_height;
     
     if (tabs_.empty()) {
         new_tab();
     }
 
     bool show_tabs = settings_.show_tabs && tabs_.size() > 1;
+    float tab_height = show_tabs ? ImGui::GetFrameHeight() : 0.0f;
+    float editor_area_width = editor_width;
+    float editor_area_height = editor_height - status_height - tab_height;
     static int prev_active_tab = -1;
     
     if (prev_active_tab != active_tab_ && prev_active_tab >= 0 && prev_active_tab < (int)tabs_.size()) {
@@ -2197,7 +2207,8 @@ void EditorApp::render_editor_area() {
             auto& tab = tabs_[active_tab_];
             TextEditor* ed = get_active_editor();
             auto pos = ed ? ed->GetCursorPosition() : TextEditor::Coordinates();
-            std::string version = "v" + get_version().substr(get_version().find(" ") + 1);
+            std::string ver = get_version();
+            std::string version = "v" + ver.substr(ver.find("version ") + 8);
             
             ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
             ImGui::SameLine();
