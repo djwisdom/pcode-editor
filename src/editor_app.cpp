@@ -44,6 +44,20 @@ static std::string json_escape(const std::string& s) {
     return out;
 }
 
+static std::string json_unescape(const std::string& s) {
+    std::string out;
+    for (size_t i = 0; i < s.size(); i++) {
+        if (s[i] == '\\' && i + 1 < s.size()) {
+            if (s[i + 1] == '\\') { out += '\\'; i++; }
+            else if (s[i + 1] == '"') { out += '"'; i++; }
+            else out += s[i];
+        } else {
+            out += s[i];
+        }
+    }
+    return out;
+}
+
 static void settings_save(const AppSettings& s, const std::string& path) {
     std::ofstream f(path);
     if (!f.is_open()) return;
@@ -82,7 +96,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
         if (q1 == std::string::npos) return "";
         auto q2 = content.find('"', q1 + 1);
         if (q2 == std::string::npos) return "";
-        return content.substr(q1 + 1, q2 - q1 - 1);
+        return json_unescape(content.substr(q1 + 1, q2 - q1 - 1));
     };
     auto get_int = [&](const std::string& key, int def) -> int {
         std::string search = "\"" + key + "\"";
@@ -105,6 +119,8 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.show_status_bar = get_bool("show_status_bar", true);
     s.word_wrap = get_bool("word_wrap", false);
     s.show_line_numbers = get_bool("show_line_numbers", true);
+    s.show_bookmark_margin = get_bool("show_bookmark_margin", true);
+    s.show_change_history = get_bool("show_change_history", true);
     s.show_spaces = get_bool("show_spaces", false);
     s.tab_size = get_int("tab_size", 4);
     s.font_size = get_int("font_size", 16);
@@ -122,7 +138,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
             while ((pos = arr.find('"', pos)) != std::string::npos) {
                 auto end = arr.find('"', pos + 1);
                 if (end == std::string::npos) break;
-                s.recent_files.push_back(arr.substr(pos + 1, end - pos - 1));
+                s.recent_files.push_back(json_unescape(arr.substr(pos + 1, end - pos - 1)));
                 pos = end + 1;
             }
         }
@@ -1509,82 +1525,89 @@ void EditorApp::render() {
     // Global keyboard shortcuts
     ImGuiIO& io = ImGui::GetIO();
     
-    // Handle Vim mode keys first (skip when terminal input is active)
-    if (!terminal_input_active_ && vim_mode_ != VimMode::Insert) {
+    // Only process vim keys when editor window is focused
+    bool editor_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow);
+    
+    // Handle Vim mode keys first (skip when terminal input is active or editor not focused)
+    if (!terminal_input_active_ && editor_focused && vim_mode_ != VimMode::Insert) {
+        bool vim_key_handled = false;
         for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
-            if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); break; }
+            if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); vim_key_handled = true; break; }
         }
-        for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
-            if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); break; }
+        if (!vim_key_handled) {
+            for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
+                if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); vim_key_handled = true; break; }
+            }
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Space)) handle_vim_key(ImGuiKey_Space, 0);
-        else if (ImGui::IsKeyPressed(ImGuiKey_Enter)) handle_vim_key(ImGuiKey_Enter, 0);
-        else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) { vim_mode_ = VimMode::Normal; vim_key_buffer_.clear(); vim_count_ = 0; return; }
-        else if (ImGui::IsKeyPressed(ImGuiKey_Backspace)) handle_vim_key(ImGuiKey_Backspace, 0);
-        else if (ImGui::IsKeyPressed(ImGuiKey_Tab)) handle_vim_key(ImGuiKey_Tab, 0);
-        else if (ImGui::IsKeyPressed(ImGuiKey_Minus)) handle_vim_key(ImGuiKey_Minus, 0);
-        else if (ImGui::IsKeyPressed(ImGuiKey_Period)) handle_vim_key(ImGuiKey_Period, 0);
-        else if (ImGui::IsKeyPressed(ImGuiKey_Semicolon) && io.KeyShift) { vim_mode_ = VimMode::Command; vim_command_buffer_ = ":"; return; }
+        if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Space)) { handle_vim_key(ImGuiKey_Space, 0); vim_key_handled = true; }
+        if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Enter)) { handle_vim_key(ImGuiKey_Enter, 0); vim_key_handled = true; }
+        if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Escape)) { vim_mode_ = VimMode::Normal; vim_key_buffer_.clear(); vim_count_ = 0; return; }
+        if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Backspace)) { handle_vim_key(ImGuiKey_Backspace, 0); vim_key_handled = true; }
+        if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Tab)) { handle_vim_key(ImGuiKey_Tab, 0); vim_key_handled = true; }
+        if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Minus)) { handle_vim_key(ImGuiKey_Minus, 0); vim_key_handled = true; }
+        if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Period)) { handle_vim_key(ImGuiKey_Period, 0); vim_key_handled = true; }
+        if (!vim_key_handled && ImGui::IsKeyPressed(ImGuiKey_Semicolon) && io.KeyShift) { vim_mode_ = VimMode::Command; vim_command_buffer_ = ":"; return; }
+        
+        // If vim key was handled, return immediately to prevent key from being inserted into editor
+        if (vim_key_handled) return;
     }
     
-    // Command mode input handling - handled by command line window InputText
-    if (vim_mode_ == VimMode::Command) {
-        return;
-    }
-    
-    if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
-        if (ImGui::IsKeyPressed(ImGuiKey_O)) { open_file(""); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab(active_tab_); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_tab(); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_tab(active_tab_); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_F)) { show_find_ = true; return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_H)) { show_replace_ = true; return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_G)) { show_goto_ = true; return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_A)) { 
-            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                get_active_editor()->SelectAll(); 
+    // Command mode - don't process vim keys or shortcuts, let status bar handle input
+    if (vim_mode_ != VimMode::Command) {
+        if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
+            if (ImGui::IsKeyPressed(ImGuiKey_O)) { open_file(""); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab(active_tab_); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_tab(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_tab(active_tab_); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_F)) { show_find_ = true; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_H)) { show_replace_ = true; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_G)) { show_goto_ = true; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_A)) { 
+                if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                    get_active_editor()->SelectAll(); 
+                }
+                return; 
             }
-            return; 
         }
-    }
-    if (io.KeyCtrl && io.KeyShift && !io.KeyAlt) {
-        if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_window(); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab_as(active_tab_); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_window(); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_P)) { show_cmd_palette_ = true; return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_H)) { split_horizontal(); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_V)) { split_vertical(); return; }
-    }
-    if (io.KeyCtrl && io.KeyAlt && !io.KeyShift) {
-        if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_all(); return; }
-    }
-    if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
-        if (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_F3)) { prev_bookmark(); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_F3)) { find_next(); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_F4)) { next_bookmark(); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_F2)) { 
-            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                auto pos = get_active_editor()->GetCursorPosition();
-                toggle_bookmark(pos.mLine);
+        if (io.KeyCtrl && io.KeyShift && !io.KeyAlt) {
+            if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_window(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab_as(active_tab_); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_window(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_P)) { show_cmd_palette_ = true; return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_H)) { split_horizontal(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_V)) { split_vertical(); return; }
+        }
+        if (io.KeyCtrl && io.KeyAlt && !io.KeyShift) {
+            if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_all(); return; }
+        }
+        if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
+            if (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_F3)) { prev_bookmark(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_F3)) { find_next(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_F4)) { next_bookmark(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_F2)) { 
+                if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                    auto pos = get_active_editor()->GetCursorPosition();
+                    toggle_bookmark(pos.mLine);
+                }
+                return; 
             }
-            return; 
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_F5)) {
-            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                auto now = std::chrono::system_clock::now();
-                auto t = std::chrono::system_clock::to_time_t(now);
-                char buf[64];
-                strftime(buf, sizeof(buf), "%H:%M %Y-%m-%d", localtime(&t));
-                get_active_editor()->InsertText(buf);
-                tabs_[active_tab_].dirty = true;
+            if (ImGui::IsKeyPressed(ImGuiKey_F5)) {
+                if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                    auto now = std::chrono::system_clock::now();
+                    auto t = std::chrono::system_clock::to_time_t(now);
+                    char buf[64];
+                    strftime(buf, sizeof(buf), "%H:%M %Y-%m-%d", localtime(&t));
+                    get_active_editor()->InsertText(buf);
+                    tabs_[active_tab_].dirty = true;
+                }
+                return;
             }
-            return;
         }
-    }
-    if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
-        if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) { zoom_in(); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) { zoom_out(); return; }
-        if (ImGui::IsKeyPressed(ImGuiKey_0)) { zoom_reset(); return; }
+        if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
+            if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) { zoom_in(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) { zoom_out(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_0)) { zoom_reset(); return; }
+        }
     }
 
     // Full-screen dockspace
@@ -1914,59 +1937,65 @@ void EditorApp::render_editor_with_margins() {
         return;
     }
     
-    // Always show gutter for bookmarks (allows adding/removing bookmarks)
-    // Also show change history when there are changes
-    bool show_gutter = settings_.show_bookmark_margin || settings_.show_change_history;
-    bool has_changes = !tab.changed_lines.empty();
+    bool show_margins = settings_.show_bookmark_margin || settings_.show_change_history;
     
-    if (show_gutter) {
-        float gutter_width = 40.0f;
-        
+    // Always show gutter with line numbers (default on)
+    if (show_margins || settings_.show_line_numbers || true) {
         ImGui::BeginGroup();
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
         
         int total_lines = editor->GetTotalLines();
         
-        // Render gutter for bookmarks and change history
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2f, 0.2f, 0.24f, 1.0f));
-        if (ImGui::BeginChild("##Gutter", ImVec2(gutter_width, -1), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar)) {
-            if (ImGui::BeginPopupContextItem("##GutterPopup")) {
-                if (ImGui::MenuItem("Fold All", nullptr, nullptr)) { fold_all(); }
-                if (ImGui::MenuItem("Unfold All", nullptr, nullptr)) { unfold_all(); }
-                ImGui::Separator();
-                ImGui::MenuItem("Line Numbers", nullptr, &settings_.show_line_numbers);
-                ImGui::MenuItem("Bookmark Margin", nullptr, &settings_.show_bookmark_margin);
-                ImGui::MenuItem("Change History", nullptr, &settings_.show_change_history);
-                ImGui::EndPopup();
-            }
-            
-            for (int line = 0; line < total_lines; line++) {
-                ImGui::PushID(line);
-                
-                // Bookmark column - clickable to toggle
-                if (settings_.show_bookmark_margin) {
-                    bool is_bookmarked = std::find(tab.bookmarks.begin(), tab.bookmarks.end(), line) != tab.bookmarks.end();
-                    if (is_bookmarked) {
-                        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), ""); // Checkmark symbol
-                    } else {
-                        ImGui::Text("");
-                    }
-                }
-                ImGui::SameLine();
-                
-                // Change history column (highlight modified lines)
-                if (settings_.show_change_history) {
-                    bool is_changed = std::find(tab.changed_lines.begin(), tab.changed_lines.end(), line) != tab.changed_lines.end();
-                    if (is_changed) {
-                        ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), ""); // Dot symbol
-                    }
+        // Render gutter columns
+        if (show_margins) {
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2f, 0.2f, 0.24f, 1.0f));
+            if (ImGui::BeginChild("##Margins", ImVec2(60, -1), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar)) {
+                if (ImGui::BeginPopupContextItem("##MarginsPopup")) {
+                    if (ImGui::MenuItem("Fold All", nullptr, nullptr)) { fold_all(); }
+                    if (ImGui::MenuItem("Unfold All", nullptr, nullptr)) { unfold_all(); }
+                    ImGui::Separator();
+                    ImGui::MenuItem("Line Numbers", nullptr, &settings_.show_line_numbers);
+                    ImGui::MenuItem("Bookmark Margin", nullptr, &settings_.show_bookmark_margin);
+                    ImGui::MenuItem("Change History", nullptr, &settings_.show_change_history);
+                    ImGui::EndPopup();
                 }
                 
-                ImGui::PopID();
+                for (int line = 0; line < total_lines; line++) {
+                    ImGui::PushID(line);
+                    
+                    // Bookmark column (left)
+                    if (settings_.show_bookmark_margin) {
+                        bool is_bookmarked = std::find(tab.bookmarks.begin(), tab.bookmarks.end(), line) != tab.bookmarks.end();
+                        if (is_bookmarked) {
+                            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), ""); // Bookmark icon
+                        } else {
+                            ImGui::Text(" ");
+                        }
+                        ImGui::SameLine();
+                    }
+                    
+                    // Code fold indicator (middle)
+                    bool is_fold_start = false; // Would need fold state
+                    ImGui::Text(is_fold_start ? "-" : " ");
+                    ImGui::SameLine();
+                    
+                    // Change history (right)
+                    if (settings_.show_change_history) {
+                        bool has_changes = !tab.changed_lines.empty();
+                        if (has_changes) {
+                            bool is_changed = std::find(tab.changed_lines.begin(), tab.changed_lines.end(), line) != tab.changed_lines.end();
+                            if (is_changed) {
+                                ImGui::TextColored(ImVec4(0.3f, 0.7f, 0.3f, 1.0f), ""); // Changed indicator
+                            }
+                        }
+                    }
+                    
+                    ImGui::PopID();
+                }
             }
+            ImGui::EndChild();
+            ImGui::PopStyleColor();
         }
-        ImGui::EndChild();
-        ImGui::PopStyleColor();
         
         ImGui::SameLine();
         ImGui::PopStyleVar();
@@ -1984,28 +2013,15 @@ void EditorApp::render_editor_with_margins() {
 }
 
 // ============================================================================
-// Sidebar with File Tree, Git, Symbols
+// Sidebar - just file explorer
 // ============================================================================
 void EditorApp::render_sidebar() {
     if (!show_file_tree_) return;
     
     ImGui::Begin("Explorer", nullptr, ImGuiWindowFlags_NoTitleBar);
     
-    if (ImGui::BeginTabBar("##SidebarTabs")) {
-        if (ImGui::BeginTabItem("Explorer")) {
-            render_file_tree();
-            ImGui::EndTabItem();
-        }
-        if (ImGui::BeginTabItem("Git")) {
-            render_git_changes();
-            ImGui::EndTabItem();
-        }
-        if (ImGui::BeginTabItem("Outline")) {
-            render_symbol_outline();
-            ImGui::EndTabItem();
-        }
-        ImGui::EndTabBar();
-    }
+    render_file_tree();
+    
     ImGui::End();
 }
 
@@ -2159,15 +2175,25 @@ void EditorApp::render_symbol_outline() {
 void EditorApp::render_status_bar() {
     if (!settings_.show_status_bar) return;
     
-    ImGui::SetNextWindowSize(ImVec2(600, 40));
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    float line_height = 28;
+    float status_height = line_height;
+    float cmd_height = vim_mode_ == VimMode::Command ? line_height : 0;
+    float term_height = show_terminal_ ? 200.0f : 0.0f;
     
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+    float dock_y = viewport->Pos.y + viewport->Size.y - status_height - cmd_height - term_height;
+    
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, dock_y));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, status_height));
+    ImGui::SetNextWindowViewport(viewport->ID);
+    
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
 
-    if (ImGui::Begin("Status Bar", nullptr, flags)) {
+    if (ImGui::Begin("StatusBar", nullptr, flags)) {
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
             auto& tab = tabs_[active_tab_];
             TextEditor* editor = get_active_editor();
@@ -2222,6 +2248,57 @@ void EditorApp::render_status_bar() {
             ImGui::SameLine();
             ImGui::Text("%d%%", tab.zoom_pct);
         }
+        
+        // Command input inside status bar when in command mode
+        if (vim_mode_ == VimMode::Command) {
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), ":");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 30);
+            ImGui::SetKeyboardFocusHere();
+            
+            // Handle up/down arrow for command history
+            if (ImGui::IsItemActive()) {
+                if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
+                    if (!command_history_.empty() && history_index_ < (int)command_history_.size() - 1) {
+                        history_index_++;
+                        strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
+                    }
+                } else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
+                    if (history_index_ > 0) {
+                        history_index_--;
+                        strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
+                    } else if (history_index_ == 0) {
+                        history_index_ = -1;
+                        vim_cmd_input_[0] = '\0';
+                    }
+                }
+            }
+            
+            if (ImGui::InputText("##cmd", vim_cmd_input_, sizeof(vim_cmd_input_), ImGuiInputTextFlags_EnterReturnsTrue)) {
+                vim_command_buffer_ = vim_cmd_input_;
+                execute_vim_command(vim_command_buffer_);
+                command_history_.push_back(vim_cmd_input_);
+                history_index_ = -1;
+                vim_command_buffer_.clear();
+                vim_cmd_input_[0] = '\0';
+                vim_mode_ = VimMode::Normal;
+            }
+            
+            // Keep focus on command input while in command mode
+            ImGui::SetItemDefaultFocus();
+        }
+        
+        // Handle Escape to cancel command mode
+        if (vim_mode_ == VimMode::Command) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                vim_mode_ = VimMode::Normal;
+                vim_command_buffer_.clear();
+                vim_cmd_input_[0] = '\0';
+                history_index_ = -1;
+            }
+        }
 
         ImGui::End();
     }
@@ -2229,68 +2306,12 @@ void EditorApp::render_status_bar() {
 }
 
 void EditorApp::render_command_line() {
-    if (vim_mode_ != VimMode::Command) return;
-
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float line_height = 28;
-    float term_height = show_terminal_ ? 200.0f : 0.0f;
-
-    float total_bottom = viewport->Pos.y + viewport->Size.y - term_height;
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, total_bottom - line_height));
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, line_height));
-
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings
-                           | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar
-                           | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
-
-    if (ImGui::Begin("CommandLine", nullptr, flags)) {
-        ImVec4 cmd_focus_color = ImVec4(0.2f, 0.4f, 0.8f, 1.0f);
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            ImGui::GetWindowPos(), 
-            ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowWidth(), ImGui::GetWindowPos().y + 3),
-            ImColor(cmd_focus_color));
-        
-        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 20);
-        
-        // Handle up/down arrow for command history
-        ImGuiIO& io = ImGui::GetIO();
-        if (ImGui::IsItemActive()) {
-            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
-                if (!command_history_.empty() && history_index_ < (int)command_history_.size() - 1) {
-                    history_index_++;
-                    strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
-                if (history_index_ > 0) {
-                    history_index_--;
-                    strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
-                } else if (history_index_ == 0) {
-                    history_index_ = -1;
-                    vim_cmd_input_[0] = '\0';
-                }
-            }
-        }
-        
-        if (ImGui::InputText("##cmd", vim_cmd_input_, sizeof(vim_cmd_input_), ImGuiInputTextFlags_EnterReturnsTrue)) {
-            vim_command_buffer_ = vim_cmd_input_;
-            execute_vim_command(vim_command_buffer_);
-            command_history_.push_back(vim_cmd_input_);
-            history_index_ = -1;
-            vim_command_buffer_.clear();
-            vim_cmd_input_[0] = '\0';
-            editor_focused_ = true;
-        }
-        ImGui::End();
-    }
-    ImGui::PopStyleVar(3);
+    // Command line is now rendered inside status bar (no separate window)
+    return;
 }
 
-void EditorApp::start_terminal() {
 #ifdef _WIN32
+void EditorApp::start_terminal() {
     if (terminal_process_) return;
     
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
@@ -2964,6 +2985,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
