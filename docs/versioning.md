@@ -26,9 +26,11 @@ vMAJOR.MINOR.PATCH
 ## Version Bump Rule
 
 **Every commit must bump the version number** in:
-1. `VERSION` file (contains just the version string)
-2. Status bar (displays version)
+1. `VERSION` file (contains just the version string, e.g. `0.2.38`)
+2. Status bar (displays version from VERSION file)
 3. Commit message format: `v{version} ({git_hash})`
+
+**Important:** `get_version()` reads directly from VERSION file - no version string hardcoded in code.
 
 ### When to Increment
 
