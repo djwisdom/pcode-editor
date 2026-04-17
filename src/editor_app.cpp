@@ -168,7 +168,7 @@ std::string EditorApp::get_version() {
         version = "0.2.41"; // fallback if VERSION file missing
     }
     // return: "pCode Editor version 0.2.41 (hash)"
-    return "pCode Editor version 0.2.41 (289522c)" + version;
+    return "pCode Editor version 0.2.41 (21767b0)" + version;
 }
 
 // ============================================================================
@@ -2224,8 +2224,8 @@ void EditorApp::render_editor_area() {
             ImGui::Text(" | %s", version.c_str());
         }
         
-        ImGui::EndChild();
         ImGui::PopStyleColor(); // Text
+        ImGui::EndChild();
         ImGui::PopStyleColor(); // ChildBg
         ImGui::PopStyleVar();
     }
