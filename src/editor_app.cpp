@@ -2225,7 +2225,8 @@ void EditorApp::render_editor_area() {
         }
         
         ImGui::EndChild();
-        ImGui::PopStyleColor();
+        ImGui::PopStyleColor(); // Text
+        ImGui::PopStyleColor(); // ChildBg
         ImGui::PopStyleVar();
     }
 }
