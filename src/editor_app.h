@@ -82,6 +82,7 @@ struct AppSettings {
     bool show_bookmark_margin = true;
     bool show_change_history = true;
     bool show_spaces = false;
+    bool show_tabs = true;
     int tab_size = 4;
     int font_size = 18;
     int highlight_line = 1;  // 0=none, 1=background, 2=outline

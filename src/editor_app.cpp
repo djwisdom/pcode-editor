@@ -70,6 +70,7 @@ static void settings_save(const AppSettings& s, const std::string& path) {
     f << "  \"show_line_numbers\": " << (s.show_line_numbers ? "true" : "false") << ",\n";
     f << "  \"show_spaces\": " << (s.show_spaces ? "true" : "false") << ",\n";
     f << "  \"highlight_line\": " << s.highlight_line << ",\n";
+    f << "  \"show_tabs\": " << (s.show_tabs ? "true" : "false") << ",\n";
     f << "  \"tab_size\": " << s.tab_size << ",\n";
     f << "  \"font_size\": " << s.font_size << ",\n";
     f << "  \"font_name\": \"" << json_escape(s.font_name) << "\",\n";
@@ -124,6 +125,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.show_change_history = get_bool("show_change_history", true);
     s.show_spaces = get_bool("show_spaces", false);
     s.highlight_line = get_int("highlight_line", 1);
+    s.show_tabs = get_bool("show_tabs", true);
     s.tab_size = get_int("tab_size", 4);
     s.font_size = get_int("font_size", 16);
     s.font_name = get_str("font_name");
@@ -1786,6 +1788,8 @@ void EditorApp::render_menu_view() {
         if (ImGui::MenuItem("Explorer", nullptr, &exp)) toggle_explorer();
         bool ww = settings_.word_wrap;
         if (ImGui::MenuItem("Word Wrap", nullptr, &ww)) toggle_word_wrap();
+        bool tabs = settings_.show_tabs;
+        if (ImGui::MenuItem("Show Tabs", nullptr, &tabs)) settings_.show_tabs = tabs;
         bool ln = settings_.show_line_numbers;
         if (ImGui::MenuItem("Line Numbers", nullptr, &ln)) toggle_line_numbers();
         bool sp = settings_.show_spaces;
@@ -1895,8 +1899,8 @@ void EditorApp::render_editor_area() {
         new_tab();
     }
 
-    // Tab bar - only show if more than one tab
-    bool show_tabs = tabs_.size() > 1;
+    // Tab bar - show if settings allow it
+    bool show_tabs = settings_.show_tabs && tabs_.size() > 1;
     static int prev_active_tab = -1;
     
     // Save scroll position when switching away from a tab
@@ -3066,6 +3070,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
