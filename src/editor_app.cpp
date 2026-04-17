@@ -2576,6 +2576,18 @@ void EditorApp::render_status_bar() {
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
+            
+            // Calculate scroll percentage: 0% = beginning, 100% = end
+            auto lines = editor->GetTextLines();
+            int total_lines = (int)lines.size();
+            int pct = 0;
+            if (total_lines > 1) {
+                pct = (int)((pos.mLine * 100) / (total_lines - 1));
+            }
+            ImGui::Text("%d%%", pct);
+            ImGui::SameLine();
+            ImGui::Text(" %s ", sep);
+            ImGui::SameLine();
             ImGui::Text("%s", tab.file_encoding.c_str());
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
@@ -2606,16 +2618,6 @@ void EditorApp::render_status_bar() {
                 if (ImGui::MenuItem("Tab: 8", nullptr, settings_.tab_size == 8)) { settings_.tab_size = 8; for (auto& t : tabs_) t.editor->SetTabSize(8); }
                 if (ImGui::MenuItem("Tab: 9", nullptr, settings_.tab_size == 9)) { settings_.tab_size = 9; for (auto& t : tabs_) t.editor->SetTabSize(9); }
                 if (ImGui::MenuItem("Tab: 10", nullptr, settings_.tab_size == 10)) { settings_.tab_size = 10; for (auto& t : tabs_) t.editor->SetTabSize(10); }
-                ImGui::Separator();
-                bool sp = settings_.show_spaces;
-                if (ImGui::MenuItem("Use spaces", nullptr, &sp)) toggle_spaces();
-                ImGui::Separator();
-                if (ImGui::MenuItem("Convert indentation to spaces")) {
-                    // TODO: convert tabs to spaces in current file
-                }
-                if (ImGui::MenuItem("Convert indentation to tabs")) {
-                    // TODO: convert spaces to tabs in current file
-                }
                 ImGui::EndPopup();
             }
         }
@@ -3482,6 +3484,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
