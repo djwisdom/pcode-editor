@@ -2513,64 +2513,89 @@ void EditorApp::render_status_bar() {
             ImGui::Text("%d%%", tab.zoom_pct);
         }
         
-        // Command input inside status bar when in command mode
-        if (vim_mode_ == VimMode::Command) {
-            ImGui::Separator();
-            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), ":");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 30);
-            ImGui::SetKeyboardFocusHere();
-            
-            // Handle up/down arrow for command history
-            if (ImGui::IsItemActive()) {
-                if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
-                    if (!command_history_.empty() && history_index_ < (int)command_history_.size() - 1) {
-                        history_index_++;
-                        strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
-                    }
-                } else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
-                    if (history_index_ > 0) {
-                        history_index_--;
-                        strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
-                    } else if (history_index_ == 0) {
-                        history_index_ = -1;
-                        vim_cmd_input_[0] = '\0';
-                    }
+        ImGui::End();
+    }
+    ImGui::PopStyleVar(3);
+    
+    // Render floating command window at bottom of editor
+    if (vim_mode_ == VimMode::Command) {
+        render_floating_command();
+    }
+}
+
+void EditorApp::render_floating_command() {
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    float cmd_height = 32;
+    float y = viewport->Pos.y + viewport->Size.y - cmd_height;
+    
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, y));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, cmd_height));
+    ImGui::SetNextWindowViewport(viewport->ID);
+    
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | 
+                        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove |
+                        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize;
+    
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 6));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
+    
+    if (ImGui::Begin("##CommandLine", nullptr, flags)) {
+        ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.2f, 1.0f), ":");
+        ImGui::SameLine();
+        
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        ImGui::SetKeyboardFocusHere();
+        
+        // Handle up/down arrow for command history
+        if (ImGui::IsItemActive()) {
+            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
+                if (!command_history_.empty() && history_index_ < (int)command_history_.size() - 1) {
+                    history_index_++;
+                    strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
+                if (history_index_ > 0) {
+                    history_index_--;
+                    strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
+                } else if (history_index_ == 0) {
+                    history_index_ = -1;
+                    vim_cmd_input_[0] = '\0';
                 }
             }
             
-            if (ImGui::InputText("##cmd", vim_cmd_input_, sizeof(vim_cmd_input_), ImGuiInputTextFlags_EnterReturnsTrue)) {
-                vim_command_buffer_ = vim_cmd_input_;
-                execute_vim_command(vim_command_buffer_);
-                command_history_.push_back(vim_cmd_input_);
-                history_index_ = -1;
-                vim_command_buffer_.clear();
-                vim_cmd_input_[0] = '\0';
-                vim_mode_ = VimMode::Normal;
-            }
-            
-            // Keep focus on command input while in command mode
-            ImGui::SetItemDefaultFocus();
-        }
-        
-        // Handle Escape to cancel command mode
-        if (vim_mode_ == VimMode::Command) {
-            ImGuiIO& io = ImGui::GetIO();
+            // Handle Escape to cancel command mode
             if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
                 vim_mode_ = VimMode::Normal;
                 vim_command_buffer_.clear();
                 vim_cmd_input_[0] = '\0';
                 history_index_ = -1;
+                ImGui::SetWindowFocus("Editor");
+                return;
             }
         }
-
-        ImGui::End();
+        
+        if (ImGui::InputText("##cmd", vim_cmd_input_, sizeof(vim_cmd_input_), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            if (vim_cmd_input_[0] != '\0') {
+                vim_command_buffer_ = vim_cmd_input_;
+                execute_vim_command(vim_command_buffer_);
+                command_history_.push_back(vim_cmd_input_);
+                history_index_ = -1;
+            }
+            vim_command_buffer_.clear();
+            vim_cmd_input_[0] = '\0';
+            vim_mode_ = VimMode::Normal;
+            ImGui::SetWindowFocus("Editor");
+        }
+        
+        ImGui::SetItemDefaultFocus();
     }
+    
+    ImGui::End();
     ImGui::PopStyleVar(3);
 }
 
 void EditorApp::render_command_line() {
-    // Command line is now rendered inside status bar (no separate window)
     return;
 }
 
@@ -3249,6 +3274,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 

@@ -158,6 +158,7 @@ private:
     void render_editor_area();
     void render_status_bar();
     void render_command_line();
+    void render_floating_command();
     void render_terminal();
     void start_terminal();
     void update_terminal_output();
