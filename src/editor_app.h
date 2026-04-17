@@ -284,6 +284,7 @@ private:
     // Spaces submenu state
     bool show_spaces_dialog_ = false;
     bool show_terminal_ = false;
+    bool terminal_input_active_ = false;
     void* terminal_hwnd_ = nullptr;
     void* terminal_process_ = nullptr;
     void* terminal_stdin_ = nullptr;
@@ -300,6 +301,9 @@ VimMode vim_mode_ = VimMode::Normal;
     std::string vim_command_buffer_;
     char vim_cmd_input_[256] = {0};
     bool editor_focused_ = true;
+    std::vector<std::string> terminal_history_;
+    std::vector<std::string> command_history_;
+    int history_index_ = -1;
     int vim_count_ = 0;
     int vim_operator_ = 0;
     char vim_command_input_[256] = "";

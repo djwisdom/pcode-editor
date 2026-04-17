@@ -1509,8 +1509,8 @@ void EditorApp::render() {
     // Global keyboard shortcuts
     ImGuiIO& io = ImGui::GetIO();
     
-    // Handle Vim mode keys first
-    if (vim_mode_ != VimMode::Insert) {
+    // Handle Vim mode keys first (skip when terminal input is active)
+    if (!terminal_input_active_ && vim_mode_ != VimMode::Insert) {
         for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
             if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); break; }
         }
@@ -2157,25 +2157,17 @@ void EditorApp::render_symbol_outline() {
 // Status Bar
 // ============================================================================
 void EditorApp::render_status_bar() {
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float line_height = 28;
-    float height = line_height;
-    float cmd_height = vim_mode_ == VimMode::Command ? line_height : 0;
-    float term_height = show_terminal_ ? 200.0f : 0.0f;
-
-    float total_bottom = viewport->Pos.y + viewport->Size.y - term_height;
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, total_bottom - cmd_height - height));
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, height));
-
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings
-                           | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar
-                           | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    if (!settings_.show_status_bar) return;
+    
+    ImGui::SetNextWindowSize(ImVec2(600, 40));
+    
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
 
-    if (ImGui::Begin("StatusBar", nullptr, flags)) {
+    if (ImGui::Begin("Status Bar", nullptr, flags)) {
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
             auto& tab = tabs_[active_tab_];
             TextEditor* editor = get_active_editor();
@@ -2185,12 +2177,30 @@ void EditorApp::render_status_bar() {
             const char* dirty_indicator = tab.dirty ? "*" : "";
             const char* sep = "|";
             
+            // Get directory info - show git branch if in git repo
+            std::string dir_info = ".";
+            if (!tab.file_path.empty()) {
+                std::filesystem::path p(tab.file_path);
+                if (p.has_parent_path()) {
+                    std::string dir = p.parent_path().string();
+                    if (std::filesystem::exists(dir + "/.git")) {
+                        dir_info = git_branch_;
+                    } else {
+                        dir_info = p.parent_path().filename().string();
+                    }
+                }
+            }
+            
             // Each section with separator
             ImGui::Text("%s", mode_str);
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
             ImGui::Text("%s%s", tab.display_name.c_str(), dirty_indicator);
+            ImGui::SameLine();
+            ImGui::Text(" %s ", sep);
+            ImGui::SameLine();
+            ImGui::Text("%s", dir_info.c_str());
             ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
@@ -2207,10 +2217,7 @@ void EditorApp::render_status_bar() {
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
             ImGui::Text("Tab:%d", settings_.tab_size);
-            
-            // Right-aligned zoom
-            float win_width = ImGui::GetWindowWidth();
-            ImGui::SetCursorPosX(win_width - 70);
+            ImGui::SameLine();
             ImGui::Text(" %s ", sep);
             ImGui::SameLine();
             ImGui::Text("%d%%", tab.zoom_pct);
@@ -2248,10 +2255,31 @@ void EditorApp::render_command_line() {
             ImColor(cmd_focus_color));
         
         ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 20);
+        
+        // Handle up/down arrow for command history
+        ImGuiIO& io = ImGui::GetIO();
+        if (ImGui::IsItemActive()) {
+            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
+                if (!command_history_.empty() && history_index_ < (int)command_history_.size() - 1) {
+                    history_index_++;
+                    strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
+                if (history_index_ > 0) {
+                    history_index_--;
+                    strncpy(vim_cmd_input_, command_history_[history_index_].c_str(), sizeof(vim_cmd_input_) - 1);
+                } else if (history_index_ == 0) {
+                    history_index_ = -1;
+                    vim_cmd_input_[0] = '\0';
+                }
+            }
+        }
+        
         if (ImGui::InputText("##cmd", vim_cmd_input_, sizeof(vim_cmd_input_), ImGuiInputTextFlags_EnterReturnsTrue)) {
             vim_command_buffer_ = vim_cmd_input_;
             execute_vim_command(vim_command_buffer_);
-            vim_mode_ = VimMode::Normal;
+            command_history_.push_back(vim_cmd_input_);
+            history_index_ = -1;
             vim_command_buffer_.clear();
             vim_cmd_input_[0] = '\0';
             editor_focused_ = true;
@@ -2339,29 +2367,18 @@ void EditorApp::render_terminal() {
     
     update_terminal_output();
     
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float line_height = 24;
-    float height = vim_mode_ == VimMode::Command ? line_height * 2 : line_height;
-    float term_height = 200;
+    ImGui::SetNextWindowSize(ImVec2(600, 300));
     
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + viewport->Size.y - term_height - height));
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, term_height));
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
     
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings
-                           | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar
-                           | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     
     if (ImGui::Begin("Terminal", nullptr, flags)) {
         static char input_buf[256] = "";
         
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
-        ImGui::Text("Terminal");
-        ImGui::Separator();
         
-        ImGui::BeginChild("term_output", ImVec2(ImGui::GetWindowWidth(), term_height - 60), true);
+        ImGui::BeginChild("term_output", ImVec2(ImGui::GetWindowWidth(), ImGui::GetWindowHeight() - 50), true);
         ImGui::Text("%s", terminal_output_.c_str());
         if (ImGui::GetScrollY() < ImGui::GetScrollMaxY()) {
             ImGui::SetScrollHereY(1.0f);
@@ -2369,28 +2386,28 @@ void EditorApp::render_terminal() {
         ImGui::EndChild();
         
         ImGui::Separator();
-        static bool terminal_input_active = false;
-        ImGui::Text("Click input to type commands");
-        if (ImGui::IsItemClicked()) {
-            terminal_input_active = true;
-        }
-        if (terminal_input_active) {
-            ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 80);
-            if (ImGui::InputText("##term_input", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
-                if (terminal_stdin_ && strlen(input_buf) > 0) {
-                    std::string cmd = input_buf;
-                    cmd += "\r\n";
-#ifdef _WIN32
-                    DWORD written = 0;
-                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
-#endif
+        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 80);
+        
+        // Handle up/down arrow for history
+        ImGuiIO& io = ImGui::GetIO();
+        if (ImGui::IsItemActive()) {
+            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
+                if (!terminal_history_.empty() && history_index_ < (int)terminal_history_.size() - 1) {
+                    history_index_++;
+                    strncpy(input_buf, terminal_history_[history_index_].c_str(), sizeof(input_buf) - 1);
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
+                if (history_index_ > 0) {
+                    history_index_--;
+                    strncpy(input_buf, terminal_history_[history_index_].c_str(), sizeof(input_buf) - 1);
+                } else if (history_index_ == 0) {
+                    history_index_ = -1;
                     input_buf[0] = '\0';
                 }
-                terminal_input_active = false;
             }
         }
-        ImGui::SameLine();
-        if (ImGui::Button("Run")) {
+        
+        if (ImGui::InputText("##term_input", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
             if (terminal_stdin_ && strlen(input_buf) > 0) {
                 std::string cmd = input_buf;
                 cmd += "\r\n";
@@ -2398,9 +2415,15 @@ void EditorApp::render_terminal() {
                 DWORD written = 0;
                 WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
 #endif
+                terminal_history_.push_back(input_buf);
+                history_index_ = -1;
                 input_buf[0] = '\0';
+                terminal_input_active_ = true;  // Keep focus
             }
         }
+        // Check if input is active AFTER rendering it
+        terminal_input_active_ = ImGui::IsItemActive();
+        
         ImGui::SameLine();
         if (ImGui::Button("Clear")) {
             terminal_output_ = "";
@@ -2408,7 +2431,7 @@ void EditorApp::render_terminal() {
         ImGui::PopStyleVar();
         ImGui::End();
     }
-    ImGui::PopStyleVar(2);
+    ImGui::PopStyleVar();
 }
 
 // ============================================================================
@@ -2941,6 +2964,7 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
+
 
 
 
