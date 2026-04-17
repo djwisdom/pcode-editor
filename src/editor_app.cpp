@@ -168,7 +168,7 @@ std::string EditorApp::get_version() {
         version = "0.2.42"; // fallback if VERSION file missing
     }
     // return: "pCode Editor version X.Y.Z (hash)"
-    return "pCode Editor version 0.2.42 (054d633)" + version;
+    return "pCode Editor version 0.2.45 (bb8f0ee)" + version;
 }
 
 // ============================================================================
@@ -1879,6 +1879,7 @@ void EditorApp::render() {
         
         render_sidebar();
         ImGui::SameLine();
+        ImGui::SetCursorPosY(ImGui::GetCursorPos().y - ImGui::GetFrameHeight());
         
         render_editor_area();
         

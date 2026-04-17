@@ -5,13 +5,13 @@
   "show_status_bar": true,
   "word_wrap": true,
   "show_line_numbers": true,
-  "show_minimap": true,
+  "show_minimap": false,
   "show_spaces": true,
   "highlight_line": 1,
   "show_tabs": true,
   "tab_size": 4,
   "font_size": 17,
   "font_name": "CascadiaMono",
-  "last_open_dir": ".\\src",
-  "recent_files": [".\\src\\main.cpp", ".\\src\\editor_app.cpp", ".\\README.md", ".\\IMPLEMENTATION_SUMMARY.md", ".\\TESTS.md", ".\\imgui.ini", ".\\VERSION", "./src\\\\editor_app.h", "./src\\\\main.cpp", "./src\\\\editor_app.cpp"]
+  "last_open_dir": ".",
+  "recent_files": [".\\BUILD_SYSTEM.md", ".\\IMPLEMENTATION_SUMMARY.md", ".\\README.md", ".\\src\\main.cpp", ".\\src\\editor_app.cpp", ".\\TESTS.md", ".\\imgui.ini", ".\\VERSION", "./src\\\\editor_app.h", "./src\\\\main.cpp"]
 }
