@@ -168,7 +168,7 @@ std::string EditorApp::get_version() {
         version = "0.2.42"; // fallback if VERSION file missing
     }
     // return: "pCode Editor version X.Y.Z (hash)"
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.42 (054d633)" + version;
 }
 
 // ============================================================================
@@ -2184,25 +2184,22 @@ void EditorApp::render_editor_area() {
     ImGui::EndChild();
     
     if (settings_.show_status_bar) {
-        // Render status bar inside Editor using child window for proper z-order
-        ImGui::SetCursorPos(ImVec2(0, editor_area_height));
+        // Render status bar BEFORE EditorContent so scrollbars appear on top
+        float status_y = editor_height - status_height - scrollbar_size;
+        ImGui::SetCursorPos(ImVec2(0, status_y));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2f, 0.2f, 0.25f, 1.0f));
         
-        ImGui::BeginChild("##StatusBar", ImVec2(editor_width, status_height), false);
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+        ImGui::Text("%s", get_vim_mode_str());
+        ImGui::SameLine();
+        ImGui::Text(" | ");
+        ImGui::SameLine();
         
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
             auto& tab = tabs_[active_tab_];
             TextEditor* ed = get_active_editor();
             auto pos = ed ? ed->GetCursorPosition() : TextEditor::Coordinates();
-            
             std::string version = "v" + get_version().substr(get_version().find(" ") + 1);
             
-            ImGui::Text("%s", get_vim_mode_str());
-            ImGui::SameLine();
-            ImGui::Text(" | ");
-            ImGui::SameLine();
             ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
             ImGui::SameLine();
             ImGui::Text(" | ");
@@ -2224,9 +2221,6 @@ void EditorApp::render_editor_area() {
             ImGui::Text(" | %s", version.c_str());
         }
         
-        ImGui::PopStyleColor(); // Text
-        ImGui::EndChild();
-        ImGui::PopStyleColor(); // ChildBg
         ImGui::PopStyleVar();
     }
 }
