@@ -2184,9 +2184,8 @@ void EditorApp::render_editor_area() {
     ImGui::EndChild();
     
     if (settings_.show_status_bar) {
-        // Render status bar BEFORE EditorContent so scrollbars appear on top
-        float status_y = editor_height - status_height - scrollbar_size;
-        ImGui::SetCursorPos(ImVec2(0, status_y));
+        // Render status bar AFTER EditorContent so it appears on top
+        ImGui::SetCursorPos(ImVec2(0, editor_area_height));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
         
         ImGui::Text("%s", get_vim_mode_str());
