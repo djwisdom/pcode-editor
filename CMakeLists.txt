@@ -9,6 +9,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Suppress deprecated function warnings (sprintf, strncpy, getenv, localtime)
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATION)
+
 # ============================================================================
 # Platform Detection
 # ============================================================================
@@ -62,10 +65,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG        docking  # docking branch (stable, includes docking)
 )
-FetchContent_GetProperties(imgui)
-if(NOT imgui_POPULATED)
-    FetchContent_Populate(imgui)
-endif()
+FetchContent_MakeAvailable(imgui)
 
 # ImGuiColorTextEdit — syntax highlighting, line numbers, minimap
 FetchContent_Declare(
@@ -73,10 +73,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/BalazsJako/ImGuiColorTextEdit.git
     GIT_TAG        master
 )
-FetchContent_GetProperties(imgui_coloredit)
-if(NOT imgui_coloredit_POPULATED)
-    FetchContent_Populate(imgui_coloredit)
-endif()
+FetchContent_MakeAvailable(imgui_coloredit)
 
 # Native File Dialog — cross-platform native file picker
 FetchContent_Declare(

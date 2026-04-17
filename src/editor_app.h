@@ -150,6 +150,7 @@ private:
 
     // Rendering
     void render();
+    void validate_layout();
     void render_menu_bar();
     void render_menu_file();
     void render_menu_edit();

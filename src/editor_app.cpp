@@ -24,6 +24,7 @@
 
 #include <cstdio>
 #include <cmath>
+#include <string>
 #include <fstream>
 #include <sstream>
 #include <filesystem>
@@ -159,7 +160,14 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
-    return "pCode Editor version 0.2.35";
+    std::string version;
+    std::ifstream ver_file("VERSION");
+    if (ver_file.is_open()) {
+        std::getline(ver_file, version);
+    } else {
+        version = "0.2.37";
+    }
+    return "pCode Editor version " + version;
 }
 
 // ============================================================================
@@ -882,7 +890,7 @@ void EditorApp::fold_all() {
     tab.folds.clear();
     
     auto& editor = *tab.editor;
-    auto& lines = editor.GetTextLines();
+    auto lines = editor.GetTextLines();
     int brace_count = 0;
     int fold_start = -1;
     
@@ -1070,7 +1078,7 @@ const char* EditorApp::get_vim_mode_str() const {
     }
 }
 
-void EditorApp::handle_vim_key(int key, int mods) {
+void EditorApp::handle_vim_key(int key, int /*mods*/) {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     TextEditor* ed = get_active_editor();
     if (!ed) return;
@@ -1662,6 +1670,51 @@ size_t EditorApp::get_file_size(const std::string& path) {
 // ============================================================================
 // Render
 // ============================================================================
+// ============================================================================
+// Layout Validation — verifies UI components are in correct positions
+// ============================================================================
+void EditorApp::validate_layout() {
+    ImGuiWindow* editor_win = ImGui::FindWindowByName("Editor");
+    if (!editor_win) {
+        printf("[LAYOUT] ERROR: Editor window not found\n");
+        return;
+    }
+    
+    ImVec2 ew_pos = editor_win->Pos;
+    float ew_w = editor_win->Size.x;
+    float ew_h = editor_win->Size.y;
+    printf("[LAYOUT] Editor: pos=(%.0f,%.0f) size=(%.0f,%.0f)\n", ew_pos.x, ew_pos.y, ew_w, ew_h);
+    
+    ImGuiWindow* explorer = ImGui::FindWindowByName("Explorer");
+    if (explorer) {
+        ImVec2 ex_pos = explorer->Pos;
+        float ex_w = explorer->Size.x;
+        bool left_of_editor = ex_pos.x < ew_pos.x + ew_w * 0.5f;
+        printf("[LAYOUT] Explorer: pos=(%.0f,%.0f) w=%.0f %s\n", 
+            ex_pos.x, ex_pos.y, ex_w, left_of_editor ? "OK (left)" : "ERROR (not left)");
+    }
+    
+    ImGuiWindow* terminal = ImGui::FindWindowByName("Terminal");
+    if (terminal) {
+        ImVec2 tm_pos = terminal->Pos;
+        ImVec2 tm_size = terminal->Size;
+        bool inside_editor = tm_pos.x >= ew_pos.x && tm_pos.y >= ew_pos.y;
+        bool at_bottom = tm_pos.y > ew_pos.y + ew_h * 0.5f;
+        printf("[LAYOUT] Terminal: pos=(%.0f,%.0f) size=(%.0f,%.0f) %s\n",
+            tm_pos.x, tm_pos.y, tm_size.x, tm_size.y,
+            inside_editor && at_bottom ? "OK (bottom inside)" : "ERROR");
+    }
+    
+    bool has_status = settings_.show_status_bar;
+    bool has_minimap = settings_.show_minimap;
+    bool has_gutter = settings_.show_line_numbers || settings_.show_bookmark_margin;
+    printf("[LAYOUT] StatusBar: %s | Minimap: %s | Gutter: %s | Explorer: %s\n",
+        has_status ? "enabled" : "disabled",
+        has_minimap ? "enabled" : "disabled",
+        has_gutter ? "enabled" : "disabled",
+        show_file_tree_ ? "enabled (toggle with Ctrl+B)" : "disabled");
+}
+
 void EditorApp::render() {
     // Global keyboard shortcuts
     ImGuiIO& io = ImGui::GetIO();
@@ -1786,36 +1839,23 @@ void EditorApp::render() {
         }
     }
 
-// Main window - empty (just holds the viewport)
+// Main window - Editor with menu, sidebar, editor area all inside
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->Pos);
-    ImGui::SetNextWindowSize(viewport->Size);
-    ImGui::SetNextWindowViewport(viewport->ID);
-
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
-    flags |= ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::Begin("pcode-editor", nullptr, flags);
-    ImGui::PopStyleVar(3);
-
-    ImGui::End();
-
-    // Editor as independent floating window - fully movable, with menu and sidebar inside
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + 80, viewport->Pos.y + 80), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
     
-    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_MenuBar)) {
+    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoBringToFrontOnFocus)) {
         render_menu_bar();
         
-        // Sidebar on left, editor on right
         render_sidebar();
         ImGui::SameLine();
         
-        // Editor area takes remaining space
         render_editor_area();
+        
+        if (show_terminal_) {
+            render_terminal();
+        }
+        
         ImGui::End();
     }
 
@@ -1826,8 +1866,6 @@ void EditorApp::render() {
     if (show_font_) render_font_dialog();
     if (show_spaces_dialog_) render_spaces_dialog();
     if (show_cmd_palette_) render_command_palette();
-
-    render_terminal();
 }
 
 // ============================================================================
@@ -1956,6 +1994,8 @@ void EditorApp::render_menu_view() {
         bool mp = settings_.show_minimap;
         if (ImGui::MenuItem("Minimap", nullptr, &mp)) toggle_minimap();
         ImGui::Separator();
+        if (ImGui::MenuItem("Validate Layout", "Ctrl+Shift+L")) validate_layout();
+        ImGui::Separator();
         if (ImGui::BeginMenu("Bookmarks")) {
             if (ImGui::MenuItem("Toggle Bookmark", "F2")) {
                 if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
@@ -2036,41 +2076,44 @@ ImGui::EndMenu();
 // Editor Area
 // ============================================================================
 void EditorApp::render_editor_area() {
-    // Editor window - dockable
-    ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoSavedSettings);
-    
+    // Editor area inside the Editor window (already opened)
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow)) {
         editor_focused_ = true;
     }
 
-    if (vim_mode_ == VimMode::Command) {
-        ImVec4 cmd_color = ImVec4(0.2f, 0.4f, 0.8f, 1.0f);
+    if (vim_mode_ == VimMode::Command || editor_focused_) {
+        ImVec4 color = vim_mode_ == VimMode::Command 
+            ? ImVec4(0.2f, 0.4f, 0.8f, 1.0f) 
+            : ImVec4(0.3f, 0.7f, 0.3f, 1.0f);
         ImGui::GetWindowDrawList()->AddRectFilled(
             ImGui::GetWindowPos(), 
             ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowWidth(), ImGui::GetWindowPos().y + 3),
-            ImColor(cmd_color));
-    } else if (editor_focused_) {
-        ImVec4 focus_color = ImVec4(0.3f, 0.7f, 0.3f, 1.0f);
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            ImGui::GetWindowPos(), 
-            ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowWidth(), ImGui::GetWindowPos().y + 3),
-            ImColor(focus_color));
+            ImColor(color));
     }
 
+    float status_height = 24;
+    float scrollbar_size = ImGui::GetStyle().ScrollbarSize;
+    float editor_pos_x = ImGui::GetWindowPos().x;
+    float editor_pos_y = ImGui::GetWindowPos().y;
+    float editor_width = ImGui::GetWindowWidth();
+    float editor_height = ImGui::GetWindowHeight();
+    float editor_area_height = settings_.show_status_bar 
+        ? editor_height - status_height - scrollbar_size 
+        : editor_height - scrollbar_size;
+    float editor_area_width = editor_width - scrollbar_size;
+    
+    ImGui::BeginChild("##EditorContent", ImVec2(editor_area_width, editor_area_height), false);
+    
     if (tabs_.empty()) {
         new_tab();
     }
 
-    // Tab bar - show if settings allow it
     bool show_tabs = settings_.show_tabs && tabs_.size() > 1;
     static int prev_active_tab = -1;
     
-    // Save scroll position when switching away from a tab
     if (prev_active_tab != active_tab_ && prev_active_tab >= 0 && prev_active_tab < (int)tabs_.size()) {
-        // Note: TextEditor doesn't have public scroll getters/setters, 
-        // but we could track cursor position as proxy
         auto& prev_tab = tabs_[prev_active_tab];
-        prev_tab.editor->GetCursorPosition(); // This doesn't return scroll, but we can track cursor
+        prev_tab.editor->GetCursorPosition();
     }
     prev_active_tab = active_tab_;
     
@@ -2089,11 +2132,9 @@ void EditorApp::render_editor_area() {
                 if (ImGui::BeginTabItem(label.c_str(), &open, tab_item_flags)) {
                     if (active_tab_ != i) {
                         active_tab_ = i;
-                        // Focus on the new tab's editor
                         ImGui::SetWindowFocus("Editor");
                     }
                     
-                    // Render gutter with bookmarks and change history
                     render_editor_with_margins();
                     
                     ImGui::EndTabItem();
@@ -2106,29 +2147,22 @@ void EditorApp::render_editor_area() {
             ImGui::EndTabBar();
         }
     } else {
-        // Single tab - just render the editor directly
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
             render_editor_with_margins();
         }
     }
     
-    // Render status bar at bottom of editor window (docked to editor)
+    ImGui::EndChild();
+    
     if (settings_.show_status_bar) {
-        float status_height = 24;
-        ImVec2 editor_pos = ImGui::GetWindowPos();
-        float editor_width = ImGui::GetWindowWidth();
-        float editor_height = ImGui::GetWindowHeight();
-        
-        // Status bar background
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         ImU32 status_bg = ImColor(0.2f, 0.2f, 0.25f);
         draw_list->AddRectFilled(
-            ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height),
-            ImVec2(editor_pos.x + editor_width, editor_pos.y + editor_height),
+            ImVec2(editor_pos_x, editor_pos_y + editor_area_height),
+            ImVec2(editor_pos_x + editor_width, editor_pos_y + editor_area_height + status_height),
             status_bg);
         
-        // Position cursor at bottom
-        ImGui::SetCursorPosY(editor_height - status_height);
+        ImGui::SetCursorPosY(editor_area_height);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
         
@@ -2136,6 +2170,8 @@ void EditorApp::render_editor_area() {
             auto& tab = tabs_[active_tab_];
             TextEditor* ed = get_active_editor();
             auto pos = ed ? ed->GetCursorPosition() : TextEditor::Coordinates();
+            
+            std::string version = "v" + get_version().substr(get_version().find(" ") + 1);
             
             ImGui::Text("%s", get_vim_mode_str());
             ImGui::SameLine();
@@ -2159,14 +2195,12 @@ void EditorApp::render_editor_area() {
             ImGui::SameLine();
             ImGui::Text("%s", tab.display_name.c_str());
             ImGui::SameLine();
-            ImGui::Text(" | v0.2.28");
+            ImGui::Text(" | %s", version.c_str());
         }
         
         ImGui::PopStyleColor();
         ImGui::PopStyleVar();
     }
-
-    ImGui::End();
 }
 
 void EditorApp::render_editor_with_margins() {
@@ -2395,7 +2429,7 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
 void EditorApp::render_sidebar() {
     if (!show_file_tree_) return;
     
-    ImGui::Begin("Explorer", nullptr, ImGuiWindowFlags_NoTitleBar);
+    ImGui::BeginChild("##Explorer", ImVec2(200, -1), false, ImGuiWindowFlags_NoTitleBar);
     
     if (ImGui::BeginTabBar("##SidebarTabs", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Files", nullptr, ImGuiTabItemFlags_None)) {
@@ -2413,7 +2447,7 @@ void EditorApp::render_sidebar() {
         ImGui::EndTabBar();
     }
     
-    ImGui::End();
+    ImGui::EndChild();
 }
 
 void EditorApp::render_file_tree() {
@@ -2470,7 +2504,7 @@ void EditorApp::render_dir_tree(const std::string& dir_path, std::unordered_map<
                 bool already_open = false;
                 for (size_t i = 0; i < tabs_.size(); i++) {
                     if (tabs_[i].file_path == full_path) {
-                        active_tab_ = i;
+                        active_tab_ = static_cast<int>(i);
                         ImGui::SetWindowFocus("Editor");
                         already_open = true;
                         break;
@@ -2542,7 +2576,7 @@ void EditorApp::render_git_changes() {
             bool already_open = false;
             for (size_t i = 0; i < tabs_.size(); i++) {
                 if (tabs_[i].file_path == path) {
-                    active_tab_ = i;
+                    active_tab_ = static_cast<int>(i);
                     ImGui::SetWindowFocus("Editor");
                     already_open = true;
                     break;
@@ -2667,8 +2701,8 @@ void EditorApp::render_symbol_outline() {
 void EditorApp::render_status_bar() {
     if (!settings_.show_status_bar) return;
     
-    float status_height = 22;
-    float cmd_height = vim_mode_ == VimMode::Command ? 22 : 0;
+    float status_height = 22.0f;
+    float cmd_height = vim_mode_ == VimMode::Command ? 22.0f : 0.0f;
     
     // Get editor window dimensions
     ImVec2 editor_pos = ImGui::GetWindowPos();
@@ -2707,14 +2741,18 @@ void EditorApp::render_status_bar() {
         editor_height -= cmd_height;
     }
     
-    // Status bar at bottom of editor
+    // Status bar at bottom of editor, not covering scrollbar
     ImGui::SetCursorPosY(editor_height - status_height);
+    
+    // Account for scrollbar on right - reduce width slightly
+    float scrollbar_width = 14;
+    float status_width = editor_width - scrollbar_width;
     
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     ImU32 status_bg = ImColor(0.2f, 0.2f, 0.25f);
     draw_list->AddRectFilled(
         ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height),
-        ImVec2(editor_pos.x + editor_width, editor_pos.y + editor_height),
+        ImVec2(editor_pos.x + status_width, editor_pos.y + editor_height),
         status_bg);
     
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
@@ -2801,7 +2839,7 @@ void EditorApp::render_status_bar() {
         ImGui::SameLine();
         
         // Version with git hash
-        ImGui::Text("v0.2.36");
+        ImGui::Text("v0.2.37");
     }
     
 ImGui::PopStyleColor();
@@ -3771,40 +3809,6 @@ void EditorApp::render_splits(int tab_idx) {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
