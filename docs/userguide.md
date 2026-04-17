@@ -270,9 +270,9 @@ Settings are stored in `pcode-settings.json` in the editor's directory.
 ### Change History
 
 Changes are tracked in the gutter:
-- **Pink** — Modified line
-- **Green** — Added line
-- **Yellow** — Deleted portion
+- **Pink** - Modified line
+- **Green** - Added line
+- **Yellow** - Deleted portion
 
 ---
 
@@ -331,4 +331,4 @@ Execute commands in the integrated terminal:
 
 ## License
 
-BSD 2-Clause License — see LICENSE file.
+BSD 2-Clause License - see LICENSE file.

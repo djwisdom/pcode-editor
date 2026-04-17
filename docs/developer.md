@@ -400,4 +400,4 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`
 
 ## License
 
-BSD 2-Clause License — see LICENSE file.
+BSD 2-Clause License - see LICENSE file.

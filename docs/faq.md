@@ -411,4 +411,4 @@ int auto_save_interval = 30;  // Increase to disable
 
 ## License
 
-BSD 2-Clause License — see LICENSE file.
+BSD 2-Clause License - see LICENSE file.
