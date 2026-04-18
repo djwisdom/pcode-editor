@@ -2224,6 +2224,9 @@ void EditorApp::render_menu_split() {
         if (ImGui::MenuItem("Split Tab Horizontally", "Ctrl+Shift+H")) split_horizontal();
         if (ImGui::MenuItem("Split Tab Vertically", "Ctrl+Shift+V")) split_vertical();
         ImGui::Separator();
+        if (ImGui::MenuItem("Split and Open Horizontally")) open_file_split("");
+        if (ImGui::MenuItem("Split and Open Vertically")) open_file_split_vertical("");
+        ImGui::Separator();
         if (ImGui::MenuItem("Focus Next", "Ctrl+K")) next_split();
         if (ImGui::MenuItem("Focus Previous", "Ctrl+J")) prev_split();
         ImGui::Separator();
@@ -2787,6 +2790,24 @@ void EditorApp::render_dir_tree(const std::string& dir_path, std::unordered_map<
                 if (!already_open) {
                     open_file(e.path);
                 }
+            }
+            if (ImGui::BeginPopupContextItem(e.path.c_str())) {
+                if (ImGui::MenuItem("Open")) {
+                    bool already_open = false;
+                    for (size_t i = 0; i < tabs_.size(); i++) {
+                        if (tabs_[i].file_path == e.path) { already_open = true; break; }
+                    }
+                    if (!already_open) open_file(e.path);
+                }
+                if (ImGui::MenuItem("Open in HSplit")) {
+                    split_horizontal();
+                    open_file(e.path);
+                }
+                if (ImGui::MenuItem("Open in VSplit")) {
+                    split_vertical();
+                    open_file(e.path);
+                }
+                ImGui::EndPopup();
             }
             ImGui::PopID();
         }
@@ -3938,6 +3959,28 @@ void EditorApp::open_file_split(const std::string& path) {
     
     if (!selected_path.empty()) {
         split_horizontal();
+        open_file(selected_path);
+    }
+}
+
+void EditorApp::open_file_split_vertical(const std::string& path) {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    
+    std::string selected_path = path;
+    if (path.empty()) {
+        nfdchar_t* out_path = nullptr;
+        nfdresult_t result = NFD_OpenDialog(&out_path, nullptr, 0, nullptr);
+        if (result == NFD_OKAY && out_path) {
+            selected_path = out_path;
+            settings_.last_open_dir = std::filesystem::path(out_path).parent_path().string();
+            NFD_FreePath(out_path);
+        } else if (result == NFD_CANCEL) {
+            return;
+        }
+    }
+    
+    if (!selected_path.empty()) {
+        split_vertical();
         open_file(selected_path);
     }
 }

@@ -344,6 +344,7 @@ private:
     void next_split();
     void prev_split();
     void open_file_split(const std::string& path);
+    void open_file_split_vertical(const std::string& path);
     void rotate_splits();
     void equalize_splits();
     void render_splits(int tab_idx);
