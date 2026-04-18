@@ -1,8 +1,9 @@
 {
-  "window_w": 1048,
-  "window_h": 723,
+  "window_w": 1649,
+  "window_h": 753,
   "dark_theme": true,
   "show_status_bar": true,
+  "enable_vim_mode": false,
   "word_wrap": true,
   "show_line_numbers": true,
   "show_minimap": true,
@@ -12,6 +13,6 @@
   "tab_size": 4,
   "font_size": 18,
   "font_name": "JetBrainsMonoNLNerdFont-Regular",
-  "last_open_dir": ".",
-  "recent_files": [".\\test_vim_motions.obj", ".\\pcode-settings.json-orig", ".\\LICENSE", ".\\imgui.ini", ".\\CMakeLists.txt", ".\\BUILD_SYSTEM.md", "C:\\Users\\casse\\github\\pcode-editor\\test_vim_motions.obj", "C:\\Users\\casse\\github\\pcode-editor\\pcode-settings.json-orig", "C:\\Users\\casse\\github\\pcode-editor\\BUILD_SYSTEM.md", "C:\\Users\\casse\\github\\pcode-editor\\CMakeLists.txt"]
+  "last_open_dir": ".\\src",
+  "recent_files": [".\\src\\main.cpp", ".\\src\\editor_app.h", ".\\src\\editor_app.cpp", ".\\TESTS.md", ".\\VERSION", ".\\IMPLEMENTATION_SUMMARY.md", ".\\BUILD_SYSTEM.md", ".\\vcpkg.json", ".\\test_vim_motions.obj", ".\\README.md"]
 }

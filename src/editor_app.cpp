@@ -134,7 +134,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.window_h = get_int("window_h", 800);
     s.dark_theme = get_bool("dark_theme", true);
     s.show_status_bar = get_bool("show_status_bar", true);
-    s.enable_vim_mode = get_bool("enable_vim_mode", true);
+    s.enable_vim_mode = get_bool("enable_vim_mode", false);  // Default disabled
     s.word_wrap = get_bool("word_wrap", false);
     s.show_line_numbers = get_bool("show_line_numbers", true);
     s.show_bookmark_margin = get_bool("show_bookmark_margin", true);
