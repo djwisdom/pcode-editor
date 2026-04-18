@@ -512,7 +512,6 @@ void EditorApp::new_tab() {
     tab.editor = new TextEditor();
     tab.editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
     tab.editor->SetTabSize(settings_.tab_size);
-    tab.editor->SetWordWrap(settings_.word_wrap);
 
     tab.editor->SetText("");
     tabs_.push_back(std::move(tab));
@@ -922,13 +921,8 @@ void EditorApp::toggle_explorer() {
 
 void EditorApp::toggle_word_wrap() {
     settings_.word_wrap = !settings_.word_wrap;
-    // Apply to all tabs
-    for (auto& tab : tabs_) {
-        if (tab.editor) {
-            // Set word wrap on TextEditor
-            tab.editor->SetWordWrap(settings_.word_wrap);
-        }
-    }
+    // Note: Word wrap requires TextEditor library patch - toggle works internally
+    // Horizontal scrollbar visibility is handled by TextEditor
 }
 
 void EditorApp::toggle_line_numbers() {
@@ -3110,8 +3104,8 @@ void EditorApp::render() {
         }
     }
     
-    // Clear InputQueueCharacters to prevent any character input in Normal mode
-    if (vim_mode_ == VimMode::Normal && !terminal_input_active_) {
+    // Clear InputQueueCharacters ONLY when vim mode is enabled and in Normal mode
+    if (settings_.enable_vim_mode && vim_mode_ == VimMode::Normal && !terminal_input_active_) {
         ImGuiIO& io = ImGui::GetIO();
         io.InputQueueCharacters.resize(0);
     }
@@ -3202,8 +3196,8 @@ void EditorApp::render() {
     // Always render menus - no conditional
     render_menu_bar();
     
-    // Left-click context menu
-    if (ImGui::BeginPopupContextWindow("##ContextMenu", ImGuiPopupFlags_MouseButtonLeft)) {
+    // Context menu - right click only
+    if (ImGui::BeginPopupContextWindow("##ContextMenu")) {
         if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
         if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
         ImGui::Separator();

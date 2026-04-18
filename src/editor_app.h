@@ -79,7 +79,7 @@ struct AppSettings {
     bool dark_theme = true;
     bool show_status_bar = true;
     bool enable_vim_mode = false;  // Vim keybindings disabled until stable
-    bool word_wrap = true;  // Default: word wrap enabled, no horizontal scrollbar
+    bool word_wrap = false;  // Default: off (requires TextEditor library patch)
     bool show_line_numbers = false;
     bool show_bookmark_margin = false;
     bool show_code_folding = true;
