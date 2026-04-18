@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "BUG-merang!!!"; // fallback if VERSION file missing
     }
-    return "pCode Editor version 0.2.58 (74b674a)" + version;
+    return "pCode Editor version 0.2.62 (4ffe079)" + version;
 }
 
 // ============================================================================
@@ -2275,7 +2275,7 @@ void EditorApp::render_editor_area() {
     }
     
     // Now scrollable editor content
-    ImGui::BeginChild("##EditorContent", ImVec2(editor_area_width, editor_area_height), false);
+    ImGui::BeginChild("##EditorContent", ImVec2(-1, -1), false);
     
     if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
         render_editor_with_margins();
