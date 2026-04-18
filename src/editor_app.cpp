@@ -894,6 +894,10 @@ void EditorApp::toggle_minimap() {
     settings_.show_minimap = !settings_.show_minimap;
 }
 
+void EditorApp::toggle_code_folding() {
+    settings_.show_code_folding = !settings_.show_code_folding;
+}
+
 void EditorApp::toggle_theme() {
     settings_.dark_theme = !settings_.dark_theme;
     apply_theme(settings_.dark_theme);
@@ -2009,6 +2013,7 @@ if (editor_open) {
             ImGui::Separator();
             if (ImGui::MenuItem("Toggle Line Numbers", nullptr, (bool*)&settings_.show_line_numbers)) settings_.show_line_numbers = !settings_.show_line_numbers;
             if (ImGui::MenuItem("Toggle Minimap", nullptr, (bool*)&settings_.show_minimap)) settings_.show_minimap = !settings_.show_minimap;
+            if (ImGui::MenuItem("Toggle Code Folding", nullptr, (bool*)&settings_.show_code_folding)) settings_.show_code_folding = !settings_.show_code_folding;
             ImGui::EndPopup();
         }
         

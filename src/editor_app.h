@@ -81,6 +81,7 @@ struct AppSettings {
     bool word_wrap = true;  // Default: word wrap enabled, no horizontal scrollbar
     bool show_line_numbers = false;
     bool show_bookmark_margin = false;
+    bool show_code_folding = true;
     bool show_change_history = false;
     bool show_minimap = false;
     bool show_spaces = false;
@@ -220,6 +221,7 @@ private:
     void toggle_line_numbers();
     void toggle_spaces();
     void toggle_minimap();
+    void toggle_code_folding();
     void render_minimap(TextEditor* editor);
     void toggle_theme();
     void set_tab_size(int size);
