@@ -318,7 +318,7 @@ void EditorApp::init() {
         apply_zoom(tab_idx);
     }
     
-    // Create native Windows status bar
+    // Native Windows status bar
     create_native_status_bar();
 }
 
@@ -358,63 +358,48 @@ void EditorApp::update_native_status_bar() {
     int width, height;
     glfwGetWindowSize(window_, &width, &height);
     
-    // Calculate part widths dynamically
-    int p1 = 80;   // Mode
-    int p2 = width / 4;   // Filename
-    int p3 = width / 4 + 80;  // Line/Col
-    int p4 = width / 2;  // Encoding
-    int p5 = width * 3 / 4;  // EOL
-    // Part 6 fills the rest
+    // Reposition status bar to bottom of window (accounting for menu + tabs)
+    // Get client rect to find actual content area
+    RECT clientRect;
+    GetClientRect(glfwGetWin32Window(window_), &clientRect);
+    int clientWidth = clientRect.right - clientRect.left;
+    int clientHeight = clientRect.bottom - clientRect.top;
     
-    int parts[6] = {p1, p2, p3, p4, p5, -1};
-    SendMessage(status_hwnd, SB_SETPARTS, 6, (LPARAM)parts);
+    // Calculate needed size for status bar (standard height ~24 pixels)
+    int statusHeight = 24;
+    int statusY = clientHeight - statusHeight;
     
-    // Get vim mode
+    // Resize the status bar control to match window width
+    MoveWindow(status_hwnd, 0, statusY, clientWidth, statusHeight, TRUE);
+    
+    // Simple 2-part layout (left side + fill right)
+    int part1 = 150;  // Mode + filename area
+    int parts[2] = {part1, -1};
+    SendMessage(status_hwnd, SB_SETPARTS, 2, (LPARAM)parts);
+    
+    // Part 0: Mode
     std::string vim_mode = get_vim_mode_str();
-    wchar_t mode_buf[32] = L"";
-    mbstowcs(mode_buf, vim_mode.c_str(), 31);
+    wchar_t mode_buf[64] = L"";
+    mbstowcs(mode_buf, vim_mode.c_str(), 63);
     SendMessage(status_hwnd, SB_SETTEXT, 0, (LPARAM)mode_buf);
     
-    // Get filename
+    // Part 1: filename + info (fill)
     if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
         auto& tab = tabs_[active_tab_];
         std::string name = tab.display_name;
         if (tab.dirty) name += " *";
         
-        wchar_t file_buf[256] = L"";
-        mbstowcs(file_buf, name.c_str(), 255);
-        SendMessage(status_hwnd, SB_SETTEXT, 1, (LPARAM)file_buf);
-        
-        // Get cursor position
         TextEditor* ed = get_active_editor();
         if (ed) {
             auto pos = ed->GetCursorPosition();
-            wchar_t pos_buf[64] = L"";
-            swprintf(pos_buf, 63, L"Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
-            SendMessage(status_hwnd, SB_SETTEXT, 2, (LPARAM)pos_buf);
+            name += " | Ln " + std::to_string(pos.mLine + 1) + ", Col " + std::to_string(pos.mColumn + 1);
         }
         
-        // Encoding
-        wchar_t enc_buf[32] = L"";
-        mbstowcs(enc_buf, tab.file_encoding.c_str(), 31);
-        SendMessage(status_hwnd, SB_SETTEXT, 3, (LPARAM)enc_buf);
-        
-        // Line ending
-        wchar_t eol_buf[16] = L"";
-        mbstowcs(eol_buf, tab.line_ending.c_str(), 15);
-        SendMessage(status_hwnd, SB_SETTEXT, 4, (LPARAM)eol_buf);
-        
-        // Tab size
-        wchar_t tab_buf[32] = L"";
-        swprintf(tab_buf, 31, L"Tab:%d", settings_.tab_size);
-        SendMessage(status_hwnd, SB_SETTEXT, 5, (LPARAM)tab_buf);
+        wchar_t file_buf[512] = L"";
+        mbstowcs(file_buf, name.c_str(), 511);
+        SendMessage(status_hwnd, SB_SETTEXT, 1, (LPARAM)file_buf);
     } else {
-        // No file - clear sections
         SendMessage(status_hwnd, SB_SETTEXT, 1, (LPARAM)L"");
-        SendMessage(status_hwnd, SB_SETTEXT, 2, (LPARAM)L"");
-        SendMessage(status_hwnd, SB_SETTEXT, 3, (LPARAM)L"");
-        SendMessage(status_hwnd, SB_SETTEXT, 4, (LPARAM)L"");
-        SendMessage(status_hwnd, SB_SETTEXT, 5, (LPARAM)L"");
     }
 #endif
 }
@@ -582,6 +567,11 @@ void EditorApp::open_file(const std::string& path) {
 
     settings_.last_open_dir = std::filesystem::path(selected_path).parent_path().string();
     add_recent_file(selected_path);
+    
+    // Log activity
+    std::string fname = std::filesystem::path(selected_path).filename().string();
+    activity_log_.push_back("Opened: " + fname);
+    if (activity_log_.size() > 20) activity_log_.erase(activity_log_.begin());
     
     // Set active tab to newly opened file
     active_tab_ = tab_idx;
@@ -1989,36 +1979,10 @@ void EditorApp::render() {
     ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
     bool editor_open = ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_MenuBar);
-    if (editor_open) {
-        // Render menus - File Edit View Help at top
-        if (ImGui::BeginMenuBar()) {
-            ImVec2 menu_pos = ImGui::GetCursorPos();
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("New Tab", "Ctrl+N")) new_tab();
-                if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Edit")) {
-                if (ImGui::MenuItem("Undo", "Ctrl+Z")) { /* undo */ }
-                if (ImGui::MenuItem("Copy", "Ctrl+C")) { /* copy */ }
-                if (ImGui::MenuItem("Paste", "Ctrl+V")) { /* paste */ }
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("View")) {
-                ImGui::MenuItem("Toggle Status Bar");
-                ImGui::MenuItem("Toggle Tabs");
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Help")) {
-                ImGui::MenuItem("About");
-                ImGui::EndMenu();
-            }
-            ImGui::EndMenuBar();
-        } else {
-            // Fallback: show menu items without menu bar
-            ImGui::Text("File | Edit | View | Help");
-        }
-        
+if (editor_open) {
+        // Render menus using function-based approach (File, Edit, View, Split, Help)
+        render_menu_bar();
+         
         // Right-click context menu
         if (ImGui::BeginPopupContextWindow("##ContextMenu")) {
             if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
@@ -2042,7 +2006,7 @@ void EditorApp::render() {
     if (show_cmd_palette_) render_command_palette();
     if (show_about_) render_about_dialog();
     
-    // Update native Windows status bar
+    // Native Windows status bar
     update_native_status_bar();
 }
 
@@ -2054,6 +2018,8 @@ void EditorApp::render_menu_bar() {
         render_menu_file();
         render_menu_edit();
         render_menu_view();
+        render_menu_split();
+        render_menu_help();
         ImGui::EndMenuBar();
     }
 }
@@ -2259,6 +2225,22 @@ void EditorApp::render_menu_help() {
     }
 }
 
+void EditorApp::render_menu_split() {
+    if (ImGui::BeginMenu("Split")) {
+        if (ImGui::MenuItem("Don't Split Tab", "Ctrl+Alt+W")) close_split();
+        ImGui::Separator();
+        if (ImGui::MenuItem("Split Tab Horizontally", "Ctrl+Shift+H")) split_horizontal();
+        if (ImGui::MenuItem("Split Tab Vertically", "Ctrl+Shift+V")) split_vertical();
+        ImGui::Separator();
+        if (ImGui::MenuItem("Focus Next", "Ctrl+K")) next_split();
+        if (ImGui::MenuItem("Focus Previous", "Ctrl+J")) prev_split();
+        ImGui::Separator();
+        if (ImGui::MenuItem("Rotate Splits", "Ctrl+Alt+K")) rotate_splits();
+        if (ImGui::MenuItem("Equal Size", "Ctrl+Alt+E")) equalize_splits();
+        ImGui::EndMenu();
+    }
+}
+
 void EditorApp::render_about_dialog() {
     if (!show_about_) return;
     
@@ -2386,50 +2368,6 @@ void EditorApp::render_editor_area() {
     }
     
     ImGui::EndChild();
-    
-    // Old ImGui status bar - DISABLED, using native Windows status bar instead
-#ifndef _WIN32
-    if (settings_.show_status_bar) {
-        // Render status bar AFTER EditorContent so it appears on top
-        ImGui::SetCursorPos(ImVec2(0, editor_area_height));
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
-        
-        ImGui::Text("%s", get_vim_mode_str());
-        ImGui::SameLine();
-        ImGui::Text(" | ");
-        ImGui::SameLine();
-        
-        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            auto& tab = tabs_[active_tab_];
-            TextEditor* ed = get_active_editor();
-            auto pos = ed ? ed->GetCursorPosition() : TextEditor::Coordinates();
-            std::string ver = get_version();
-            std::string version = "v" + ver.substr(ver.find("version ") + 8);
-            
-            ImGui::Text("Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
-            ImGui::SameLine();
-            ImGui::Text(" | ");
-            ImGui::SameLine();
-            ImGui::Text("%s", tab.file_encoding.c_str());
-            ImGui::SameLine();
-            ImGui::Text(" | ");
-            ImGui::SameLine();
-            ImGui::Text("%s", tab.line_ending.c_str());
-            ImGui::SameLine();
-            ImGui::Text(" | ");
-            ImGui::SameLine();
-            ImGui::Text("%d%%", tabs_[active_tab_].zoom_pct);
-            ImGui::SameLine();
-            ImGui::Text(" | ");
-            ImGui::SameLine();
-            ImGui::Text("%s", tab.display_name.c_str());
-            ImGui::SameLine();
-            ImGui::Text(" | %s", version.c_str());
-        }
-        
-        ImGui::PopStyleVar();
-    }
-#endif  // Disabled - using native Windows status bar instead
 }
 
 void EditorApp::render_editor_with_margins() {
@@ -2497,19 +2435,14 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
                                 }
                             }
                         } else {
-                            // Toggle bookmark (if clicking on bookmark column)
-                            if (settings_.show_bookmark_margin && mouse.x < win_pos.x + 16) {
-                                toggle_bookmark(clicked_line);
-}
+                                if (settings_.show_bookmark_margin && mouse.x < win_pos.x + 16) {
+                                    toggle_bookmark(clicked_line);
+                                }
+                            }
+                        }
+                    }
+                }
             }
-        }
-        
-        // Render minimap on the right side if enabled
-        if (settings_.show_minimap) {
-            render_minimap(editor);
-        }
-    }
-}
             
             if (ImGui::BeginPopupContextItem("##GutterPopup")) {
                 ImGui::TextDisabled("Gutter");
@@ -2586,6 +2519,9 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
         
         // Render the text editor
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+        
+        // TextEditor internally always shows horizontal scrollbar ('AlwaysHorizontalScrollbar' flag)
+        // This is controlled by internal TextEditor code, but word wrap helps visually
         editor->Render("TextEditor");
         
         // Render current line highlight
@@ -2620,37 +2556,7 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
         ImGui::PopStyleVar();
         
         ImGui::EndGroup();
-    } else {
-        // No gutter needed, just render editor
-        editor->Render("TextEditor");
-        
-        // Render current line highlight
-        if (settings_.highlight_line > 0 && editor_focused_) {
-            auto cursor = editor->GetCursorPosition();
-            auto lines = editor->GetTextLines();
-            if (cursor.mLine < (int)lines.size()) {
-                float line_height = ImGui::GetTextLineHeight();
-                float y_start = ImGui::GetCursorScreenPos().y - line_height * (lines.size() - cursor.mLine - 1);
-                float x_start = ImGui::GetWindowPos().x + ImGui::GetTextLineHeightWithSpacing();
-                float line_width = ImGui::GetWindowWidth() - ImGui::GetTextLineHeightWithSpacing();
-                
-                if (settings_.highlight_line == 1) {
-                    ImVec4 bg_color = settings_.dark_theme ? ImVec4(0.3f, 0.3f, 0.35f, 0.5f) : ImVec4(0.8f, 0.8f, 0.7f, 0.5f);
-                    ImGui::GetWindowDrawList()->AddRectFilled(
-                        ImVec2(x_start, y_start),
-                        ImVec2(x_start + line_width, y_start + line_height),
-                        ImColor(bg_color));
-                } else if (settings_.highlight_line == 2) {
-                    ImVec4 outline_color = ImVec4(0.4f, 0.6f, 0.9f, 1.0f);
-                    ImGui::GetWindowDrawList()->AddRect(
-                        ImVec2(x_start, y_start),
-                        ImVec2(x_start + line_width, y_start + line_height),
-                        ImColor(outline_color), 0.f, 0, 2.f);
-                }
-            }
-        }
     }
-}
 
 // ============================================================================
 // Sidebar - file explorer, git changes, and symbol outline
@@ -3961,101 +3867,53 @@ void EditorApp::render_splits(int tab_idx) {
     
     ImVec2 avail = ImGui::GetContentRegionAvail();
     
-    // Determine if we have horizontal or vertical splits
-    bool has_horizontal = false;
-    bool has_vertical = false;
+    // Count split types
+    int horizontal_count = 0, vertical_count = 0;
     for (auto* s : tab.splits) {
-        if (s->is_horizontal) has_horizontal = true;
-        else has_vertical = true;
+        if (s->is_horizontal) horizontal_count++;
+        else vertical_count++;
     }
     
-    if (has_horizontal || (!has_horizontal && !has_vertical)) {
-        // Horizontal splits - stack top to bottom
-        int n = (int)tab.splits.size();
-        float total_ratio = 0;
-        for (int i = 0; i < n - 1; i++) {
-            total_ratio += tab.splits[i]->ratio;
-        }
+    if (horizontal_count > 0 || (horizontal_count == 0 && vertical_count == 0)) {
+        // Horizontal splits - use Columns for proper layout
+        ImGui::Columns((int)tab.splits.size(), "split_cols", false);
         
-        float y = 0;
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < (int)tab.splits.size(); i++) {
             auto* split = tab.splits[i];
-            float h;
-            if (i < n - 1) {
-                h = avail.y * (split->ratio / total_ratio) * (1.0f - total_ratio);
-            } else {
-                h = avail.y - y;
-            }
+            float width = avail.x / tab.splits.size();
             
-            ImGui::SetNextWindowPos(ImVec2(0, y));
-            ImGui::SetNextWindowSize(ImVec2(avail.x, h));
-            ImGui::BeginChild(("hsplit_" + std::to_string(i)).c_str(), ImVec2(avail.x, h), true, ImGuiWindowFlags_NoScrollbar);
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0);
+            ImGui::BeginChild(("hsplit_" + std::to_string(i)).c_str(), ImVec2(width, avail.y), true);
             if (split->editor) {
                 split->editor->Render(("Editor_h" + std::to_string(i)).c_str());
             }
             ImGui::EndChild();
-            y += h;
+            ImGui::PopStyleVar();
             
-            if (i < n - 1) {
-                // Resize handle
-                ImGui::InvisibleButton(("rs_" + std::to_string(i)).c_str(), ImVec2(avail.x, 4));
-                if (ImGui::IsItemHovered()) {
-                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-                }
-                if (ImGui::IsItemActive()) {
-                    ImGuiIO& io = ImGui::GetIO();
-                    float delta = io.MouseDelta.y / avail.y;
-                    float new_ratio = split->ratio + delta;
-                    if (new_ratio < 0.2f) new_ratio = 0.2f;
-                    if (new_ratio > 0.8f) new_ratio = 0.8f;
-                    split->ratio = new_ratio;
-                }
+            if (i < (int)tab.splits.size() - 1) {
+                ImGui::NextColumn();
             }
         }
+        ImGui::Columns(1);
     } else {
-        // Vertical splits - stack left to right
-        int n = (int)tab.splits.size();
-        float total_ratio = 0;
-        for (int i = 0; i < n - 1; i++) {
-            total_ratio += tab.splits[i]->ratio;
-        }
+        // Vertical splits - stack vertically (top to bottom)
+        ImGui::Columns(1, "vsplit_cols", false);
         
-        float x = 0;
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < (int)tab.splits.size(); i++) {
             auto* split = tab.splits[i];
-            float w;
-            if (i < n - 1) {
-                w = avail.x * (split->ratio / total_ratio) * (1.0f - total_ratio);
-            } else {
-                w = avail.x - x;
-            }
+            float height = avail.y / tab.splits.size();
             
-            ImGui::SetNextWindowPos(ImVec2(x, 0));
-            ImGui::SetNextWindowSize(ImVec2(w, avail.y));
-            ImGui::BeginChild(("vsplit_" + std::to_string(i)).c_str(), ImVec2(w, avail.y), true, ImGuiWindowFlags_NoScrollbar);
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0);
+            ImGui::BeginChild(("vsplit_" + std::to_string(i)).c_str(), ImVec2(avail.x, height), true);
             if (split->editor) {
                 split->editor->Render(("Editor_v" + std::to_string(i)).c_str());
             }
             ImGui::EndChild();
-            x += w;
+            ImGui::PopStyleVar();
             
-            if (i < n - 1) {
-                // Resize handle
-                ImGui::SameLine();
-                ImGui::InvisibleButton(("rs_" + std::to_string(i)).c_str(), ImVec2(4, avail.y));
-                if (ImGui::IsItemHovered()) {
-                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-                }
-                if (ImGui::IsItemActive()) {
-                    ImGuiIO& io = ImGui::GetIO();
-                    float delta = io.MouseDelta.x / avail.x;
-                    float new_ratio = split->ratio + delta;
-                    if (new_ratio < 0.2f) new_ratio = 0.2f;
-                    if (new_ratio > 0.8f) new_ratio = 0.8f;
-                    split->ratio = new_ratio;
-                }
-            }
+            ImGui::Spacing();
         }
+        ImGui::Columns(1);
     }
 }
 

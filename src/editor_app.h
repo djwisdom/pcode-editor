@@ -77,7 +77,7 @@ struct AppSettings {
     int window_h = 800;
     bool dark_theme = true;
     bool show_status_bar = false;
-    bool word_wrap = false;
+    bool word_wrap = true;  // Default: word wrap enabled, no horizontal scrollbar
     bool show_line_numbers = false;
     bool show_bookmark_margin = false;
     bool show_change_history = false;
@@ -182,6 +182,7 @@ private:
 
     // Menu
     void render_menu_help();
+    void render_menu_split();
 
     // File operations
     void new_tab();
@@ -259,6 +260,7 @@ private:
     GLFWwindow* window_ = nullptr;
     void* native_status_bar = nullptr;  // Native Windows status bar HWND
     bool running_ = true;
+    std::vector<std::string> activity_log_;  // Session activity audit trail (non-persistent)
 
     std::vector<EditorTab> tabs_;
     int active_tab_ = 0;
