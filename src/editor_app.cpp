@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "BUG-merang!!!"; // fallback if VERSION file missing
     }
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.68 (a84c392)" + version;
 }
 
 // ============================================================================
@@ -365,15 +365,15 @@ void EditorApp::update_native_status_bar() {
     int clientWidth = clientRect.right - clientRect.left;
     int clientHeight = clientRect.bottom - clientRect.top;
     
-    // Calculate needed size for status bar (standard height ~24 pixels)
-    int statusHeight = 24;
+    // Calculate needed size for status bar - taller to not overlap scrollbar
+    int statusHeight = 30;
     int statusY = clientHeight - statusHeight;
     
     // Resize the status bar control to match window width
     MoveWindow(status_hwnd, 0, statusY, clientWidth, statusHeight, TRUE);
     
     // Simple 2-part layout (left side + fill right)
-    int part1 = 150;  // Mode + filename area
+    int part1 = 250;  // Mode area - wider for full words
     int parts[2] = {part1, -1};
     SendMessage(status_hwnd, SB_SETPARTS, 2, (LPARAM)parts);
     
@@ -3874,8 +3874,8 @@ void EditorApp::render_splits(int tab_idx) {
         else vertical_count++;
     }
     
-    if (horizontal_count > 0 || (horizontal_count == 0 && vertical_count == 0)) {
-        // Horizontal splits - use Columns for proper layout
+    if (vertical_count > 0) {
+        // Vertical splits - side by side (left to right)
         ImGui::Columns((int)tab.splits.size(), "split_cols", false);
         
         for (int i = 0; i < (int)tab.splits.size(); i++) {
@@ -3883,9 +3883,9 @@ void EditorApp::render_splits(int tab_idx) {
             float width = avail.x / tab.splits.size();
             
             ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0);
-            ImGui::BeginChild(("hsplit_" + std::to_string(i)).c_str(), ImVec2(width, avail.y), true);
+            ImGui::BeginChild(("vsplit_" + std::to_string(i)).c_str(), ImVec2(width, avail.y), true);
             if (split->editor) {
-                split->editor->Render(("Editor_h" + std::to_string(i)).c_str());
+                split->editor->Render(("Editor_v" + std::to_string(i)).c_str());
             }
             ImGui::EndChild();
             ImGui::PopStyleVar();
@@ -3896,24 +3896,19 @@ void EditorApp::render_splits(int tab_idx) {
         }
         ImGui::Columns(1);
     } else {
-        // Vertical splits - stack vertically (top to bottom)
-        ImGui::Columns(1, "vsplit_cols", false);
-        
+        // Horizontal splits - stack top to bottom
         for (int i = 0; i < (int)tab.splits.size(); i++) {
             auto* split = tab.splits[i];
             float height = avail.y / tab.splits.size();
             
             ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0);
-            ImGui::BeginChild(("vsplit_" + std::to_string(i)).c_str(), ImVec2(avail.x, height), true);
+            ImGui::BeginChild(("hsplit_" + std::to_string(i)).c_str(), ImVec2(avail.x, height), true);
             if (split->editor) {
-                split->editor->Render(("Editor_v" + std::to_string(i)).c_str());
+                split->editor->Render(("Editor_h" + std::to_string(i)).c_str());
             }
             ImGui::EndChild();
             ImGui::PopStyleVar();
-            
-            ImGui::Spacing();
         }
-        ImGui::Columns(1);
     }
 }
 
