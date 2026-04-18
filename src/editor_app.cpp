@@ -168,7 +168,7 @@ std::string EditorApp::get_version() {
         version = "0.2.46"; // fallback if VERSION file missing
     }
     // return: "pCode Editor version X.Y.Z (hash)"
-    return "pCode Editor version 0.2.48 (3def94f)" + version;
+    return "pCode Editor version 0.2.49 (b6a1446)" + version;
 }
 
 // ============================================================================
@@ -1879,9 +1879,7 @@ void EditorApp::render() {
 // Main window - Editor with menu, sidebar, editor area all inside
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
-    ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
-    
-    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus)) {
+    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_MenuBar)) {
         // Render menu bar at top
         if (ImGui::BeginMenuBar()) {
             render_menu_file();
