@@ -2264,6 +2264,7 @@ void EditorApp::render_menu_split() {
 void EditorApp::render_about_dialog() {
     if (!show_about_) return;
     
+    ImGui::OpenPopup("About");
     if (ImGui::BeginPopupModal("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Personal Code Editor");
         ImGui::Separator();
