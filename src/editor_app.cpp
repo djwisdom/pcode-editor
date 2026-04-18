@@ -512,6 +512,7 @@ void EditorApp::new_tab() {
     tab.editor = new TextEditor();
     tab.editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
     tab.editor->SetTabSize(settings_.tab_size);
+    tab.editor->SetWordWrap(settings_.word_wrap);
 
     tab.editor->SetText("");
     tabs_.push_back(std::move(tab));
