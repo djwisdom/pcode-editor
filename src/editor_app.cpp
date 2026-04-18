@@ -165,10 +165,9 @@ std::string EditorApp::get_version() {
     if (ver_file.is_open()) {
         std::getline(ver_file, version);
     } else {
-        version = "0.2.46"; // fallback if VERSION file missing
+        version = "0.2.52"; // fallback if VERSION file missing
     }
-    // return: "pCode Editor version X.Y.Z (hash)"
-    return "pCode Editor version 0.2.49 (b6a1446)" + version;
+    return "pCode Editor version " + version;
 }
 
 // ============================================================================
