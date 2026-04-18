@@ -168,7 +168,7 @@ std::string EditorApp::get_version() {
         version = "0.2.46"; // fallback if VERSION file missing
     }
     // return: "pCode Editor version X.Y.Z (hash)"
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.46 (31c1f80)" + version;
 }
 
 // ============================================================================
@@ -312,6 +312,13 @@ void EditorApp::init() {
 }
 
 void EditorApp::shutdown() {
+    // Save window size before destroying
+    int w, h;
+    glfwGetWindowSize(window_, &w, &h);
+    settings_.window_w = w;
+    settings_.window_h = h;
+    save_settings();
+    
     NFD_Quit();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -1874,9 +1881,14 @@ void EditorApp::render() {
     ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
     
-    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_MenuBar)) {
-        // Render menu bar
-        render_menu_bar();
+    if (ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus)) {
+        // Render menu bar at top
+        if (ImGui::BeginMenuBar()) {
+            render_menu_file();
+            render_menu_edit();
+            render_menu_view();
+            ImGui::EndMenuBar();
+        }
         
         // Right-click context menu
         if (ImGui::BeginPopupContextWindow("##ContextMenu")) {
