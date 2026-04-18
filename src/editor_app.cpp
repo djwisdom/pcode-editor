@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "BUG-merang!!!"; // fallback if VERSION file missing
     }
-    return "pCode Editor version 0.2.62 (4ffe079)" + version;
+    return "pCode Editor version " + version;
 }
 
 // ============================================================================
@@ -2372,6 +2372,8 @@ void EditorApp::render_editor_area() {
     
     ImGui::EndChild();
     
+    // Old ImGui status bar - DISABLED, using native Windows status bar instead
+#ifndef _WIN32
     if (settings_.show_status_bar) {
         // Render status bar AFTER EditorContent so it appears on top
         ImGui::SetCursorPos(ImVec2(0, editor_area_height));
@@ -2412,6 +2414,7 @@ void EditorApp::render_editor_area() {
         
         ImGui::PopStyleVar();
     }
+#endif  // Disabled - using native Windows status bar instead
 }
 
 void EditorApp::render_editor_with_margins() {
@@ -3070,7 +3073,7 @@ void EditorApp::render_status_bar() {
         ImGui::SameLine();
         
         // Version with git hash
-        ImGui::Text("v0.2.37");
+        ImGui::Text("%s", get_version().c_str());
     }
     
 ImGui::PopStyleColor();
