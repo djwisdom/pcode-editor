@@ -167,7 +167,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "0.2.51"; // fallback if VERSION file missing
     }
-    return "pCode Editor version 0.2.51 (05a6650)" + version;
+    return "pCode Editor version 0.2.52 (4aca9bc)" + version;
 }
 
 // ============================================================================
@@ -1880,7 +1880,7 @@ void EditorApp::render() {
     ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
     bool editor_open = ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus);
     if (editor_open) {
-        // Render menus - File Edit View Help
+        // Render menus - File Edit View Help at top
         if (ImGui::BeginMenuBar()) {
             render_menu_file();
             render_menu_edit();
@@ -1888,6 +1888,9 @@ void EditorApp::render() {
             render_menu_help();
             ImGui::EndMenuBar();
         }
+        
+        // Menu bar area height
+        float menu_height = ImGui::GetFrameHeight();
         
         // Right-click context menu
         if (ImGui::BeginPopupContextWindow("##ContextMenu")) {
