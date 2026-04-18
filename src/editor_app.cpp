@@ -316,6 +316,92 @@ void EditorApp::init() {
         
         apply_zoom(tab_idx);
     }
+    
+    // Create native Windows status bar
+    create_native_status_bar();
+}
+
+void EditorApp::create_native_status_bar() {
+#ifdef _WIN32
+    if (!window_) return;
+    
+    HWND hwnd = glfwGetWin32Window(window_);
+    if (!hwnd) return;
+    
+    // Create status bar with parts
+    HWND status_hwnd = CreateWindowEx(
+        0,
+        STATUSCLASSNAME,
+        "",
+        WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP,
+        0, 0, 0, 0,
+        hwnd,
+        (HMENU)1,
+        GetModuleHandle(NULL),
+        NULL
+    );
+    native_status_bar = (void*)status_hwnd;
+    
+    // Initialize with 6 parts
+    int parts[6] = {80, 250, 350, 420, 480, -1};
+    SendMessage(status_hwnd, SB_SETPARTS, 6, (LPARAM)parts);
+    
+    // Set initial text
+    SendMessage(status_hwnd, SB_SETTEXT, 0, (LPARAM)L"NORMAL");
+    SendMessage(status_hwnd, SB_SETTEXT, 1, (LPARAM)L"");
+    SendMessage(status_hwnd, SB_SETTEXT, 2, (LPARAM)L"Ln 1, Col 1");
+    SendMessage(status_hwnd, SB_SETTEXT, 3, (LPARAM)L"UTF-8");
+    SendMessage(status_hwnd, SB_SETTEXT, 4, (LPARAM)L"LF");
+    SendMessage(status_hwnd, SB_SETTEXT, 5, (LPARAM)L"Tab:4");
+#endif
+}
+
+void EditorApp::update_native_status_bar() {
+#ifdef _WIN32
+    if (!native_status_bar) return;
+    
+    HWND status_hwnd = (HWND)native_status_bar;
+    
+    // Get vim mode
+    wchar_t mode_buf[32];
+    swprintf(mode_buf, 32, L"%s", get_vim_mode_str().c_str());
+    SendMessage(status_hwnd, SB_SETTEXT, 0, (LPARAM)mode_buf);
+    
+    // Get filename
+    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+        auto& tab = tabs_[active_tab_];
+        std::string name = tab.display_name;
+        if (tab.dirty) name += " *";
+        
+        wchar_t file_buf[256];
+        mbstowcs(file_buf, name.c_str(), 256);
+        SendMessage(status_hwnd, SB_SETTEXT, 1, (LPARAM)file_buf);
+        
+        // Get cursor position
+        TextEditor* ed = get_active_editor();
+        if (ed) {
+            auto pos = ed->GetCursorPosition();
+            wchar_t pos_buf[64];
+            swprintf(pos_buf, 64, L"Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
+            SendMessage(status_hwnd, SB_SETTEXT, 2, (LPARAM)pos_buf);
+        }
+        
+        // Encoding
+        wchar_t enc_buf[32];
+        mbstowcs(enc_buf, tab.file_encoding.c_str(), 32);
+        SendMessage(status_hwnd, SB_SETTEXT, 3, (LPARAM)enc_buf);
+        
+        // Line ending
+        wchar_t eol_buf[16];
+        mbstowcs(eol_buf, tab.line_ending.c_str(), 16);
+        SendMessage(status_hwnd, SB_SETTEXT, 4, (LPARAM)eol_buf);
+        
+        // Tab size
+        wchar_t tab_buf[32];
+        swprintf(tab_buf, 32, L"Tab:%d", settings_.tab_size);
+        SendMessage(status_hwnd, SB_SETTEXT, 5, (LPARAM)tab_buf);
+    }
+#endif
 }
 
 void EditorApp::shutdown() {
@@ -1940,6 +2026,9 @@ void EditorApp::render() {
     if (show_spaces_dialog_) render_spaces_dialog();
     if (show_cmd_palette_) render_command_palette();
     if (show_about_) render_about_dialog();
+    
+    // Update native Windows status bar
+    update_native_status_bar();
 }
 
 // ============================================================================

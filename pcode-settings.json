@@ -1,8 +1,8 @@
 {
-  "window_w": 1102,
+  "window_w": 1219,
   "window_h": 700,
   "dark_theme": true,
-  "show_status_bar": true,
+  "show_status_bar": false,
   "word_wrap": true,
   "show_line_numbers": true,
   "show_minimap": true,
