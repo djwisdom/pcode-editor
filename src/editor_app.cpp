@@ -4263,10 +4263,10 @@ void EditorApp::render_status_bar() {
         }
     }
     
-    // Get editor window dimensions
+    // Get editor window dimensions - use content region to avoid scrollbar issues
     ImVec2 editor_pos = ImGui::GetWindowPos();
-    float editor_width = ImGui::GetWindowWidth();
-    float editor_height = ImGui::GetWindowHeight();
+    float editor_width = ImGui::GetContentRegionAvail().x;
+    float editor_height = ImGui::GetContentRegionAvail().y;
     
     // Command bar - inside editor, one line high, positioned at very bottom of editor
     if (vim_mode_ == VimMode::Command) {
@@ -4412,8 +4412,8 @@ void EditorApp::render_minimap(TextEditor* editor) {
     
     // Save position before any child windows
     ImVec2 editor_win_pos = ImGui::GetWindowPos();
-    float window_width = ImGui::GetWindowWidth();
-    float window_height = ImGui::GetWindowHeight();
+    float window_width = ImGui::GetContentRegionAvail().x;
+    float window_height = ImGui::GetContentRegionAvail().y;
     
     float minimap_width = 70;
     float minimap_x = editor_win_pos.x + window_width - minimap_width - 8;
