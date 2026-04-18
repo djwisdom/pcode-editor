@@ -1,6 +1,6 @@
 {
-  "window_w": 1124,
-  "window_h": 613,
+  "window_w": 933,
+  "window_h": 736,
   "dark_theme": true,
   "show_status_bar": true,
   "word_wrap": true,
@@ -10,8 +10,8 @@
   "highlight_line": 0,
   "show_tabs": true,
   "tab_size": 4,
-  "font_size": 18,
-  "font_name": "",
-  "last_open_dir": "C:\\Users\\casse\\github\\pcode-editor\\src",
-  "recent_files": ["C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.h", "C:\\Users\\casse\\github\\pcode-editor\\src\\main.cpp", ".\\BUILD_SYSTEM.md", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.cpp"]
+  "font_size": 17,
+  "font_name": "CascadiaMono",
+  "last_open_dir": ".",
+  "recent_files": [".\\BUILD_SYSTEM.md", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.h", "C:\\Users\\casse\\github\\pcode-editor\\src\\main.cpp"]
 }
