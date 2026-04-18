@@ -3089,18 +3089,21 @@ void EditorApp::render() {
         
         // After vim key handling, clear ALL letter/number keys to prevent TextEditor from receiving them
         // This ensures unmapped keys like 'x', 'q', 'z' don't insert text in Normal mode
-        for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
-            io.AddKeyEvent((ImGuiKey)key, false);
+        // BUT only clear if we're still in Normal mode (vim mode may have changed to Insert during handle_vim_key)
+        if (vim_mode_ == VimMode::Normal) {
+            for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
+                io.AddKeyEvent((ImGuiKey)key, false);
+            }
+            for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
+                io.AddKeyEvent((ImGuiKey)key, false);
+            }
+            io.AddKeyEvent(ImGuiKey_Space, false);
+            io.AddKeyEvent(ImGuiKey_Backspace, false);
+            io.AddKeyEvent(ImGuiKey_Tab, false);
+            
+            // Clear InputQueueCharacters to prevent any character input in Normal mode
+            io.InputQueueCharacters.resize(0);
         }
-        for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
-            io.AddKeyEvent((ImGuiKey)key, false);
-        }
-        io.AddKeyEvent(ImGuiKey_Space, false);
-        io.AddKeyEvent(ImGuiKey_Backspace, false);
-        io.AddKeyEvent(ImGuiKey_Tab, false);
-        
-        // Clear InputQueueCharacters to prevent any character input in Normal mode
-        io.InputQueueCharacters.resize(0);
     }
     
     // Clear InputQueueCharacters to prevent any character input in Normal mode
