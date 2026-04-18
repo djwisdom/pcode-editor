@@ -2304,6 +2304,7 @@ void EditorApp::render_about_dialog() {
         
         ImGui::Separator();
         
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - ImGui::GetFrameHeight() - ImGui::GetStyle().WindowPadding.x);
         if (ImGui::Button("OK")) {
             show_about_ = false;
         }
