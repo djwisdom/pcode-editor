@@ -173,7 +173,7 @@ std::string EditorApp::get_version() {
     if (ver_file.is_open()) {
         std::getline(ver_file, version);
     } else {
-        version = "BUG-merang!!!"; // fallback if VERSION file missing
+        version = "0.0.0 (unknown)"; // fallback if VERSION file missing
     }
     return "pCode Editor version " + version;
 }
@@ -373,7 +373,7 @@ void EditorApp::update_native_status_bar() {
     MoveWindow(status_hwnd, 0, statusY, clientWidth, statusHeight, TRUE);
     
     // Simple 2-part layout (left side + fill right)
-    int part1 = 250;  // Mode area - wider for full words
+    int part1 = 120;  // Mode area - wider for full words
     int parts[2] = {part1, -1};
     SendMessage(status_hwnd, SB_SETPARTS, 2, (LPARAM)parts);
     
@@ -1177,9 +1177,9 @@ const char* EditorApp::get_vim_mode_str() const {
         case VimMode::Normal: return "NORMAL";
         case VimMode::Insert: return "INSERT";
         case VimMode::Visual: return "VISUAL";
-        case VimMode::VisualLine: return "VISUAL LINE";
-        case VimMode::OperatorPending: return "OP PENDING";
-        case VimMode::Command: return ":";
+        case VimMode::VisualLine: return "V-LINE";
+        case VimMode::OperatorPending: return "OPERATOR";
+        case VimMode::Command: return "COMMAND";
         default: return "";
     }
 }
@@ -2018,7 +2018,7 @@ void EditorApp::render_menu_bar() {
         render_menu_file();
         render_menu_edit();
         render_menu_view();
-        render_menu_split();
+        // Split menu removed - use keyboard shortcuts instead
         render_menu_help();
         ImGui::EndMenuBar();
     }
@@ -2028,7 +2028,11 @@ void EditorApp::render_menu_file() {
     if (ImGui::BeginMenu("File")) {
         if (ImGui::MenuItem("New Tab", "Ctrl+N")) new_tab();
         if (ImGui::MenuItem("New Window", "Ctrl+Shift+N")) new_window();
-        if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
+        if (ImGui::BeginMenu("Open...")) {
+            if (ImGui::MenuItem("In New Tab", "Ctrl+O")) open_file("");
+            if (ImGui::MenuItem("In New Horizontal Split")) open_file_split("");
+            ImGui::EndMenu();
+        }
 
         // Recent files submenu
         if (!settings_.recent_files.empty()) {
@@ -2190,33 +2194,13 @@ void EditorApp::render_menu_view() {
         if (ImGui::MenuItem("Terminal", "Ctrl+`", &show_terminal_)) {
             if (show_terminal_ && !terminal_process_) start_terminal();
         }
-        ImGui::Separator();
-        if (ImGui::BeginMenu("Split")) {
-            if (ImGui::MenuItem("Split Horizontal", "Ctrl+Shift+H")) split_horizontal();
-            if (ImGui::MenuItem("Split Vertical", "Ctrl+Shift+V")) split_vertical();
-            ImGui::Separator();
-            if (ImGui::MenuItem("Split and Open File", "Ctrl+Shift+F")) {
-                std::string path;
-                if (!path.empty()) {
-                    open_file_split(path);
-                } else {
-                    nfdchar_t* out_path = nullptr;
-                    nfdresult_t result = NFD_OpenDialog(&out_path, nullptr, 0, nullptr);
-                    if (result == NFD_OKAY && out_path) {
-                        open_file_split(std::string(out_path));
-                        NFD_FreePath(out_path);
-                    }
-                }
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Close Split", "Ctrl+Alt+W")) close_split();
-            ImGui::Separator();
-            if (ImGui::MenuItem("Focus Next", "Ctrl+K")) next_split();
-            if (ImGui::MenuItem("Focus Previous", "Ctrl+J")) prev_split();
-            ImGui::Separator();
-            if (ImGui::MenuItem("Rotate Down", "Ctrl+Alt+K")) rotate_splits();
-            if (ImGui::MenuItem("Equal Size", "Ctrl+Alt+E")) equalize_splits();
-            ImGui::EndMenu();
+        if (show_terminal_) {
+            ImGui::Indent();
+            if (ImGui::MenuItem("Bottom", nullptr, settings_.terminal_position == 0)) settings_.terminal_position = 0;
+            if (ImGui::MenuItem("Left", nullptr, settings_.terminal_position == 1)) settings_.terminal_position = 1;
+            if (ImGui::MenuItem("Top", nullptr, settings_.terminal_position == 2)) settings_.terminal_position = 2;
+            if (ImGui::MenuItem("Right", nullptr, settings_.terminal_position == 3)) settings_.terminal_position = 3;
+            ImGui::Unindent();
         }
         ImGui::Separator();
         if (ImGui::MenuItem(settings_.dark_theme ? "Light Theme" : "Dark Theme")) toggle_theme();
@@ -2576,6 +2560,73 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
     }
 
 // ============================================================================
+// Explorer helpers - file icons, git status, sorting
+// ============================================================================
+static const char* get_file_icon(const std::string& path, bool is_dir) {
+    if (is_dir) return "[D]";
+    
+    std::string ext = std::filesystem::path(path).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    
+    if (ext == ".cpp" || ext == ".c" || ext == ".cc" || ext == ".cxx") return "[C]";
+    if (ext == ".h" || ext == ".hpp" || ext == ".hh") return "[H]";
+    if (ext == ".js" || ext == ".jsx" || ext == ".ts" || ext == ".tsx") return "[J]";
+    if (ext == ".py") return "[P]";
+    if (ext == ".json") return "{}";
+    if (ext == ".md" || ext == ".markdown") return "# ";
+    if (ext == ".txt") return "T ";
+    if (ext == ".html" || ext == ".htm") return "<>";
+    if (ext == ".css") return "CS";
+    if (ext == ".xml") return "XL";
+    if (ext == ".yaml" || ext == ".yml") return "Y ";
+    if (ext == ".sh" || ext == ".bat" || ext == ".ps1") return "$ ";
+    if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" || ext == ".bmp") return "IMG";
+    if (ext == ".pdf") return "PDF";
+    if (ext == ".zip" || ext == ".tar" || ext == ".gz" || ext == ".rar") return "ZIP";
+    if (ext == ".exe" || ext == ".dll" || ext == ".so" || ext == ".dylib") return "BIN";
+    if (ext == ".gitignore" || ext == ".clang-format" || ext == ".editorconfig") return "CFG";
+    
+    return "F ";
+}
+
+static const char* get_git_status(const std::string& path) {
+    static std::unordered_set<std::string> modified_files;
+    static std::string last_checked_dir;
+    static std::time_t last_check_time = 0;
+    
+    std::filesystem::path dir = std::filesystem::path(path).parent_path();
+    std::string dir_str = dir.string();
+    
+    auto now = std::time(nullptr);
+    if (dir_str != last_checked_dir || now - last_check_time > 5) {
+        modified_files.clear();
+        last_checked_dir = dir_str;
+        last_check_time = now;
+        
+        #ifdef _WIN32
+        FILE* pipe = _popen("git diff --name-only --porcelain 2>nul", "r");
+        #else
+        FILE* pipe = popen("git diff --name-only --porcelain 2>/dev/null", "r");
+        #endif
+        if (pipe) {
+            char buf[512];
+            while (fgets(buf, sizeof(buf), pipe)) {
+                std::string line = buf;
+                if (!line.empty() && line[0] == ' ') {
+                    std::string fp = line.substr(2);
+                    fp.erase(fp.find('\n'), std::string::npos);
+                    modified_files.insert(fp);
+                }
+            }
+            _pclose(pipe);
+        }
+    }
+    
+    if (modified_files.count(path)) return " M";
+    return "";
+}
+
+// ============================================================================
 // Explorer - file tree with split pane behavior
 // ============================================================================
 void EditorApp::render_sidebar() {
@@ -2628,6 +2679,30 @@ void EditorApp::render_sidebar() {
 
 void EditorApp::render_file_tree() {
     ImGui::Text("Files");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("+##new")) {
+        ImGui::OpenPopup("##FileTreeNewPopup");
+    }
+    if (ImGui::BeginPopup("##FileTreeNewPopup")) {
+        if (ImGui::MenuItem("New File...")) {
+            show_new_file_dialog_ = true;
+            ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::MenuItem("New Folder...")) {
+            show_new_folder_dialog_ = true;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    ImGui::Separator();
+    
+    static std::string file_filter;
+    if (ImGui::InputTextWithHint("##filter", "Filter...", file_filter.data(), 32, ImGuiInputTextFlags_EnterReturnsTrue)) {
+    }
+    if (file_filter.empty()) {
+        ImGui::SameLine();
+        ImGui::TextUnformatted("");
+    }
     ImGui::Separator();
     
     static std::unordered_map<std::string, bool> expanded_dirs;
@@ -2635,7 +2710,6 @@ void EditorApp::render_file_tree() {
     
     std::string dir_path = settings_.last_open_dir.empty() ? "." : settings_.last_open_dir;
     
-    // Allow navigation to parent directory
     std::filesystem::path parent = std::filesystem::path(dir_path).parent_path();
     if (!parent.empty() && parent.string() != dir_path) {
         if (ImGui::Selectable("[..]", false, ImGuiSelectableFlags_DontClosePopups)) {
@@ -2644,42 +2718,66 @@ void EditorApp::render_file_tree() {
         }
     }
     
-    render_dir_tree(dir_path, expanded_dirs);
+    render_dir_tree(dir_path, expanded_dirs, file_filter);
 }
 
-void EditorApp::render_dir_tree(const std::string& dir_path, std::unordered_map<std::string, bool>& expanded_dirs) {
+void EditorApp::render_dir_tree(const std::string& dir_path, std::unordered_map<std::string, bool>& expanded_dirs, const std::string& filter) {
     if (!std::filesystem::exists(dir_path) || !std::filesystem::is_directory(dir_path)) return;
     
+    struct DirEntry {
+        std::string name;
+        std::string path;
+        bool is_dir;
+    };
+    
+    std::vector<DirEntry> entries;
     for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
         std::string name = entry.path().filename().string();
-        std::string full_path = entry.path().string();
-        
         if (!name.empty() && name[0] == '.') continue;
-        
-        if (entry.is_directory()) {
-            ImGui::PushID(full_path.c_str());
-            bool is_expanded = expanded_dirs[full_path];
+        if (!filter.empty()) {
+            if (name.find(filter) == std::string::npos) continue;
+        }
+        entries.push_back({name, entry.path().string(), entry.is_directory()});
+    }
+    
+    std::sort(entries.begin(), entries.end(), [](const DirEntry& a, const DirEntry& b) {
+        if (a.is_dir != b.is_dir) return a.is_dir > b.is_dir;
+        std::string al = a.name; std::transform(al.begin(), al.end(), al.begin(), ::tolower);
+        std::string bl = b.name; std::transform(bl.begin(), bl.end(), bl.begin(), ::tolower);
+        return al < bl;
+    });
+    
+    for (const auto& e : entries) {
+        if (e.is_dir) {
+            ImGui::PushID(e.path.c_str());
+            bool is_expanded = expanded_dirs[e.path];
             
-            std::string arrow = is_expanded ? "[-] " : "[+] ";
-            if (ImGui::Selectable(arrow.c_str(), false)) {
-                expanded_dirs[full_path] = !is_expanded;
+            const char* arrow = is_expanded ? "[-]" : "[+]";
+            if (ImGui::Selectable(arrow, false)) {
+                expanded_dirs[e.path] = !is_expanded;
             }
             ImGui::SameLine();
-            
-            ImGui::Text("%s/", name.c_str());
+            ImGui::TextColored(ImVec4(0.7f, 0.6f, 0.3f, 1.0f), "%s %s/", get_file_icon(e.path, true), e.name.c_str());
             
             if (is_expanded) {
                 ImGui::Indent(16);
-                render_dir_tree(full_path, expanded_dirs);
+                render_dir_tree(e.path, expanded_dirs, filter);
                 ImGui::Unindent(16);
             }
             
             ImGui::PopID();
         } else {
-            if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
+            const char* git_stat = get_git_status(e.path);
+            std::string display_name = std::string(get_file_icon(e.path, false)) + " " + e.name;
+            if (git_stat[0] != '\0') {
+                display_name += git_stat;
+            }
+            
+            ImGui::PushID(e.path.c_str());
+            if (ImGui::Selectable(display_name.c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
                 bool already_open = false;
                 for (size_t i = 0; i < tabs_.size(); i++) {
-                    if (tabs_[i].file_path == full_path) {
+                    if (tabs_[i].file_path == e.path) {
                         active_tab_ = static_cast<int>(i);
                         ImGui::SetWindowFocus("Editor");
                         already_open = true;
@@ -2687,9 +2785,10 @@ void EditorApp::render_dir_tree(const std::string& dir_path, std::unordered_map<
                     }
                 }
                 if (!already_open) {
-                    open_file(full_path);
+                    open_file(e.path);
                 }
             }
+            ImGui::PopID();
         }
     }
 }
@@ -3335,32 +3434,29 @@ void EditorApp::render_terminal() {
     
     update_terminal_output();
     
-    ImGui::SetNextWindowSize(ImVec2(600, 300));
+    static float term_width = 300;
+    static float term_height = 200;
+    static bool dragging = false;
     
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar;
+    // Terminal as split pane
+    int pos = settings_.terminal_position;
     
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    
-    if (ImGui::Begin("Terminal", nullptr, flags)) {
-        float term_scale = terminal_zoom_pct_ / 100.0f;
-        float old_scale = ImGui::GetIO().FontGlobalScale;
-        ImGui::GetIO().FontGlobalScale = old_scale * term_scale;
+    if (pos == 0) {  // Bottom
+        ImGui::BeginChild("##Terminal", ImVec2(-1, term_height), true);
+        ImGui::Text("Terminal"); 
+        ImGui::SameLine(ImGui::GetWindowWidth() - 30);
+        if (ImGui::Button("X")) show_terminal_ = false;
+        ImGui::Separator();
         
-        // Show terminal output - scrollable
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
-        
-        ImGui::BeginChild("term_output", ImVec2(ImGui::GetWindowWidth(), ImGui::GetWindowHeight() - 30), true);
+        ImGui::BeginChild("term_out", ImVec2(-1, -30), true);
         ImGui::Text("%s", terminal_output_.c_str());
         ImGui::SetScrollHereY(1.0f);
         ImGui::EndChild();
+        ImGui::PopStyleVar();
         
-        ImGui::GetIO().FontGlobalScale = old_scale;
-        
-        // Simple input at bottom
-        ImGui::Separator();
         static char input_buf[256] = "";
-        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 40);
-        
+        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 50);
         if (ImGui::InputText("##term", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
             if (terminal_stdin_ && strlen(input_buf) > 0) {
                 std::string cmd = input_buf;
@@ -3376,85 +3472,71 @@ void EditorApp::render_terminal() {
             }
         }
         
-ImGui::SameLine();
-        if (ImGui::Button("x")) {
-            show_terminal_ = false;
-        }
+        // Horizontal resize handle
+        float avail_w = ImGui::GetContentRegionAvail().x;
+        ImGui::InvisibleButton("##TermHSplitter", ImVec2(avail_w, 4));
+        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+        if (ImGui::IsItemClicked(0)) dragging = true;
+        if (dragging && ImGui::IsMouseDown(0)) {
+            term_height += ImGui::GetIO().MouseDelta.y;
+            term_height = std::clamp(term_height, 100.0f, 400.0f);
+        } else dragging = false;
         
-        // Direct keyboard input when terminal is focused
-        static std::string current_line;
+        ImGui::EndChild();
+    } else if (pos == 1) {  // Left
+        ImGui::BeginChild("##Terminal", ImVec2(term_width, -1), true);
+        ImGui::Text("Terminal"); ImGui::SameLine(); if (ImGui::Button("X")) show_terminal_ = false;
+        ImGui::Separator();
+        ImGui::BeginChild("term_out_l", ImVec2(-1, -30), true);
+        ImGui::Text("%s", terminal_output_.c_str());
+        ImGui::EndChild();
+        static char ibuf[256] = ""; ImGui::SetNextItemWidth(-50);
+        if (ImGui::InputText("##t", ibuf, sizeof(ibuf), ImGuiInputTextFlags_EnterReturnsTrue)) {}
         
-        if (ImGui::IsWindowFocused()) {
-            ImGuiIO& io = ImGui::GetIO();
-            
-            // Terminal zoom (Ctrl++/-)
-            if (io.KeyCtrl && !io.KeyAlt) {
-                if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) { terminal_zoom_in(); return; }
-                if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) { terminal_zoom_out(); return; }
-                if (ImGui::IsKeyPressed(ImGuiKey_0)) { terminal_zoom_reset(); return; }
-            }
-            
-            // Handle Enter - send command
-            if (ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-                if (terminal_stdin_ && !current_line.empty()) {
-                    std::string cmd = current_line + "\n";
-#ifdef _WIN32
-                    DWORD written;
-                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
-#else
-                    write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
-#endif
-                    terminal_history_.push_back(current_line);
-                }
-                current_line.clear();
-            }
-            // Handle Backspace
-            else if (ImGui::IsKeyPressed(ImGuiKey_Backspace) && !current_line.empty()) {
-                current_line.pop_back();
-                char bs = 8;
-                if (terminal_stdin_) {
-#ifdef _WIN32
-                    DWORD written;
-                    WriteFile((HANDLE)terminal_stdin_, &bs, 1, &written, nullptr);
-#else
-                    write((int)(intptr_t)terminal_stdin_, &bs, 1);
-#endif
-                }
-            }
-            // Handle Escape - clear
-            else if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-                current_line.clear();
-            }
-            // Handle printable ASCII keys
-            else {
-                for (int i = 32; i <= 126; i++) {
-                    if (ImGui::IsKeyPressed((ImGuiKey)i)) {
-                        char c = (char)i;
-                        current_line += c;
-                        if (terminal_stdin_) {
-#ifdef _WIN32
-                            DWORD written;
-                            WriteFile((HANDLE)terminal_stdin_, &c, 1, &written, nullptr);
-#else
-                            write((int)(intptr_t)terminal_stdin_, &c, 1);
-#endif
-                        }
-                    }
-                }
-            }
-        }
+        float avail_h = ImGui::GetContentRegionAvail().y;
+        ImGui::InvisibleButton("##TSplL", ImVec2(4, avail_h));
+        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        if (ImGui::IsItemClicked(0)) dragging = true;
+        if (dragging && ImGui::IsMouseDown(0)) { term_width += ImGui::GetIO().MouseDelta.x; term_width = std::clamp(term_width, 150.0f, 400.0f); } else dragging = false;
+        ImGui::EndChild();
+    } else if (pos == 3) {  // Right
+        ImGui::BeginChild("##Terminal", ImVec2(term_width, -1), true);
+        ImGui::Text("Terminal"); ImGui::SameLine(); if (ImGui::Button("X")) show_terminal_ = false;
+        ImGui::Separator();
+        ImGui::BeginChild("term_out_r", ImVec2(-1, -30), true);
+        ImGui::Text("%s", terminal_output_.c_str());
+        ImGui::EndChild();
+        static char ibuf2[256] = ""; ImGui::SetNextItemWidth(-50);
+        if (ImGui::InputText("##t2", ibuf2, sizeof(ibuf2), ImGuiInputTextFlags_EnterReturnsTrue)) {}
         
-        // Show prompt > and current line
-        ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.2f, 1.0f), "> ");
+        float avail_h = ImGui::GetContentRegionAvail().y;
         ImGui::SameLine();
-        ImGui::Text("%s_", current_line.c_str());  // _ is cursor
+        ImGui::InvisibleButton("##TSplR", ImVec2(4, avail_h));
+        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        if (ImGui::IsItemClicked(0)) dragging = true;
+        if (dragging && ImGui::IsMouseDown(0)) { term_width -= ImGui::GetIO().MouseDelta.x; term_width = std::clamp(term_width, 150.0f, 400.0f); } else dragging = false;
+        ImGui::EndChild();
+    } else {  // Top (pos == 2)
+        ImGui::BeginChild("##Terminal", ImVec2(-1, term_height), true);
+        ImGui::Text("Terminal"); ImGui::SameLine(); if (ImGui::Button("X")) show_terminal_ = false;
+        ImGui::Separator();
+        ImGui::BeginChild("term_out_t", ImVec2(-1, -30), true);
+        ImGui::Text("%s", terminal_output_.c_str());
+        ImGui::EndChild();
+        static char ibuf3[256] = ""; ImGui::SetNextItemWidth(-50);
+        if (ImGui::InputText("##t3", ibuf3, sizeof(ibuf3), ImGuiInputTextFlags_EnterReturnsTrue)) {}
         
-ImGui::PopStyleVar();
-        ImGui::End();
+        float avail_w = ImGui::GetContentRegionAvail().x;
+        ImGui::InvisibleButton("##TSplT", ImVec2(avail_w, 4));
+        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+        if (ImGui::IsItemClicked(0)) dragging = true;
+        if (dragging && ImGui::IsMouseDown(0)) { term_height -= ImGui::GetIO().MouseDelta.y; term_height = std::clamp(term_height, 100.0f, 400.0f); } else dragging = false;
+ImGui::EndChild();
     }
-    ImGui::PopStyleVar();
 }
 
+// ============================================================================
+// Dialogs
 // ============================================================================
 // Dialogs
 // ============================================================================
@@ -3841,9 +3923,22 @@ void EditorApp::prev_split() {
 void EditorApp::open_file_split(const std::string& path) {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     
-    if (!path.empty()) {
+    std::string selected_path = path;
+    if (path.empty()) {
+        nfdchar_t* out_path = nullptr;
+        nfdresult_t result = NFD_OpenDialog(&out_path, nullptr, 0, nullptr);
+        if (result == NFD_OKAY && out_path) {
+            selected_path = out_path;
+            settings_.last_open_dir = std::filesystem::path(out_path).parent_path().string();
+            NFD_FreePath(out_path);
+        } else if (result == NFD_CANCEL) {
+            return;
+        }
+    }
+    
+    if (!selected_path.empty()) {
         split_horizontal();
-        open_file(path);
+        open_file(selected_path);
     }
 }
 
@@ -3888,14 +3983,13 @@ void EditorApp::render_splits(int tab_idx) {
     
     ImVec2 avail = ImGui::GetContentRegionAvail();
     
-    // Count split types
-    int horizontal_count = 0, vertical_count = 0;
-    for (auto* s : tab.splits) {
-        if (s->is_horizontal) horizontal_count++;
-        else vertical_count++;
+    // Use the active split's orientation to determine layout
+    bool use_horizontal = true;
+    if (tab.active_split >= 0 && tab.active_split < (int)tab.splits.size()) {
+        use_horizontal = tab.splits[tab.active_split]->is_horizontal;
     }
     
-    if (vertical_count > 0) {
+    if (!use_horizontal) {
         // Vertical splits - side by side (left to right)
         ImGui::Columns((int)tab.splits.size(), "split_cols", false);
         

@@ -85,6 +85,7 @@ struct AppSettings {
     bool show_spaces = false;
     bool show_tabs = false;
     bool explorer_left = true;  // Explorer position: true=left, false=right
+    int terminal_position = 0;  // 0=bottom, 1=left, 2=top, 3=right
     int tab_size = 4;
     int font_size = 18;
     int highlight_line = 1;  // 0=none, 1=background, 2=outline
@@ -169,7 +170,7 @@ private:
     void update_terminal_output();
     void render_sidebar();
     void render_file_tree();
-    void render_dir_tree(const std::string& dir_path, std::unordered_map<std::string, bool>& expanded_dirs);
+    void render_dir_tree(const std::string& dir_path, std::unordered_map<std::string, bool>& expanded_dirs, const std::string& filter = "");
     void render_git_changes();
     void render_breadcrumb();
     void render_symbol_outline();
@@ -304,6 +305,8 @@ private:
 
     // Spaces submenu state
     bool show_spaces_dialog_ = false;
+    bool show_new_file_dialog_ = false;
+    bool show_new_folder_dialog_ = false;
     bool show_terminal_ = false;
     bool terminal_input_active_ = false;
     void* terminal_hwnd_ = nullptr;
