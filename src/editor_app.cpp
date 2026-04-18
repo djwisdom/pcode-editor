@@ -3194,7 +3194,7 @@ void EditorApp::render() {
     ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
     ImGui::SetNextWindowFocus();
-    ImGui::Begin("pCode Editor", nullptr, ImGuiWindowFlags_MenuBar);
+    ImGui::Begin("pCode Editor", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoScrollbar);
     // Ensure window has focus for menus to work and for editor cursor to render
     // Must be called AFTER Begin() to ensure the window is the NavFocusDestination
     ImGui::SetWindowFocus("pCode Editor");
