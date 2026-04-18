@@ -1,6 +1,6 @@
 {
-  "window_w": 705,
-  "window_h": 583,
+  "window_w": 1920,
+  "window_h": 1009,
   "dark_theme": true,
   "show_status_bar": false,
   "word_wrap": false,
@@ -12,6 +12,6 @@
   "tab_size": 4,
   "font_size": 18,
   "font_name": "",
-  "last_open_dir": ".",
-  "recent_files": []
+  "last_open_dir": "C:\\Users\\casse\\github\\pcode-editor\\src",
+  "recent_files": ["C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.cpp", ".\\BUILD_SYSTEM.md", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.h"]
 }

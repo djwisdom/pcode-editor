@@ -167,7 +167,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "BUG-merang!!!"; // fallback if VERSION file missing
     }
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.56 (027e262)" + version;
 }
 
 // ============================================================================
@@ -2216,9 +2216,10 @@ void EditorApp::render_editor_area() {
     }
 
     float status_height = settings_.show_status_bar ? 24 : 0;
-    // Use window dimensions directly for consistency
-    float editor_width = ImGui::GetWindowWidth();
-    float editor_height = ImGui::GetWindowHeight();
+    float scrollbar_size = ImGui::GetStyle().ScrollbarSize;
+    // Use content region directly - this accounts for everything
+    float editor_width = ImGui::GetContentRegionAvail().x;
+    float editor_height = ImGui::GetContentRegionAvail().y;
     
     if (tabs_.empty()) {
         new_tab();
