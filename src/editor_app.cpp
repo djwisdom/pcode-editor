@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "BUG-merang!!!"; // fallback if VERSION file missing
     }
-    return "pCode Editor version 0.2.70 (6f291ac)" + version;
+    return "pCode Editor version " + version;
 }
 
 // ============================================================================
