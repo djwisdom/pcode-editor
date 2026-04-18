@@ -2203,8 +2203,7 @@ void EditorApp::render_editor_area() {
             ImColor(color));
     }
 
-    float status_height = 24;
-    float scrollbar_size = ImGui::GetStyle().ScrollbarSize;
+    float status_height = settings_.show_status_bar ? 24 : 0;
     // Use window dimensions directly for consistency
     float editor_width = ImGui::GetWindowWidth();
     float editor_height = ImGui::GetWindowHeight();
