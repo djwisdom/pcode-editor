@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "0.0.0 (unknown)"; // fallback if VERSION file missing
     }
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.74 (d6226fa)" + version;
 }
 
 // ============================================================================
@@ -2018,7 +2018,7 @@ void EditorApp::render_menu_bar() {
         render_menu_file();
         render_menu_edit();
         render_menu_view();
-        // Split menu removed - use keyboard shortcuts instead
+        render_menu_split();
         render_menu_help();
         ImGui::EndMenuBar();
     }
