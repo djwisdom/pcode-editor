@@ -3541,7 +3541,6 @@ void EditorApp::render_editor_area() {
     }
 
     float status_height = settings_.show_status_bar ? 24 : 0;
-    float h_scrollbar = ImGui::GetStyle().ScrollbarSize;
     // Use content region directly - this accounts for everything
     float editor_width = ImGui::GetContentRegionAvail().x;
     float editor_height = ImGui::GetContentRegionAvail().y;
@@ -3553,7 +3552,7 @@ void EditorApp::render_editor_area() {
     bool show_tabs = settings_.show_tabs && tabs_.size() > 1;
     float tab_height = show_tabs ? ImGui::GetFrameHeight() : 0.0f;
     float editor_area_width = editor_width;
-    float editor_area_height = editor_height - status_height - tab_height - h_scrollbar;
+    float editor_area_height = editor_height - status_height - tab_height;
     static int prev_active_tab = -1;
     
     if (prev_active_tab != active_tab_ && prev_active_tab >= 0 && prev_active_tab < (int)tabs_.size()) {
@@ -4248,7 +4247,21 @@ void EditorApp::render_status_bar() {
     
     float status_height = 22.0f;
     float cmd_height = vim_mode_ == VimMode::Command ? 22.0f : 0.0f;
-    float h_scrollbar_height = 14.0f;  // Account for horizontal scrollbar
+    float h_scrollbar_height = ImGui::GetStyle().ScrollbarSize;
+    
+    // Check if horizontal scrollbar is actually visible (content wider than viewport)
+    bool has_h_scroll = false;
+    TextEditor* ed = get_active_editor();
+    if (ed) {
+        auto lines = ed->GetTextLines();
+        float char_width = 8.0f; // approximate
+        for (const auto& line : lines) {
+            if ((float)line.size() * char_width > ImGui::GetContentRegionAvail().x) {
+                has_h_scroll = true;
+                break;
+            }
+        }
+    }
     
     // Get editor window dimensions
     ImVec2 editor_pos = ImGui::GetWindowPos();
@@ -4287,19 +4300,20 @@ void EditorApp::render_status_bar() {
         editor_height -= cmd_height;
     }
     
-    // Status bar at bottom of editor, not covering scrollbar
-    // Move up to account for horizontal scrollbar if present
-    ImGui::SetCursorPosY(editor_height - status_height - h_scrollbar_height);
+    // Status bar at bottom of editor
+    // Only move up if horizontal scrollbar is visible
+    float scroll_comp = has_h_scroll ? h_scrollbar_height : 0.0f;
+    ImGui::SetCursorPosY(editor_height - status_height - scroll_comp);
     
-    // Account for scrollbar on right AND horizontal scrollbar at bottom
+    // Account for scrollbar on right
     float scrollbar_width = 14;
     float status_width = editor_width - scrollbar_width;
     
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     ImU32 status_bg = ImColor(0.2f, 0.2f, 0.25f);
     draw_list->AddRectFilled(
-        ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height - h_scrollbar_height),
-        ImVec2(editor_pos.x + status_width, editor_pos.y + editor_height - h_scrollbar_height),
+        ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height - scroll_comp),
+        ImVec2(editor_pos.x + status_width, editor_pos.y + editor_height - scroll_comp),
         status_bg);
     
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
