@@ -1647,13 +1647,92 @@ void EditorApp::handle_vim_key(int key, int /*mods*/) {
                 }
 ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
                 break;
-            // Text objects - set pending mode
+            // Insert mode commands (only when no operator is pending)
             case 'i':
+                // i - enter Insert mode at current position (if no operator pending)
+                if (vim_operator_ == 0) {
+                    vim_mode_ = VimMode::Insert;
+                    vim_key_buffer_.clear();
+                    vim_count_ = 0;
+                    return;
+                }
+                // Otherwise, treat as text object start (but preserve existing operator)
+                vim_mode_ = VimMode::OperatorPending;
+                // vim_operator_ already set by previous operator, don't overwrite
+                return;
             case 'a':
+                // a - move forward one character, then Insert mode (if no operator pending)
+                if (vim_operator_ == 0) {
+                    if (line < (int)lines.size() && col < (int)lines[line].size()) {
+                        ed->SetCursorPosition(TextEditor::Coordinates(line, col + 1));
+                    } else if (line < (int)lines.size()) {
+                        ed->SetCursorPosition(TextEditor::Coordinates(line, (int)lines[line].size()));
+                    }
+                    vim_mode_ = VimMode::Insert;
+                    vim_key_buffer_.clear();
+                    vim_count_ = 0;
+                    return;
+                }
+                // Otherwise, treat as text object start (but preserve existing operator)
+                vim_mode_ = VimMode::OperatorPending;
+                // vim_operator_ already set by previous operator, don't overwrite
+                return;
+            case 'I':
+                // I - go to first non-blank, then Insert mode
+                if (line < (int)lines.size()) {
+                    std::string& text = lines[line];
+                    int start = 0;
+                    while (start < (int)text.size() && (text[start] == ' ' || text[start] == '\t')) start++;
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, start));
+                }
+                vim_mode_ = VimMode::Insert;
+                vim_key_buffer_.clear();
+                vim_count_ = 0;
+                return;
+            case 'A':
+                // A - go to line end, then Insert mode
+                if (line < (int)lines.size()) {
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, (int)lines[line].size()));
+                }
+                vim_mode_ = VimMode::Insert;
+                vim_key_buffer_.clear();
+                vim_count_ = 0;
+                return;
+            case 'o':
+                // o - insert newline below, move to it, Insert mode
+                if (line < (int)lines.size()) {
+                    lines.insert(lines.begin() + line + 1, "");
+                    ed->SetCursorPosition(TextEditor::Coordinates(line + 1, 0));
+                    tabs_[active_tab_].dirty = true;
+                } else {
+                    lines.push_back("");
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
+                    tabs_[active_tab_].dirty = true;
+                }
+                vim_mode_ = VimMode::Insert;
+                vim_key_buffer_.clear();
+                vim_count_ = 0;
+                return;
+            case 'O':
+                // O - insert newline above, move to it, Insert mode
+                if (line < (int)lines.size()) {
+                    lines.insert(lines.begin() + line, "");
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
+                    tabs_[active_tab_].dirty = true;
+                } else {
+                    lines.push_back("");
+                    ed->SetCursorPosition(TextEditor::Coordinates(0, 0));
+                    tabs_[active_tab_].dirty = true;
+                }
+                vim_mode_ = VimMode::Insert;
+                vim_key_buffer_.clear();
+                vim_count_ = 0;
+                return;
+            // Text objects - set pending mode (i and a handled above)
+            case 'w':
                 vim_mode_ = VimMode::OperatorPending;
                 vim_operator_ = kb[0];
                 return;
-            case 'w':
                 while (count-- > 0) {
                     int next_col = col;
                     if (line < (int)lines.size()) {
