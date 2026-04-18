@@ -923,7 +923,10 @@ void EditorApp::toggle_word_wrap() {
     settings_.word_wrap = !settings_.word_wrap;
     // Apply to all tabs
     for (auto& tab : tabs_) {
-        tab.editor->SetImGuiChildIgnored(settings_.word_wrap);
+        if (tab.editor) {
+            // Set word wrap on TextEditor
+            tab.editor->SetWordWrap(settings_.word_wrap);
+        }
     }
 }
 
