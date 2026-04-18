@@ -15,8 +15,16 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 #include <TextEditor.h>
 #include <nfd.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <commctrl.h>
+#pragma comment(lib, "comctl32.lib")
+#endif
 
 #ifdef _WIN32
 #include <windows.h>

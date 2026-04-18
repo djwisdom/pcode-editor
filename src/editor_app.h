@@ -151,6 +151,8 @@ private:
     // Rendering
     void render();
     void validate_layout();
+    void create_native_status_bar();
+    void update_native_status_bar();
     void render_menu_bar();
     void render_menu_file();
     void render_menu_edit();
@@ -255,6 +257,7 @@ private:
 
     // State
     GLFWwindow* window_ = nullptr;
+    void* native_status_bar = nullptr;  // Native Windows status bar HWND
     bool running_ = true;
 
     std::vector<EditorTab> tabs_;
