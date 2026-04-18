@@ -1949,6 +1949,14 @@ void EditorApp::render() {
                 }
                 return; 
             }
+            // Ctrl+Tab - next tab
+            if (ImGui::IsKeyPressed(ImGuiKey_Tab)) { 
+                if (tabs_.size() > 1) {
+                    active_tab_ = (active_tab_ + 1) % tabs_.size();
+                    ImGui::SetWindowFocus("Editor");
+                }
+                return; 
+            }
         }
         if (io.KeyCtrl && io.KeyShift && !io.KeyAlt) {
             if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_window(); return; }
@@ -1957,6 +1965,14 @@ void EditorApp::render() {
             if (ImGui::IsKeyPressed(ImGuiKey_P)) { show_cmd_palette_ = true; return; }
             if (ImGui::IsKeyPressed(ImGuiKey_H)) { split_horizontal(); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_V)) { split_vertical(); return; }
+            // Ctrl+Shift+Tab - previous tab
+            if (ImGui::IsKeyPressed(ImGuiKey_Tab)) { 
+                if (tabs_.size() > 1) {
+                    active_tab_ = (active_tab_ - 1 + (int)tabs_.size()) % tabs_.size();
+                    ImGui::SetWindowFocus("Editor");
+                }
+                return; 
+            }
         }
         if (io.KeyCtrl && io.KeyAlt && !io.KeyShift) {
             if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_all(); return; }
@@ -2374,6 +2390,7 @@ void EditorApp::render_editor_area() {
                     if (active_tab_ != i) {
                         active_tab_ = i;
                         ImGui::SetWindowFocus("Editor");
+                        ImGui::SetKeyboardFocusHere();
                     }
                     ImGui::EndTabItem();
                 }
