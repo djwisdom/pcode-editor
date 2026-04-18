@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "BUG-merang!!!"; // fallback if VERSION file missing
     }
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.72 (8c21f94)" + version;
 }
 
 // ============================================================================
@@ -2576,47 +2576,51 @@ bool show_margins = settings_.show_bookmark_margin || settings_.show_change_hist
     }
 
 // ============================================================================
-// Sidebar - file explorer, git changes, and symbol outline
+// Explorer - file tree with split pane behavior
 // ============================================================================
 void EditorApp::render_sidebar() {
     if (!show_file_tree_) return;
     
-    static float sidebar_width = 200;
+    static float explorer_width = 250;
     static bool dragging = false;
     
-    // Sidebar with resize handle
-    ImGui::BeginChild("##Explorer", ImVec2(sidebar_width, -1), false, ImGuiWindowFlags_NoTitleBar);
+    // Explorer as a child window - fills full height
+    ImGui::BeginChild("##Explorer", ImVec2(explorer_width, -1), true, ImGuiWindowFlags_NoTitleBar);
     
-    if (ImGui::BeginTabBar("##SidebarTabs", ImGuiTabBarFlags_None)) {
-        if (ImGui::BeginTabItem("Files", nullptr, ImGuiTabItemFlags_None)) {
-            render_file_tree();
-            ImGui::EndTabItem();
-        }
-        if (show_git_changes_ && ImGui::BeginTabItem("Git", nullptr, ImGuiTabItemFlags_None)) {
-            render_git_changes();
-            ImGui::EndTabItem();
-        }
-        if (show_symbol_outline_ && ImGui::BeginTabItem("Symbols", nullptr, ImGuiTabItemFlags_None)) {
-            render_symbol_outline();
-            ImGui::EndTabItem();
-        }
-        ImGui::EndTabBar();
+    // Header with title and close button
+    ImGui::Text("Explorer");
+    ImGui::SameLine(ImGui::GetWindowWidth() - 30);
+    if (ImGui::Button("X")) {
+        show_file_tree_ = false;
     }
+    ImGui::Separator();
+    
+    // File tree
+    render_file_tree();
     
     ImGui::EndChild();
     
-    // Resizable splitter - drag to resize sidebar
-    float available_height = ImGui::GetContentRegionAvail().y;
-    ImGui::InvisibleButton("##Splitter", ImVec2(6, available_height > 0 ? available_height : 200));
+    // Draggable splitter between explorer and editor
+    float avail_h = ImGui::GetContentRegionAvail().y;
+    ImGui::SameLine();
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, avail_h / 2));
+    ImGui::InvisibleButton("##ExplorerSplitter", ImVec2(4, -1));
+    ImGui::PopStyleVar();
+    
     if (ImGui::IsItemHovered()) {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        ImGui::SetMouseCursor(settings_.explorer_left ? ImGuiMouseCursor_ResizeEW : ImGuiMouseCursor_ResizeEW);
     }
     if (ImGui::IsItemClicked(0)) {
         dragging = true;
     }
     if (dragging && ImGui::IsMouseDown(0)) {
-        sidebar_width += ImGui::GetIO().MouseDelta.x;
-        sidebar_width = (sidebar_width < 100) ? 100 : (sidebar_width > 400) ? 400 : sidebar_width;
+        float delta = ImGui::GetIO().MouseDelta.x;
+        if (settings_.explorer_left) {
+            explorer_width += delta;
+        } else {
+            explorer_width -= delta;
+        }
+        explorer_width = std::clamp(explorer_width, 150.0f, 500.0f);
     } else {
         dragging = false;
     }
