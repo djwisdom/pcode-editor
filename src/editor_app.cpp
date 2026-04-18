@@ -329,13 +329,13 @@ void EditorApp::create_native_status_bar() {
     HWND hwnd = glfwGetWin32Window(window_);
     if (!hwnd) return;
     
-    // Create status bar with parts
+    // Create status bar - let it auto-position at bottom
     HWND status_hwnd = CreateWindowEx(
         0,
         STATUSCLASSNAME,
         "",
         WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP,
-        0, 0, 0, 0,
+        0, 0, 0, 0,  // Position/size - let Windows handle this
         hwnd,
         (HMENU)1,
         GetModuleHandle(NULL),
@@ -343,17 +343,8 @@ void EditorApp::create_native_status_bar() {
     );
     native_status_bar = (void*)status_hwnd;
     
-    // Initialize with 6 parts
-    int parts[6] = {80, 250, 350, 420, 480, -1};
-    SendMessage(status_hwnd, SB_SETPARTS, 6, (LPARAM)parts);
-    
-    // Set initial text
-    SendMessage(status_hwnd, SB_SETTEXT, 0, (LPARAM)L"NORMAL");
-    SendMessage(status_hwnd, SB_SETTEXT, 1, (LPARAM)L"");
-    SendMessage(status_hwnd, SB_SETTEXT, 2, (LPARAM)L"Ln 1, Col 1");
-    SendMessage(status_hwnd, SB_SETTEXT, 3, (LPARAM)L"UTF-8");
-    SendMessage(status_hwnd, SB_SETTEXT, 4, (LPARAM)L"LF");
-    SendMessage(status_hwnd, SB_SETTEXT, 5, (LPARAM)L"Tab:4");
+    // Show the window to initialize
+    ShowWindow(status_hwnd, SW_SHOW);
 #endif
 }
 
@@ -363,10 +354,25 @@ void EditorApp::update_native_status_bar() {
     
     HWND status_hwnd = (HWND)native_status_bar;
     
+    // Get window dimensions for dynamic sizing
+    int width, height;
+    glfwGetWindowSize(window_, &width, &height);
+    
+    // Calculate part widths dynamically
+    int p1 = 80;   // Mode
+    int p2 = width / 4;   // Filename
+    int p3 = width / 4 + 80;  // Line/Col
+    int p4 = width / 2;  // Encoding
+    int p5 = width * 3 / 4;  // EOL
+    // Part 6 fills the rest
+    
+    int parts[6] = {p1, p2, p3, p4, p5, -1};
+    SendMessage(status_hwnd, SB_SETPARTS, 6, (LPARAM)parts);
+    
     // Get vim mode
     std::string vim_mode = get_vim_mode_str();
-    wchar_t mode_buf[32];
-    mbstowcs(mode_buf, vim_mode.c_str(), 32);
+    wchar_t mode_buf[32] = L"";
+    mbstowcs(mode_buf, vim_mode.c_str(), 31);
     SendMessage(status_hwnd, SB_SETTEXT, 0, (LPARAM)mode_buf);
     
     // Get filename
@@ -375,33 +381,40 @@ void EditorApp::update_native_status_bar() {
         std::string name = tab.display_name;
         if (tab.dirty) name += " *";
         
-        wchar_t file_buf[256];
-        mbstowcs(file_buf, name.c_str(), 256);
+        wchar_t file_buf[256] = L"";
+        mbstowcs(file_buf, name.c_str(), 255);
         SendMessage(status_hwnd, SB_SETTEXT, 1, (LPARAM)file_buf);
         
         // Get cursor position
         TextEditor* ed = get_active_editor();
         if (ed) {
             auto pos = ed->GetCursorPosition();
-            wchar_t pos_buf[64];
-            swprintf(pos_buf, 64, L"Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
+            wchar_t pos_buf[64] = L"";
+            swprintf(pos_buf, 63, L"Ln %d, Col %d", pos.mLine + 1, pos.mColumn + 1);
             SendMessage(status_hwnd, SB_SETTEXT, 2, (LPARAM)pos_buf);
         }
         
         // Encoding
-        wchar_t enc_buf[32];
-        mbstowcs(enc_buf, tab.file_encoding.c_str(), 32);
+        wchar_t enc_buf[32] = L"";
+        mbstowcs(enc_buf, tab.file_encoding.c_str(), 31);
         SendMessage(status_hwnd, SB_SETTEXT, 3, (LPARAM)enc_buf);
         
         // Line ending
-        wchar_t eol_buf[16];
-        mbstowcs(eol_buf, tab.line_ending.c_str(), 16);
+        wchar_t eol_buf[16] = L"";
+        mbstowcs(eol_buf, tab.line_ending.c_str(), 15);
         SendMessage(status_hwnd, SB_SETTEXT, 4, (LPARAM)eol_buf);
         
         // Tab size
-        wchar_t tab_buf[32];
-        swprintf(tab_buf, 32, L"Tab:%d", settings_.tab_size);
+        wchar_t tab_buf[32] = L"";
+        swprintf(tab_buf, 31, L"Tab:%d", settings_.tab_size);
         SendMessage(status_hwnd, SB_SETTEXT, 5, (LPARAM)tab_buf);
+    } else {
+        // No file - clear sections
+        SendMessage(status_hwnd, SB_SETTEXT, 1, (LPARAM)L"");
+        SendMessage(status_hwnd, SB_SETTEXT, 2, (LPARAM)L"");
+        SendMessage(status_hwnd, SB_SETTEXT, 3, (LPARAM)L"");
+        SendMessage(status_hwnd, SB_SETTEXT, 4, (LPARAM)L"");
+        SendMessage(status_hwnd, SB_SETTEXT, 5, (LPARAM)L"");
     }
 #endif
 }
