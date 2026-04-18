@@ -1,11 +1,11 @@
 {
-  "window_w": 988,
-  "window_h": 801,
+  "window_w": 1372,
+  "window_h": 778,
   "dark_theme": true,
   "show_status_bar": true,
   "word_wrap": true,
   "show_line_numbers": true,
-  "show_minimap": false,
+  "show_minimap": true,
   "show_spaces": true,
   "highlight_line": 0,
   "show_tabs": true,
@@ -13,5 +13,5 @@
   "font_size": 17,
   "font_name": "CascadiaMono",
   "last_open_dir": "C:\\Users\\casse\\github\\pcode-editor",
-  "recent_files": ["C:\\Users\\casse\\github\\pcode-editor\\BUILD_SYSTEM.md", "C:\\Users\\casse\\github\\pcode-editor\\src\\main.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.h", ".\\BUILD_SYSTEM.md"]
+  "recent_files": ["C:\\Users\\casse\\github\\pcode-editor\\CMakeLists.txt", "C:\\Users\\casse\\github\\pcode-editor\\TESTS.md", "C:\\Users\\casse\\github\\pcode-editor\\IMPLEMENTATION_SUMMARY.md", "C:\\Users\\casse\\github\\pcode-editor\\BUILD_SYSTEM.md", "C:\\Users\\casse\\github\\pcode-editor\\src\\main.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.h", ".\\BUILD_SYSTEM.md"]
 }
