@@ -39,6 +39,7 @@ struct EditorTab {
     std::string display_name;    // "untitled" or filename
     bool dirty = false;          // Has unsaved changes
     TextEditor* editor = nullptr; // Owned by tab
+    bool is_terminal = false;    // This tab is a terminal
     int zoom_pct = 100;          // Zoom percentage
     
     // Bookmark and change tracking
@@ -188,6 +189,7 @@ private:
 
     // File operations
     void new_tab();
+    void new_terminal_tab();
     void new_window();
     void open_file(const std::string& path = "");
     bool save_tab(int idx);

@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "0.0.0 (unknown)"; // fallback if VERSION file missing
     }
-    return "pCode Editor version 0.2.74 (d6226fa)" + version;
+    return "pCode Editor version 0.2.75 (814478e)" + version;
 }
 
 // ============================================================================
@@ -479,6 +479,19 @@ void EditorApp::new_tab() {
     split->ratio = 1.0f;
     tabs_[active_tab_].splits.push_back(split);
     tabs_[active_tab_].active_split = 0;
+}
+
+void EditorApp::new_terminal_tab() {
+    EditorTab tab;
+    tab.display_name = "Terminal";
+    tab.is_terminal = true;
+    tab.editor = nullptr;
+    
+    tabs_.push_back(std::move(tab));
+    active_tab_ = (int)tabs_.size() - 1;
+    
+    // Start terminal process for this tab
+    if (!terminal_process_) start_terminal();
 }
 
 void EditorApp::new_window() {
@@ -1990,6 +2003,12 @@ if (editor_open) {
             ImGui::Separator();
             if (ImGui::MenuItem("Toggle Explorer", "Ctrl+B")) show_file_tree_ = !show_file_tree_;
             if (ImGui::MenuItem("Toggle Terminal", "Ctrl+`")) show_terminal_ = !show_terminal_;
+            ImGui::Separator();
+            if (ImGui::MenuItem("Toggle Git")) show_git_changes_ = !show_git_changes_;
+            if (ImGui::MenuItem("Toggle Symbol")) show_symbol_outline_ = !show_symbol_outline_;
+            ImGui::Separator();
+            if (ImGui::MenuItem("Toggle Line Numbers", nullptr, (bool*)&settings_.show_line_numbers)) settings_.show_line_numbers = !settings_.show_line_numbers;
+            if (ImGui::MenuItem("Toggle Minimap", nullptr, (bool*)&settings_.show_minimap)) settings_.show_minimap = !settings_.show_minimap;
             ImGui::EndPopup();
         }
         
@@ -2027,6 +2046,7 @@ void EditorApp::render_menu_bar() {
 void EditorApp::render_menu_file() {
     if (ImGui::BeginMenu("File")) {
         if (ImGui::MenuItem("New Tab", "Ctrl+N")) new_tab();
+        if (ImGui::MenuItem("New Terminal", "Ctrl+Shift+T")) new_terminal_tab();
         if (ImGui::MenuItem("New Window", "Ctrl+Shift+N")) new_window();
         if (ImGui::BeginMenu("Open...")) {
             if (ImGui::MenuItem("In New Tab", "Ctrl+O")) open_file("");
@@ -2289,6 +2309,11 @@ void EditorApp::render_about_dialog() {
 // Editor Area
 // ============================================================================
 void EditorApp::render_editor_area() {
+    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size() && tabs_[active_tab_].is_terminal) {
+        render_terminal();
+        return;
+    }
+    
     // Editor area inside the Editor window (already opened)
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow)) {
         editor_focused_ = true;
@@ -2637,20 +2662,31 @@ void EditorApp::render_sidebar() {
     
     static float explorer_width = 250;
     static bool dragging = false;
+    static int sidebar_view = 0;  // 0=Files, 1=Git, 2=Symbol
     
     // Explorer as a child window - fills full height
     ImGui::BeginChild("##Explorer", ImVec2(explorer_width, -1), true, ImGuiWindowFlags_NoTitleBar);
     
-    // Header with title and close button
-    ImGui::Text("Explorer");
+    // Header with tabs and close button
+    if (ImGui::Button("F##view")) sidebar_view = 0;
+    ImGui::SameLine();
+    if (ImGui::Button("G##view")) sidebar_view = 1;
+    ImGui::SameLine();
+    if (ImGui::Button("S##view")) sidebar_view = 2;
     ImGui::SameLine(ImGui::GetWindowWidth() - 30);
     if (ImGui::Button("X")) {
         show_file_tree_ = false;
     }
     ImGui::Separator();
     
-    // File tree
-    render_file_tree();
+    // Show selected view
+    if (sidebar_view == 0) {
+        render_file_tree();
+    } else if (sidebar_view == 1) {
+        render_git_changes();
+    } else {
+        render_symbol_outline();
+    }
     
     ImGui::EndChild();
     
