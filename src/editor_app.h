@@ -176,6 +176,10 @@ private:
     void render_command_palette();
     void render_font_dialog();
     void render_spaces_dialog();
+    void render_about_dialog();
+
+    // Menu
+    void render_menu_help();
 
     // File operations
     void new_tab();
@@ -265,6 +269,7 @@ private:
     bool show_font_ = false;
     bool show_cmd_palette_ = false;
     bool show_spaces_ = false;
+    bool show_about_ = false;
     
     // Sidebar panels
     bool show_file_tree_ = false;

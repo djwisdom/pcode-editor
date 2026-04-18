@@ -168,7 +168,7 @@ std::string EditorApp::get_version() {
         version = "0.2.46"; // fallback if VERSION file missing
     }
     // return: "pCode Editor version X.Y.Z (hash)"
-    return "pCode Editor version 0.2.46 (31c1f80)" + version;
+    return "pCode Editor version 0.2.47 (fc4c446)" + version;
 }
 
 // ============================================================================
@@ -1887,6 +1887,7 @@ void EditorApp::render() {
             render_menu_file();
             render_menu_edit();
             render_menu_view();
+            render_menu_help();
             ImGui::EndMenuBar();
         }
         
@@ -1920,6 +1921,7 @@ void EditorApp::render() {
     if (show_font_) render_font_dialog();
     if (show_spaces_dialog_) render_spaces_dialog();
     if (show_cmd_palette_) render_command_palette();
+    if (show_about_) render_about_dialog();
 }
 
 // ============================================================================
@@ -2123,6 +2125,64 @@ void EditorApp::render_menu_view() {
         ImGui::Separator();
         if (ImGui::MenuItem(settings_.dark_theme ? "Light Theme" : "Dark Theme")) toggle_theme();
 ImGui::EndMenu();
+    }
+}
+
+void EditorApp::render_menu_help() {
+    if (ImGui::BeginMenu("Help")) {
+        if (ImGui::MenuItem("About")) {
+            show_about_ = true;
+        }
+        ImGui::EndMenu();
+    }
+}
+
+void EditorApp::render_about_dialog() {
+    if (!show_about_) return;
+    
+    ImGui::OpenPopup("About");
+    if (ImGui::BeginPopupModal("About", &show_about_)) {
+        ImGui::Text("Personal Code Editor");
+        ImGui::Separator();
+        
+        std::string version = get_version();
+        std::string commit_hash = version.substr(version.find("(") + 1);
+        commit_hash = commit_hash.substr(0, commit_hash.find(")"));
+        
+        ImGui::Text("Version: %s", version.c_str());
+        ImGui::Text("Commit: %s", commit_hash.c_str());
+        
+        // Date - use current UTC time
+        auto now = std::chrono::system_clock::now();
+        auto now_time = std::chrono::system_clock::to_time_t(now);
+        char date_buf[64];
+        std::strftime(date_buf, sizeof(date_buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&now_time));
+        ImGui::Text("Date: %s", date_buf);
+        
+        // Get version strings at runtime
+        int glfw_major, glfw_minor, glfw_rev;
+        glfwGetVersion(&glfw_major, &glfw_minor, &glfw_rev);
+        ImGui::Text("GLFW: %d.%d.%d", glfw_major, glfw_minor, glfw_rev);
+        ImGui::Text("Dear ImGui: " IMGUI_VERSION);
+        ImGui::Text("ImGuiColorTextEdit: 1.0");
+        
+#if defined(_WIN32)
+        ImGui::Text("OS: Windows");
+#elif defined(__APPLE__)
+        ImGui::Text("OS: Apple");
+#elif defined(__linux__)
+        ImGui::Text("OS: Linux");
+#else
+        ImGui::Text("OS: Unknown");
+#endif
+        
+        ImGui::Separator();
+        
+        if (ImGui::Button("OK")) {
+            show_about_ = false;
+        }
+        
+        ImGui::EndPopup();
     }
 }
 
