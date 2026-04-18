@@ -191,7 +191,8 @@ EditorApp::EditorApp(int argc, char* argv[])
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
         if (arg == "--version" || arg == "-v") {
-            printf("%s\n", get_version().c_str());
+            std::string ver = get_version();
+    printf("%s\n", ver.c_str());
             running_ = false;
             return;
         }
@@ -363,8 +364,9 @@ void EditorApp::update_native_status_bar() {
     HWND status_hwnd = (HWND)native_status_bar;
     
     // Get vim mode
+    std::string vim_mode = get_vim_mode_str();
     wchar_t mode_buf[32];
-    swprintf(mode_buf, 32, L"%s", get_vim_mode_str().c_str());
+    mbstowcs(mode_buf, vim_mode.c_str(), 32);
     SendMessage(status_hwnd, SB_SETTEXT, 0, (LPARAM)mode_buf);
     
     // Get filename
