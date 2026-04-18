@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "0.0.0 (unknown)"; // fallback if VERSION file missing
     }
-    return "pCode Editor version 0.2.75 (814478e)" + version;
+    return "pCode Editor version 0.2.76 (23f6772)" + version;
 }
 
 // ============================================================================
@@ -2259,8 +2259,10 @@ void EditorApp::render_menu_split() {
 void EditorApp::render_about_dialog() {
     if (!show_about_) return;
     
-    ImGui::OpenPopup("About");
-    if (ImGui::BeginPopupModal("About", &show_about_)) {
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    
+    if (ImGui::BeginPopupModal("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Personal Code Editor");
         ImGui::Separator();
         
