@@ -3110,6 +3110,9 @@ void EditorApp::render() {
     ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
     ImGui::SetNextWindowFocus();
     ImGui::Begin("pCode Editor", nullptr, ImGuiWindowFlags_MenuBar);
+    // Ensure window has focus for menus to work and for editor cursor to render
+    // Must be called AFTER Begin() to ensure the window is the NavFocusDestination
+    ImGui::SetWindowFocus("pCode Editor");
     // Always render menus - no conditional
     render_menu_bar();
     
@@ -4163,6 +4166,7 @@ void EditorApp::render_status_bar() {
     
     float status_height = 22.0f;
     float cmd_height = vim_mode_ == VimMode::Command ? 22.0f : 0.0f;
+    float h_scrollbar_height = 14.0f;  // Account for horizontal scrollbar
     
     // Get editor window dimensions
     ImVec2 editor_pos = ImGui::GetWindowPos();
@@ -4202,17 +4206,18 @@ void EditorApp::render_status_bar() {
     }
     
     // Status bar at bottom of editor, not covering scrollbar
-    ImGui::SetCursorPosY(editor_height - status_height);
+    // Move up to account for horizontal scrollbar if present
+    ImGui::SetCursorPosY(editor_height - status_height - h_scrollbar_height);
     
-    // Account for scrollbar on right - reduce width slightly
+    // Account for scrollbar on right AND horizontal scrollbar at bottom
     float scrollbar_width = 14;
     float status_width = editor_width - scrollbar_width;
     
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     ImU32 status_bg = ImColor(0.2f, 0.2f, 0.25f);
     draw_list->AddRectFilled(
-        ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height),
-        ImVec2(editor_pos.x + status_width, editor_pos.y + editor_height),
+        ImVec2(editor_pos.x, editor_pos.y + editor_height - status_height - h_scrollbar_height),
+        ImVec2(editor_pos.x + status_width, editor_pos.y + editor_height - h_scrollbar_height),
         status_bg);
     
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
