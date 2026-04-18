@@ -1,6 +1,6 @@
 {
-  "window_w": 1920,
-  "window_h": 1009,
+  "window_w": 1005,
+  "window_h": 623,
   "dark_theme": true,
   "show_status_bar": true,
   "word_wrap": true,
@@ -12,6 +12,6 @@
   "tab_size": 4,
   "font_size": 18,
   "font_name": "JetBrainsMonoNLNerdFont-Regular",
-  "last_open_dir": "C:\\Users\\casse\\github\\pcode-editor\\src",
-  "recent_files": ["C:\\Users\\casse\\github\\pcode-editor\\src\\main.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.h", "C:\\Users\\casse\\github\\pcode-editor\\CMakeLists.txt", "C:\\Users\\casse\\github\\pcode-editor\\TESTS.md", "C:\\Users\\casse\\github\\pcode-editor\\IMPLEMENTATION_SUMMARY.md", "C:\\Users\\casse\\github\\pcode-editor\\BUILD_SYSTEM.md", ".\\BUILD_SYSTEM.md"]
+  "last_open_dir": "C:\\Users\\casse\\github\\pcode-editor",
+  "recent_files": ["C:\\Users\\casse\\github\\pcode-editor\\IMPLEMENTATION_SUMMARY.md", "C:\\Users\\casse\\github\\pcode-editor\\src\\main.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.h", "C:\\Users\\casse\\github\\pcode-editor\\CMakeLists.txt", "C:\\Users\\casse\\github\\pcode-editor\\TESTS.md", "C:\\Users\\casse\\github\\pcode-editor\\BUILD_SYSTEM.md", ".\\BUILD_SYSTEM.md"]
 }

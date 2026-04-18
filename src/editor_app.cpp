@@ -365,15 +365,15 @@ void EditorApp::update_native_status_bar() {
     int clientWidth = clientRect.right - clientRect.left;
     int clientHeight = clientRect.bottom - clientRect.top;
     
-    // Calculate needed size for status bar - taller to not overlap scrollbar
-    int statusHeight = 30;
+    // Calculate needed size for status bar
+    int statusHeight = 24;
     int statusY = clientHeight - statusHeight;
     
     // Resize the status bar control to match window width
     MoveWindow(status_hwnd, 0, statusY, clientWidth, statusHeight, TRUE);
     
     // Simple 2-part layout (left side + fill right)
-    int part1 = 120;  // Mode area - wider for full words
+    int part1 = 100;  // Mode area - wider for full words
     int parts[2] = {part1, -1};
     SendMessage(status_hwnd, SB_SETPARTS, 2, (LPARAM)parts);
     
