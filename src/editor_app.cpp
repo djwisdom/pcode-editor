@@ -167,7 +167,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "0.2.54"; // fallback if VERSION file missing
     }
-    return "pCode Editor version 0.2.52 (4aca9bc)" + version;
+    return "pCode Editor version 0.2.55 (c834d34)" + version;
 }
 
 // ============================================================================
@@ -1879,19 +1879,20 @@ void EditorApp::render() {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
-    bool editor_open = ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus);
+    bool editor_open = ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_MenuBar);
     if (editor_open) {
         // Render menus - File Edit View Help at top
         if (ImGui::BeginMenuBar()) {
+            ImVec2 menu_pos = ImGui::GetCursorPos();
             if (ImGui::BeginMenu("File")) {
-                ImGui::MenuItem("New Tab", "Ctrl+N");
-                ImGui::MenuItem("Open...", "Ctrl+O");
+                if (ImGui::MenuItem("New Tab", "Ctrl+N")) new_tab();
+                if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Edit")) {
-                ImGui::MenuItem("Undo", "Ctrl+Z");
-                ImGui::MenuItem("Copy", "Ctrl+C");
-                ImGui::MenuItem("Paste", "Ctrl+V");
+                if (ImGui::MenuItem("Undo", "Ctrl+Z")) { /* undo */ }
+                if (ImGui::MenuItem("Copy", "Ctrl+C")) { /* copy */ }
+                if (ImGui::MenuItem("Paste", "Ctrl+V")) { /* paste */ }
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("View")) {
