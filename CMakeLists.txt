@@ -3,7 +3,7 @@
 # Cross-platform: Windows (Win32), Linux (Wayland), BSD (X11), macOS
 # ============================================================================
 cmake_minimum_required(VERSION 3.16)
-project(pcode-editor VERSION 0.1.0 LANGUAGES CXX)
+project(pcode-editor VERSION 0.2.95 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,6 +11,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Suppress deprecated function warnings (sprintf, strncpy, getenv, localtime)
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATION)
+
+# Static runtime for portable builds (no VC++ redistributable needed)
+if(PLATFORM_WINDOWS)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
+    add_compile_options(/MT)
+endif()
 
 # ============================================================================
 # Platform Detection
@@ -30,79 +36,69 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 endif()
 
 # ============================================================================
-# Dependencies (fetched automatically via FetchContent)
+# Dependency Resolution: vcpkg preferred, FetchContent fallback
 # ============================================================================
 include(FetchContent)
 
-# GLFW — cross-platform window/input
-FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG        3.4
-)
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+# Try vcpkg first (if installed)
+find_package(GLFW QUIET)
+find_package(imgui QUIET)
+find_package(nativefiledialog-extended QUIET)
 
-# Platform-specific GLFW configuration
-if(PLATFORM_BSD)
-    # BSD: X11 only
-    set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
-    set(GLFW_BUILD_X11 ON CACHE BOOL "" FORCE)
-    message(STATUS "GLFW: Building with X11 support for BSD")
-elseif(PLATFORM_LINUX)
-    # Linux: Wayland by default
-    set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
-    set(GLFW_BUILD_X11 OFF CACHE BOOL "" FORCE)
-    message(STATUS "GLFW: Building with Wayland support for Linux")
+# If vcpkg not found, use FetchContent (automatic download)
+if(NOT TARGET imgui::imgui)
+    message(STATUS "Using FetchContent for dependencies (vcpkg not found)")
+    
+    # Dear ImGui — immediate mode GUI
+    FetchContent_Declare(
+        imgui
+        GIT_REPOSITORY https://github.com/ocornut/imgui.git
+        GIT_TAG        docking  # docking branch (stable, includes docking)
+    )
+    FetchContent_MakeAvailable(imgui)
 endif()
 
-FetchContent_MakeAvailable(glfw)
+if(NOT TARGET GLFW::GLFW)
+    # GLFW — cross-platform window/input
+    FetchContent_Declare(
+        glfw
+        GIT_REPOSITORY https://github.com/glfw/glfw.git
+        GIT_TAG        3.4
+    )
+    set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    
+    # Platform-specific GLFW configuration
+    if(PLATFORM_BSD)
+        set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_X11 ON CACHE BOOL "" FORCE)
+    elseif(PLATFORM_LINUX)
+        set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_X11 OFF CACHE BOOL "" FORCE)
+    endif()
+    
+    FetchContent_MakeAvailable(glfw)
+endif()
 
-# Dear ImGui — immediate mode GUI
-FetchContent_Declare(
-    imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG        docking  # docking branch (stable, includes docking)
-)
-FetchContent_MakeAvailable(imgui)
+if(NOT TARGET nfd::nfd)
+    # Native File Dialog — cross-platform native file picker
+    FetchContent_Declare(
+        nfd
+        GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended.git
+        GIT_TAG        master
+    )
+    set(NFD_INSTALL ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(nfd)
+endif()
 
-# ImGuiColorTextEdit — syntax highlighting, line numbers, minimap
+# ImGuiColorTextEdit — syntax highlighting (not in vcpkg, always FetchContent)
 FetchContent_Declare(
     imgui_coloredit
     GIT_REPOSITORY https://github.com/BalazsJako/ImGuiColorTextEdit.git
     GIT_TAG        master
 )
 FetchContent_MakeAvailable(imgui_coloredit)
-
-# Native File Dialog — cross-platform native file picker
-FetchContent_Declare(
-    nfd
-    GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended.git
-    GIT_TAG        master
-)
-set(NFD_INSTALL ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(nfd)
-
-# ============================================================================
-# Dear ImGui sources
-# ============================================================================
-set(IMGUI_SOURCES
-    ${imgui_SOURCE_DIR}/imgui.cpp
-    ${imgui_SOURCE_DIR}/imgui_demo.cpp
-    ${imgui_SOURCE_DIR}/imgui_draw.cpp
-    ${imgui_SOURCE_DIR}/imgui_tables.cpp
-    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-)
-
-# ============================================================================
-# ImGuiColorTextEdit sources
-# ============================================================================
-set(TEXTEDIT_SOURCES
-    ${imgui_coloredit_SOURCE_DIR}/TextEditor.cpp
-)
 
 # ============================================================================
 # Application sources
@@ -117,17 +113,47 @@ set(APP_SOURCES
 # Executable
 # ============================================================================
 add_executable(${PROJECT_NAME}
-    ${IMGUI_SOURCES}
-    ${TEXTEDIT_SOURCES}
     ${APP_SOURCES}
 )
 
+# Determine include directories based on dependency source (vcpkg or FetchContent)
+if(TARGET imgui::imgui)
+    # vcpkg imgui - use imported targets
+    target_link_libraries(${PROJECT_NAME} PRIVATE imgui::imgui)
+    # imgui vcpkg includes imgui_impl_* in same dir, need to include backends differently
+    if(imgui_FOUND)
+        get_target_property(IMGUI_INCLUDE imgui::imgui INTERFACE_INCLUDE_DIRECTORIES)
+        target_include_directories(${PROJECT_NAME} PRIVATE ${IMGUI_INCLUDE})
+    endif()
+else()
+    # FetchContent imgui - use source dir
+    target_include_directories(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR})
+    if(EXISTS ${imgui_SOURCE_DIR}/backends)
+        target_include_directories(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR}/backends)
+    endif()
+    
+    # Add imgui sources from FetchContent
+    target_sources(${PROJECT_NAME} PRIVATE
+        ${imgui_SOURCE_DIR}/imgui.cpp
+        ${imgui_SOURCE_DIR}/imgui_demo.cpp
+        ${imgui_SOURCE_DIR}/imgui_draw.cpp
+        ${imgui_SOURCE_DIR}/imgui_tables.cpp
+        ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    )
+    
+    target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
+endif()
+
 target_include_directories(${PROJECT_NAME} PRIVATE
-    ${imgui_SOURCE_DIR}
-    ${imgui_SOURCE_DIR}/backends
     ${imgui_coloredit_SOURCE_DIR}
     ${nfd_SOURCE_DIR}/src/include
-    ${GLFW_INCLUDE_DIR}
+)
+
+# Add ImGuiColorTextEdit source
+target_sources(${PROJECT_NAME} PRIVATE
+    ${imgui_coloredit_SOURCE_DIR}/TextEditor.cpp
 )
 
 # ============================================================================
@@ -135,13 +161,29 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 # ============================================================================
 if(PLATFORM_WINDOWS)
     # Windows: Win32 API
-    target_link_libraries(${PROJECT_NAME} PRIVATE glfw opengl32 gdi32 nfd)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
+    if(TARGET GLFW::GLFW)
+        target_link_libraries(${PROJECT_NAME} PRIVATE GLFW::GLFW)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
+    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE opengl32 gdi32)
+    
+    if(TARGET nfd::nfd)
+        target_link_libraries(${PROJECT_NAME} PRIVATE nfd::nfd)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE nfd)
+    endif()
     message(STATUS "Linking for Windows (Win32)")
     
 elseif(PLATFORM_MACOS)
     # macOS: Cocoa + OpenGL
-    target_link_libraries(${PROJECT_NAME} PRIVATE glfw "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo" nfd)
+    if(TARGET GLFW::GLFW)
+        target_link_libraries(${PROJECT_NAME} PRIVATE GLFW::GLFW)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
+    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+    target_link_libraries(${PROJECT_NAME} PRIVATE nfd::nfd)
     message(STATUS "Linking for macOS")
     
 elseif(PLATFORM_LINUX)
@@ -151,7 +193,18 @@ elseif(PLATFORM_LINUX)
     pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-cursor wayland-egl xkbcommon)
     pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
     
-    target_link_libraries(${PROJECT_NAME} PRIVATE glfw ${OPENGL_LIBRARIES} dl nfd ${GTK3_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${OPENGL_LIBRARIES} dl)
+    if(TARGET GLFW::GLFW)
+        target_link_libraries(${PROJECT_NAME} PRIVATE GLFW::GLFW)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
+    endif()
+    if(TARGET nfd::nfd)
+        target_link_libraries(${PROJECT_NAME} PRIVATE nfd::nfd)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE nfd)
+    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${GTK3_LIBRARIES})
     target_include_directories(${PROJECT_NAME} PRIVATE ${GTK3_INCLUDE_DIRS} ${WAYLAND_INCLUDE_DIRS})
     target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
     message(STATUS "Linking for Linux (Wayland)")
@@ -163,9 +216,19 @@ elseif(PLATFORM_BSD)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
     
-    # Add /usr/local/lib to library search path (common on BSD)
     target_link_directories(${PROJECT_NAME} PRIVATE /usr/local/lib)
-    target_link_libraries(${PROJECT_NAME} PRIVATE glfw ${OPENGL_LIBRARIES} dl nfd ${GTK3_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${OPENGL_LIBRARIES} dl)
+    if(TARGET GLFW::GLFW)
+        target_link_libraries(${PROJECT_NAME} PRIVATE GLFW::GLFW)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
+    endif()
+    if(TARGET nfd::nfd)
+        target_link_libraries(${PROJECT_NAME} PRIVATE nfd::nfd)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE nfd)
+    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${GTK3_LIBRARIES})
     target_include_directories(${PROJECT_NAME} PRIVATE ${X11_INCLUDE_DIRS} ${GTK3_INCLUDE_DIRS})
     target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
     message(STATUS "Linking for BSD (X11)")

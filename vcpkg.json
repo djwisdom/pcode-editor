@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "pcode-editor",
+  "version-string": "0.2.95",
+  "description": "Personal Code Editor - A Vim-like text editor built with Dear ImGui and GLFW",
+  "homepage": "https://github.com/casse/pcode-editor",
+  "license": "MIT",
+  "supports": "!uwp",
+  "dependencies": [
+    "glfw3",
+    "imgui[core,opengl3-glad]",
+    "native-file-dialog-extended"
+  ],
+  "features": {
+    "docking": {
+      "description": "Enable Dear ImGui docking support",
+      "dependencies": [
+        "imgui[ docking ]"
+      ]
+    }
+  }
+}

@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "0.0.0 (unknown)"; // fallback if VERSION file missing
     }
-    return "pCode Editor version 0.2.76 (23f6772)" + version;
+    return "pCode Editor " + version;
 }
 
 // ============================================================================
@@ -285,8 +285,35 @@ void EditorApp::init() {
         glfwTerminate();
         exit(1);
     }
+    
+    // Set user pointer BEFORE setting callbacks (critical!)
+    glfwSetWindowUserPointer(window_, this);
+    
+    // Enable drag-drop via GLFW callback
+    glfwSetDropCallback(window_, [](GLFWwindow* window, int count, const char** paths) {
+        EditorApp* app = (EditorApp*)glfwGetWindowUserPointer(window);
+        if (app && count > 0) {
+            fprintf(stderr, "DEBUG GLFW DROP: %d files\n", count);
+            for (int i = 0; i < count; i++) {
+                fprintf(stderr, "DEBUG: %s\n", paths[i]);
+                app->open_file(paths[i]);
+            }
+        }
+    });
     glfwMakeContextCurrent(window_);
     glfwSwapInterval(1);
+    
+    // Enable file drop via GLFW callback
+    glfwSetDropCallback(window_, [](GLFWwindow* window, int count, const char** paths) {
+        EditorApp* app = (EditorApp*)glfwGetWindowUserPointer(window);
+        if (app && count > 0) {
+            fprintf(stderr, "DEBUG: Drop received %d files\n", count);
+            for (int i = 0; i < count; i++) {
+                fprintf(stderr, "DEBUG: Drop file %d: %s\n", i, paths[i]);
+                app->open_file(paths[i]);
+            }
+        }
+    });
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -318,8 +345,8 @@ void EditorApp::init() {
         apply_zoom(tab_idx);
     }
     
-    // Native Windows status bar
-    create_native_status_bar();
+    // Native Windows status bar - disabled for now (causes issues)
+    // create_native_status_bar();
 }
 
 void EditorApp::create_native_status_bar() {
@@ -342,6 +369,17 @@ void EditorApp::create_native_status_bar() {
         NULL
     );
     native_status_bar = (void*)status_hwnd;
+    
+    // Initialize parts - set up the partition layout once
+    RECT clientRect;
+    GetClientRect(hwnd, &clientRect);
+    int clientWidth = clientRect.right - clientRect.left;
+    int part1 = 150;
+    if (part1 > clientWidth / 3) part1 = clientWidth / 3;
+    int parts[2] = {part1, -1};
+    if (clientWidth > 200) {
+        SendMessage(status_hwnd, SB_SETPARTS, 2, (LPARAM)parts);
+    }
     
     // Show the window to initialize
     ShowWindow(status_hwnd, SW_SHOW);
@@ -372,10 +410,13 @@ void EditorApp::update_native_status_bar() {
     // Resize the status bar control to match window width
     MoveWindow(status_hwnd, 0, statusY, clientWidth, statusHeight, TRUE);
     
-    // Simple 2-part layout (left side + fill right)
-    int part1 = 100;  // Mode area - wider for full words
+    // Re-set parts after MoveWindow (it resets them)
+    int part1 = 150;
+    if (part1 > clientWidth / 3) part1 = clientWidth / 3;
     int parts[2] = {part1, -1};
-    SendMessage(status_hwnd, SB_SETPARTS, 2, (LPARAM)parts);
+    if (clientWidth > 200) {
+        SendMessage(status_hwnd, SB_SETPARTS, 2, (LPARAM)parts);
+    }
     
     // Part 0: Mode
     std::string vim_mode = get_vim_mode_str();
@@ -560,6 +601,10 @@ void EditorApp::open_file(const std::string& path) {
     tab.dirty = false;
     tab.editor->SetText(content);
     tab.editor->SetTabSize(settings_.tab_size);
+    
+    // Ensure focus is on the new editor
+    active_tab_ = tab_idx;
+    tab.active_split = 0;
     
     // Cache file info for status bar
     tab.file_encoding = "UTF-8";  // TODO: detect actual encoding
@@ -2294,12 +2339,8 @@ void EditorApp::render_about_dialog() {
         ImGui::Text("Version: %s", version.c_str());
         ImGui::Text("Commit: %s", commit_hash.c_str());
         
-        // Date - use current UTC time
-        auto now = std::chrono::system_clock::now();
-        auto now_time = std::chrono::system_clock::to_time_t(now);
-        char date_buf[64];
-        std::strftime(date_buf, sizeof(date_buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&now_time));
-        ImGui::Text("Date: %s", date_buf);
+        // Build date - use static compile time
+        ImGui::Text("Built: " __DATE__ " " __TIME__);
         
         // Get version strings at runtime
         int glfw_major, glfw_minor, glfw_rev;
@@ -2384,15 +2425,11 @@ void EditorApp::render_editor_area() {
                 std::string label = tab.display_name;
                 if (tab.dirty) label += " *";
 
-                ImGuiTabItemFlags tab_item_flags = 0;
-                if (i == active_tab_) tab_item_flags |= ImGuiTabItemFlags_SetSelected;
-
                 bool open = true;
-                if (ImGui::BeginTabItem(label.c_str(), &open, tab_item_flags)) {
+                if (ImGui::BeginTabItem(label.c_str(), &open)) {
+                    // This tab is selected - update active_tab
                     if (active_tab_ != i) {
                         active_tab_ = i;
-                        ImGui::SetWindowFocus("Editor");
-                        ImGui::SetKeyboardFocusHere();
                     }
                     ImGui::EndTabItem();
                 }
@@ -2402,6 +2439,11 @@ void EditorApp::render_editor_area() {
                 }
             }
             ImGui::EndTabBar();
+        }
+        
+        // Set focus after tab bar (after we know which is active)
+        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+            ImGui::SetWindowFocus("Editor");
         }
     }
     
@@ -3137,7 +3179,7 @@ void EditorApp::render_status_bar() {
             }
         }
         
-        // Exact format: | MODE | filename | * | Ln,Col | Git:branch | encoding | CRLF | Tab:n | v0.2.28 |
+        // Exact format: | MODE | filename | * | Ln,Col | Git:branch | encoding | CRLF | Tab:n | v0.2.95 |
         ImGui::Text("%s", mode_str);
         ImGui::SameLine();
         ImGui::Text("%s", sep);

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Build script for FreeBSD (X11)
-# Usage: ./scripts/build-freebsd.sh [Release|Debug] [vcpkg|system|auto]
+# Build script for macOS (Cocoa + OpenGL)
+# Usage: ./scripts/build-macos.sh [Release|Debug] [vcpkg|system|auto]
 # ============================================================================
 
 set -e
@@ -10,10 +10,10 @@ BUILD_TYPE="${1:-Release}"
 DEP_MODE="${3:-auto}"  # auto, vcpkg, or system
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-BUILD_DIR="$PROJECT_DIR/build-freebsd"
+BUILD_DIR="$PROJECT_DIR/build-macos"
 
 echo "============================================"
-echo "  Building pcode-editor for FreeBSD (X11)"
+echo "  Building pcode-editor for macOS"
 echo "============================================"
 echo "Build type: $BUILD_TYPE"
 echo "Dependency mode: $DEP_MODE"
@@ -21,9 +21,10 @@ echo ""
 
 # Check base dependencies
 echo "📦 Checking dependencies..."
-for cmd in cmake make pkg-config; do
+for cmd in cmake make; do
     if ! command -v $cmd &> /dev/null; then
-        echo "❌ $cmd not found. Install with: pkg install cmake"
+        echo "❌ $cmd not found. Install with Homebrew:"
+        echo "   brew install cmake"
         exit 1
     fi
 done
@@ -48,15 +49,23 @@ if [ "$USE_VCPKG" = "true" ]; then
     
     cmake "$PROJECT_DIR" \
         -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-        -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake" \
-        -DGLFW_BUILD_WAYLAND=OFF \
-        -DGLFW_BUILD_X11=ON
+        -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake"
 else
-    # Verify native deps
-    if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
-        echo "❌ GTK3 not found. Install with:"
-        echo "   sudo pkg install gtk3"
-        exit 1
+    # Verify native deps (Homebrew)
+    MISSING_DEPS=()
+    for pkg in glfw imgui; do
+        if ! brew list $pkg &> /dev/null; then
+            MISSING_DEPS+=($pkg)
+        fi
+    done
+    
+    if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+        echo "❌ Missing dependencies:"
+        echo "   ${MISSING_DEPS[*]}"
+        echo ""
+        echo "Install with Homebrew:"
+        echo "   brew install ${MISSING_DEPS[*]}"
+        # Note: NFD not available via brew, use FetchContent or compile manually
     fi
 
     # Clean and configure with native deps
@@ -66,16 +75,12 @@ else
     cd "$BUILD_DIR"
 
     cmake "$PROJECT_DIR" \
-        -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-        -DGLFW_BUILD_WAYLAND=OFF \
-        -DGLFW_BUILD_X11=ON \
-        -DCMAKE_PREFIX_PATH=/usr/local
+        -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 fi
 
 # Build
 echo "🔨 Building..."
-BUILD_JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 2)
-make -j"$BUILD_JOBS"
+make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 2)
 
 # Verify
 echo ""

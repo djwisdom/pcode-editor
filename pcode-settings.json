@@ -1,6 +1,6 @@
 {
-  "window_w": 1005,
-  "window_h": 623,
+  "window_w": 1048,
+  "window_h": 723,
   "dark_theme": true,
   "show_status_bar": true,
   "word_wrap": true,
@@ -12,6 +12,6 @@
   "tab_size": 4,
   "font_size": 18,
   "font_name": "JetBrainsMonoNLNerdFont-Regular",
-  "last_open_dir": "C:\\Users\\casse\\github\\pcode-editor",
-  "recent_files": ["C:\\Users\\casse\\github\\pcode-editor\\IMPLEMENTATION_SUMMARY.md", "C:\\Users\\casse\\github\\pcode-editor\\src\\main.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.cpp", "C:\\Users\\casse\\github\\pcode-editor\\src\\editor_app.h", "C:\\Users\\casse\\github\\pcode-editor\\CMakeLists.txt", "C:\\Users\\casse\\github\\pcode-editor\\TESTS.md", "C:\\Users\\casse\\github\\pcode-editor\\BUILD_SYSTEM.md", ".\\BUILD_SYSTEM.md"]
+  "last_open_dir": ".",
+  "recent_files": [".\\test_vim_motions.obj", ".\\pcode-settings.json-orig", ".\\LICENSE", ".\\imgui.ini", ".\\CMakeLists.txt", ".\\BUILD_SYSTEM.md", "C:\\Users\\casse\\github\\pcode-editor\\test_vim_motions.obj", "C:\\Users\\casse\\github\\pcode-editor\\pcode-settings.json-orig", "C:\\Users\\casse\\github\\pcode-editor\\BUILD_SYSTEM.md", "C:\\Users\\casse\\github\\pcode-editor\\CMakeLists.txt"]
 }
