@@ -1882,15 +1882,31 @@ void EditorApp::render() {
     if (editor_open) {
         // Render menus - File Edit View Help at top
         if (ImGui::BeginMenuBar()) {
-            render_menu_file();
-            render_menu_edit();
-            render_menu_view();
-            render_menu_help();
+            if (ImGui::BeginMenu("File")) {
+                ImGui::MenuItem("New Tab", "Ctrl+N");
+                ImGui::MenuItem("Open...", "Ctrl+O");
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Edit")) {
+                ImGui::MenuItem("Undo", "Ctrl+Z");
+                ImGui::MenuItem("Copy", "Ctrl+C");
+                ImGui::MenuItem("Paste", "Ctrl+V");
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("View")) {
+                ImGui::MenuItem("Toggle Status Bar");
+                ImGui::MenuItem("Toggle Tabs");
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Help")) {
+                ImGui::MenuItem("About");
+                ImGui::EndMenu();
+            }
             ImGui::EndMenuBar();
+        } else {
+            // Fallback: show menu items without menu bar
+            ImGui::Text("File | Edit | View | Help");
         }
-        
-        // Menu bar area height
-        float menu_height = ImGui::GetFrameHeight();
         
         // Right-click context menu
         if (ImGui::BeginPopupContextWindow("##ContextMenu")) {
