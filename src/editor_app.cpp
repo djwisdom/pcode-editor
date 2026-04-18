@@ -2030,6 +2030,8 @@ if (editor_open) {
             if (ImGui::MenuItem("Toggle Line Numbers", nullptr, (bool*)&settings_.show_line_numbers)) settings_.show_line_numbers = !settings_.show_line_numbers;
             if (ImGui::MenuItem("Toggle Minimap", nullptr, (bool*)&settings_.show_minimap)) settings_.show_minimap = !settings_.show_minimap;
             if (ImGui::MenuItem("Toggle Code Folding", nullptr, (bool*)&settings_.show_code_folding)) settings_.show_code_folding = !settings_.show_code_folding;
+            if (ImGui::MenuItem("Toggle Bookmark Margin", nullptr, (bool*)&settings_.show_bookmark_margin)) settings_.show_bookmark_margin = !settings_.show_bookmark_margin;
+            if (ImGui::MenuItem("Toggle Change History", nullptr, (bool*)&settings_.show_change_history)) settings_.show_change_history = !settings_.show_change_history;
             ImGui::EndPopup();
         }
         
