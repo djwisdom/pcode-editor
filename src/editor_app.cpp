@@ -79,6 +79,7 @@ static void settings_save(const AppSettings& s, const std::string& path) {
     f << "  \"window_h\": " << s.window_h << ",\n";
     f << "  \"dark_theme\": " << (s.dark_theme ? "true" : "false") << ",\n";
     f << "  \"show_status_bar\": " << (s.show_status_bar ? "true" : "false") << ",\n";
+    f << "  \"enable_vim_mode\": " << (s.enable_vim_mode ? "true" : "false") << ",\n";
     f << "  \"word_wrap\": " << (s.word_wrap ? "true" : "false") << ",\n";
     f << "  \"show_line_numbers\": " << (s.show_line_numbers ? "true" : "false") << ",\n";
     f << "  \"show_minimap\": " << (s.show_minimap ? "true" : "false") << ",\n";
@@ -133,6 +134,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.window_h = get_int("window_h", 800);
     s.dark_theme = get_bool("dark_theme", true);
     s.show_status_bar = get_bool("show_status_bar", true);
+    s.enable_vim_mode = get_bool("enable_vim_mode", true);
     s.word_wrap = get_bool("word_wrap", false);
     s.show_line_numbers = get_bool("show_line_numbers", true);
     s.show_bookmark_margin = get_bool("show_bookmark_margin", true);
@@ -272,6 +274,8 @@ void EditorApp::init() {
     NFD_Init();
 
     glfwInit();
+    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -318,8 +322,8 @@ void EditorApp::init() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    // Disabled docking - may cause menu issues
     
     // Load fonts
     load_fonts();
@@ -1240,6 +1244,7 @@ const char* EditorApp::get_vim_mode_str() const {
         case VimMode::Insert: return "INSERT";
         case VimMode::Visual: return "VISUAL";
         case VimMode::VisualLine: return "V-LINE";
+        case VimMode::VisualBlock: return "V-BLOCK";
         case VimMode::OperatorPending: return "OPERATOR";
         case VimMode::Command: return "COMMAND";
         default: return "";
@@ -1261,11 +1266,148 @@ void EditorApp::handle_vim_key(int key, int /*mods*/) {
         vim_operator_ = 0;
         vim_count_ = 0;
         vim_key_buffer_.clear();
+        vim_find_pending_ = false;
         return;
     }
     
     // In insert mode, only Escape matters
     if (vim_mode_ == VimMode::Insert) {
+        return;
+    }
+    
+    // Handle Ctrl+v for Visual Block mode
+    if (key == ImGuiKey_V && ImGui::GetIO().KeyCtrl) {
+        vim_mode_ = VimMode::VisualBlock;
+        return;
+    }
+    
+    // Handle Ctrl+b (page up), Ctrl+f (page down), Ctrl+u (half up), Ctrl+d (half down)
+    if (key == ImGuiKey_PageUp && ImGui::GetIO().KeyCtrl) {
+        // Ctrl+B - page up
+        int page_size = 20;  // approximate visible lines
+        ed->SetCursorPosition(TextEditor::Coordinates((std::max)(0, line - page_size * count), col));
+        return;
+    }
+    if (key == ImGuiKey_PageDown && ImGui::GetIO().KeyCtrl) {
+        // Ctrl+F - page down
+        int page_size = 20;
+        ed->SetCursorPosition(TextEditor::Coordinates((std::min)(ed->GetTotalLines() - 1, line + page_size * count), col));
+        return;
+    }
+    if (key == ImGuiKey_Up && ImGui::GetIO().KeyCtrl) {
+        // Ctrl+U - half page up
+        int half_page = 10;
+        ed->SetCursorPosition(TextEditor::Coordinates((std::max)(0, line - half_page * count), col));
+        return;
+    }
+    if (key == ImGuiKey_Down && ImGui::GetIO().KeyCtrl) {
+        // Ctrl+D - half page down
+        int half_page = 10;
+        ed->SetCursorPosition(TextEditor::Coordinates((std::min)(ed->GetTotalLines() - 1, line + half_page * count), col));
+        return;
+    }
+    
+    // Handle character find pending mode (f, F, t, T waiting for character)
+    if (vim_find_pending_) {
+        // The character typed is the search character
+        char search_char = 0;
+        if (key >= ImGuiKey_A && key <= ImGuiKey_Z) {
+            search_char = (char)('a' + (key - ImGuiKey_A));
+        } else if (key >= ImGuiKey_0 && key <= ImGuiKey_9) {
+            search_char = (char)('0' + (key - ImGuiKey_0));
+        } else if (key == ImGuiKey_Space) search_char = ' ';
+        else if (key == ImGuiKey_Period) search_char = '.';
+        else if (key == ImGuiKey_Minus) search_char = '-';
+        
+        if (search_char) {
+            vim_last_find_char_ = search_char;
+            vim_last_find_reverse_ = (vim_operator_ == 'F' || vim_operator_ == 'T');
+            
+            // Perform the search based on original motion type
+            bool is_till = (vim_operator_ == 't' || vim_operator_ == 'T');
+            
+            if (vim_key_buffer_ == "f" || vim_key_buffer_ == "t") {
+                // Forward search
+                for (int i = 0; i < count; i++) {
+                    if (line < (int)lines.size()) {
+                        std::string& text = lines[line];
+                        int search_col = col + 1;
+                        int found_col = -1;
+                        while (search_col < (int)text.size()) {
+                            if (text[search_col] == search_char) {
+                                found_col = search_col;
+                                break;
+                            }
+                            search_col++;
+                        }
+                        if (found_col >= 0) {
+                            if (is_till) col = found_col - 1;
+                            else col = found_col;
+                        }
+                    }
+                    if (found_col < 0 && line < ed->GetTotalLines() - 1) {
+                        // Move to next line and continue searching
+                        line++;
+                        col = 0;
+                        if (line < (int)lines.size()) {
+                            std::string& text = lines[line];
+                            int search_col = 0;
+                            while (search_col < (int)text.size()) {
+                                if (text[search_col] == search_char) {
+                                    col = is_till ? search_col - 1 : search_col;
+                                    break;
+                                }
+                                search_col++;
+                            }
+                        }
+                    }
+                }
+                ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+            } else {
+                // Backward search (F, T)
+                for (int i = 0; i < count; i--) {
+                    if (line < (int)lines.size()) {
+                        std::string& text = lines[line];
+                        int search_col = col - 1;
+                        int found_col = -1;
+                        while (search_col >= 0) {
+                            if (text[search_col] == search_char) {
+                                found_col = search_col;
+                                break;
+                            }
+                            search_col--;
+                        }
+                        if (found_col >= 0) {
+                            if (is_till) col = found_col + 1;
+                            else col = found_col;
+                        }
+                    }
+                    if (found_col < 0 && line > 0) {
+                        // Move to previous line
+                        line--;
+                        col = 0;
+                        if (line < (int)lines.size()) {
+                            col = (int)lines[line].size();
+                            std::string& text = lines[line];
+                            int search_col_back = col - 1;
+                            while (search_col_back >= 0) {
+                                if (text[search_col_back] == search_char) {
+                                    col = is_till ? search_col_back + 1 : search_col_back;
+                                    break;
+                                }
+                                search_col_back--;
+                            }
+                        }
+                    }
+                }
+                ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+            }
+        }
+        
+        vim_find_pending_ = false;
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
         return;
     }
     
@@ -1331,43 +1473,186 @@ void EditorApp::handle_vim_key(int key, int /*mods*/) {
                     ed->SetCursorPosition(TextEditor::Coordinates(line, (int)lines[line].size()));
                 }
                 break;
-            case 'i':
-                vim_mode_ = VimMode::Insert;
-                break;
-            case 'I':
-                ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
-                vim_mode_ = VimMode::Insert;
-                break;
-            case 'a':
-                if (line < (int)lines.size() && col < (int)lines[line].size()) {
-                    ed->SetCursorPosition(TextEditor::Coordinates(line, col + 1));
-                }
-                vim_mode_ = VimMode::Insert;
-                break;
-            case 'A':
+            case '_':  // g_ - last non-blank character
                 if (line < (int)lines.size()) {
-                    ed->SetCursorPosition(TextEditor::Coordinates(line, (int)lines[line].size()));
+                    std::string& text = lines[line];
+                    int last_non_blank = (int)text.size();
+                    while (last_non_blank > 0 && (text[last_non_blank - 1] == ' ' || text[last_non_blank - 1] == '\t')) {
+                        last_non_blank--;
+                    }
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, last_non_blank));
                 }
-                vim_mode_ = VimMode::Insert;
                 break;
-            case 'o':
+            // Screen motions: H, M, L
+            case 'H':  // Home - first visible line
+                // Move to first line (approximate - use top of visible area)
                 ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
-                ed->InsertText("\n");
-                vim_mode_ = VimMode::Insert;
+                // Scroll to top - use approximate line count
+                for (int i = 0; i < 15 && line > 0; i++) line--;
+                ed->SetCursorPosition(TextEditor::Coordinates(line, col));
                 break;
-            case 'O':
-                ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
-                ed->InsertText("\n");
-                if (line > 0) ed->SetCursorPosition(TextEditor::Coordinates(line - 1, 0));
-                vim_mode_ = VimMode::Insert;
+            case 'M':  // Middle - middle visible line
+                for (int i = 0; i < 10 && line > 0; i++) line--;
+                ed->SetCursorPosition(TextEditor::Coordinates(line, col));
                 break;
-            case 'x':
+            case 'L':  // Last - last visible line
+                for (int i = 0; i < 15 && line < ed->GetTotalLines() - 1; i++) line++;
+                ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+                break;
+            // Scroll commands: z Enter, z-, zt, zb, zz
+            case 'z':
+                vim_mode_ = VimMode::OperatorPending;
+                vim_operator_ = 'z';
+                return;
+            // Character find: f, F, t, T
+            case 'f':
+            case 'F':
+            case 't':
+            case 'T':
+                vim_find_pending_ = true;
+                vim_mode_ = VimMode::OperatorPending;
+                vim_operator_ = kb[0];
+                return;
+            // Repeat search: ; and ,
+            case ';':
+                if (vim_last_find_char_) {
+                    // Repeat last search in same direction
+                    char search_char = vim_last_find_char_;
+                    bool is_till = false;  // assume f/F, not t/T
+                    // Search forward
+                    for (int i = 0; i < count; i++) {
+                        if (line < (int)lines.size()) {
+                            std::string& text = lines[line];
+                            int search_col = col + 1;
+                            int found_col = -1;
+                            while (search_col < (int)text.size()) {
+                                if (text[search_col] == search_char) {
+                                    found_col = search_col;
+                                    break;
+                                }
+                                search_col++;
+                            }
+                            if (found_col >= 0) {
+                                col = found_col;
+                            }
+                        }
+                    }
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+                }
+                break;
+            case ',':
+                if (vim_last_find_char_) {
+                    // Repeat last search in opposite direction
+                    char search_char = vim_last_find_char_;
+                    for (int i = 0; i < count; i++) {
+                        if (line < (int)lines.size()) {
+                            std::string& text = lines[line];
+                            int search_col = col - 1;
+                            int found_col = -1;
+                            while (search_col >= 0) {
+                                if (text[search_col] == search_char) {
+                                    found_col = search_col;
+                                    break;
+                                }
+                                search_col--;
+                            }
+                            if (found_col >= 0) {
+                                col = found_col;
+                            }
+                        }
+                    }
+                    ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+                }
+                break;
+            // Paragraph motions: { and }
+            case '{':
+                // Move to previous blank line (paragraph start)
                 for (int i = 0; i < count; i++) {
-                    if (line < (int)lines.size() && col < (int)lines[line].size()) {
-                        ed->Delete();
+                    while (line > 0) {
+                        line--;
+                        if (line < (int)lines.size() && lines[line].empty()) {
+                            // Found blank line, move to first non-blank after it
+                            line++;
+                            break;
+                        }
                     }
                 }
+                // Move to first non-blank of paragraph
+                while (line < (int)lines.size() && (lines[line].empty() || 
+                       (lines[line][0] == ' ' || lines[line][0] == '\t'))) {
+                    line++;
+                }
+                ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
                 break;
+            case '}':
+                // Move to next blank line (paragraph end)
+                for (int i = 0; i < count; i++) {
+                    bool found_blank = false;
+                    while (line < ed->GetTotalLines()) {
+                        if (line < (int)lines.size() && lines[line].empty()) {
+                            found_blank = true;
+                            line++;
+                            break;
+                        }
+                        line++;
+                    }
+                    // Skip blank lines
+                    while (line < (int)lines.size() && lines[line].empty()) {
+                        line++;
+                    }
+                }
+                ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
+                break;
+            // Sentence motions: ( and )
+            case '(':
+                // Move to previous sentence start
+                for (int i = 0; i < count; i++) {
+                    while (line > 0) {
+                        line--;
+                        if (line < (int)lines.size() && !lines[line].empty()) {
+                            // Check for sentence end punctuation
+                            char last_char = lines[line][lines[line].size() - 1];
+                            if (last_char == '.' || last_char == '!' || last_char == '?') {
+                                line--;
+                                break;
+                            }
+                        }
+                    }
+                }
+                // Find first non-blank character
+                while (line < (int)lines.size() && 
+                       (lines[line].empty() || lines[line][0] == ' ' || lines[line][0] == '\t')) {
+                    line++;
+                }
+                ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
+                break;
+            case ')':
+                // Move to next sentence start
+                for (int i = 0; i < count; i++) {
+                    while (line < ed->GetTotalLines()) {
+                        if (line < (int)lines.size() && !lines[line].empty()) {
+                            char first_char = lines[line][0];
+                            if (first_char == '.' || first_char == '!' || first_char == '?') {
+                                line++;
+                                break;
+                            }
+                        }
+                        line++;
+                    }
+                    // Skip whitespace
+                    while (line < (int)lines.size() && 
+                           (lines[line].empty() || lines[line][0] == ' ' || lines[line][0] == '\t')) {
+                        line++;
+                    }
+                }
+ed->SetCursorPosition(TextEditor::Coordinates(line, 0));
+                break;
+            // Text objects - set pending mode
+            case 'i':
+            case 'a':
+                vim_mode_ = VimMode::OperatorPending;
+                vim_operator_ = kb[0];
+                return;
             case 'w':
                 while (count-- > 0) {
                     int next_col = col;
@@ -1534,6 +1819,269 @@ void EditorApp::handle_vim_key(int key, int /*mods*/) {
         return;
     }
     
+    // g operators: g~, gU, gu
+    if (vim_mode_ == VimMode::OperatorPending && vim_operator_ == 'g') {
+        if (kb == "g~") {
+            // g~ - toggle case of current character
+            if (line < (int)lines.size() && col < (int)lines[line].size()) {
+                char ch = lines[line][col];
+                if (ch >= 'a' && ch <= 'z') ch = ch - 'a' + 'A';
+                else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 'a';
+                lines[line][col] = ch;
+                tabs_[active_tab_].dirty = true;
+            }
+        } else if (kb == "gU") {
+            // gU - uppercase current line
+            if (line < (int)lines.size()) {
+                std::string& text = lines[line];
+                for (size_t i = 0; i < text.size(); i++) {
+                    if (text[i] >= 'a' && text[i] <= 'z') {
+                        text[i] = text[i] - 'a' + 'A';
+                    }
+                }
+                tabs_[active_tab_].dirty = true;
+            }
+        } else if (kb == "gu") {
+            // gu - lowercase current line
+            if (line < (int)lines.size()) {
+                std::string& text = lines[line];
+                for (size_t i = 0; i < text.size(); i++) {
+                    if (text[i] >= 'A' && text[i] <= 'Z') {
+                        text[i] = text[i] - 'A' + 'a';
+                    }
+                }
+                tabs_[active_tab_].dirty = true;
+            }
+        } else if (kb == "g~2" || kb == "gU2" || kb == "gu2") {
+            // With count prefix
+            int cnt = (kb[2] - '0') * count;
+            if (kb == "g~2") {
+                for (int i = 0; i < cnt && line < (int)lines.size(); i++, line++) {
+                    std::string& text = lines[line];
+                    for (size_t j = 0; j < text.size(); j++) {
+                        if (text[j] >= 'a' && text[j] <= 'z') text[j] = text[j] - 'a' + 'A';
+                        else if (text[j] >= 'A' && text[j] <= 'Z') text[j] = text[j] - 'A' + 'a';
+                    }
+                }
+                tabs_[active_tab_].dirty = true;
+            } else if (kb == "gU2") {
+                for (int i = 0; i < cnt && line < (int)lines.size(); i++, line++) {
+                    std::string& text = lines[line];
+                    for (size_t j = 0; j < text.size(); j++) {
+                        if (text[j] >= 'a' && text[j] <= 'z') text[j] = text[j] - 'a' + 'A';
+                    }
+                }
+                tabs_[active_tab_].dirty = true;
+            } else if (kb == "gu2") {
+                for (int i = 0; i < cnt && line < (int)lines.size(); i++, line++) {
+                    std::string& text = lines[line];
+                    for (size_t j = 0; j < text.size(); j++) {
+                        if (text[j] >= 'A' && text[j] <= 'Z') text[j] = text[j] - 'A' + 'a';
+                    }
+                }
+                tabs_[active_tab_].dirty = true;
+            }
+        }
+        
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_operator_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    
+    // Handle operator pending word motions: dw, de, d$, d0, etc.
+    if (vim_mode_ == VimMode::OperatorPending) {
+        char op = vim_operator_;
+        char motion = kb[0];
+        
+        // Word motions with operator
+        if (motion == 'w') {
+            // dw - delete word forward
+            int start_line = line;
+            int start_col = col;
+            // Find end of word
+            for (int c = 0; c < count; c++) {
+                if (line < (int)lines.size()) {
+                    std::string& text = lines[line];
+                    int end_col = col;
+                    while (end_col < (int)text.size()) {
+                        char cw = text[end_col];
+                        bool is_word = (cw >= 'a' && cw <= 'z') || (cw >= 'A' && cw <= 'Z') ||
+                                    (cw >= '0' && cw <= '9') || cw == '_';
+                        if (!is_word) break;
+                        end_col++;
+                    }
+                    // Skip non-word chars
+                    while (end_col < (int)text.size()) {
+                        char cw = text[end_col];
+                        bool is_word = (cw >= 'a' && cw <= 'z') || (cw >= 'A' && cw <= 'Z') ||
+                                    (cw >= '0' && cw <= '9') || cw == '_';
+                        if (is_word) break;
+                        end_col++;
+                    }
+                    col = end_col;
+                }
+            }
+            if (op == 'd') {
+                ed->SetSelectionStart(TextEditor::Coordinates(start_line, start_col));
+                ed->SetSelectionEnd(TextEditor::Coordinates(line, col));
+                ed->Delete();
+            } else if (op == 'y') {
+                ed->SetSelectionStart(TextEditor::Coordinates(start_line, start_col));
+                ed->SetSelectionEnd(TextEditor::Coordinates(line, col));
+                ed->Copy();
+            } else if (op == 'c') {
+                ed->SetSelectionStart(TextEditor::Coordinates(start_line, start_col));
+                ed->SetSelectionEnd(TextEditor::Coordinates(line, col));
+                ed->Delete();
+                vim_mode_ = VimMode::Insert;
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+        
+        if (motion == 'b') {
+            // db - delete word backward
+            int start_line = line;
+            int start_col = col;
+            for (int c = 0; c < count; c++) {
+                if (line < (int)lines.size()) {
+                    std::string& text = lines[line];
+                    int prev_col = col;
+                    while (prev_col > 0) {
+                        char c = text[prev_col - 1];
+                        bool is_word = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                    (c >= '0' && c <= '9') || c == '_';
+                        if (!is_word) break;
+                        prev_col--;
+                    }
+                    while (prev_col > 0) {
+                        char c = text[prev_col - 1];
+                        bool is_word = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                    (c >= '0' && c <= '9') || c == '_';
+                        if (is_word) prev_col--;
+                        else break;
+                    }
+                    col = prev_col;
+                }
+            }
+            if (op == 'd') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, col));
+                ed->SetSelectionEnd(TextEditor::Coordinates(start_line, start_col));
+                ed->Delete();
+            } else if (op == 'y') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, col));
+                ed->SetSelectionEnd(TextEditor::Coordinates(start_line, start_col));
+                ed->Copy();
+            } else if (op == 'c') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, col));
+                ed->SetSelectionEnd(TextEditor::Coordinates(start_line, start_col));
+                ed->Delete();
+                vim_mode_ = VimMode::Insert;
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+        
+        if (motion == 'e') {
+            // de - delete to word end
+            int start_line = line;
+            int start_col = col;
+            for (int c = 0; c < count; c++) {
+                if (line < (int)lines.size()) {
+                    std::string& text = lines[line];
+                    int end_col = col;
+                    while (end_col < (int)text.size()) {
+                        char cw = text[end_col];
+                        bool is_word = (cw >= 'a' && cw <= 'z') || (cw >= 'A' && cw <= 'Z') ||
+                                    (cw >= '0' && cw <= '9') || cw == '_';
+                        if (!is_word) break;
+                        end_col++;
+                    }
+                    col = end_col;
+                }
+            }
+            if (op == 'd') {
+                ed->SetSelectionStart(TextEditor::Coordinates(start_line, start_col));
+                ed->SetSelectionEnd(TextEditor::Coordinates(line, col));
+                ed->Delete();
+            } else if (op == 'y') {
+                ed->SetSelectionStart(TextEditor::Coordinates(start_line, start_col));
+                ed->SetSelectionEnd(TextEditor::Coordinates(line, col));
+                ed->Copy();
+            } else if (op == 'c') {
+                ed->SetSelectionStart(TextEditor::Coordinates(start_line, start_col));
+                ed->SetSelectionEnd(TextEditor::Coordinates(line, col));
+                ed->Delete();
+                vim_mode_ = VimMode::Insert;
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+        
+        if (motion == '$') {
+            // d$ - delete to end of line
+            if (op == 'd') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, col));
+                if (line < (int)lines.size()) {
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, (int)lines[line].size()));
+                }
+                ed->Delete();
+            } else if (op == 'y') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, col));
+                if (line < (int)lines.size()) {
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, (int)lines[line].size()));
+                }
+                ed->Copy();
+            } else if (op == 'c') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, col));
+                if (line < (int)lines.size()) {
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, (int)lines[line].size()));
+                }
+                ed->Delete();
+                vim_mode_ = VimMode::Insert;
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+        
+        if (motion == '0') {
+            // d0 - delete to beginning of line
+            if (op == 'd') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
+                ed->SetSelectionEnd(TextEditor::Coordinates(line, col));
+                ed->Delete();
+            } else if (op == 'y') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
+                ed->SetSelectionEnd(TextEditor::Coordinates(line, col));
+                ed->Copy();
+            } else if (op == 'c') {
+                ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
+                ed->SetSelectionEnd(TextEditor::Coordinates(line, col));
+                ed->Delete();
+                vim_mode_ = VimMode::Insert;
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+    }
+    
     if (kb == "dd") {
         ed->SetSelectionStart(TextEditor::Coordinates(line, 0));
         if (line < (int)lines.size()) {
@@ -1567,6 +2115,451 @@ void EditorApp::handle_vim_key(int key, int /*mods*/) {
         vim_mode_ = VimMode::Insert;
         vim_key_buffer_.clear();
         vim_count_ = 0;
+        return;
+    }
+    
+    // ge - word end backward
+    if (kb == "ge") {
+        for (int c = 0; c < count; c++) {
+            if (line < (int)lines.size()) {
+                std::string& text = lines[line];
+                int end_col = col;
+                // First move to end of current word or previous word
+                while (end_col > 0) {
+                    char prev_c = text[end_col - 1];
+                    bool is_word = (prev_c >= 'a' && prev_c <= 'z') || (prev_c >= 'A' && prev_c <= 'Z') ||
+                                (prev_c >= '0' && prev_c <= '9') || prev_c == '_';
+                    if (is_word) {
+                        end_col--;
+                    } else {
+                        break;
+                    }
+                }
+                // If at start of line or already at word end, go to previous word end
+                if (end_col == 0 || col == 0) {
+                    if (line > 0) {
+                        // Go to previous line
+                        line--;
+                        text = lines[line];
+                        end_col = (int)text.size();
+                        // Find end of last word
+                        while (end_col > 0) {
+                            char prev_c = text[end_col - 1];
+                            bool is_word = (prev_c >= 'a' && prev_c <= 'z') || (prev_c >= 'A' && prev_c <= 'Z') ||
+                                        (prev_c >= '0' && prev_c <= '9') || prev_c == '_';
+                            if (!is_word) break;
+                            end_col--;
+                        }
+                    }
+                }
+                col = end_col;
+                ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+            }
+        }
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    
+    // Scroll commands: z Enter, z-, zt, zb, zz
+    if (kb == "z\n" || kb == "z\r") {
+        // z Enter - redraw with current line at top
+        ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+        // Scroll to show current line at top - approximate
+        for (int i = 0; i < 10 && line > 0; i++) line--;
+        ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    if (kb == "z-") {
+        // z- - redraw with current line at bottom
+        for (int i = 0; i < 10 && line < ed->GetTotalLines() - 1; i++) line++;
+        ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    if (kb == "zt") {
+        // zt - redraw with current line at top
+        for (int i = 0; i < 10 && line > 0; i++) line--;
+        ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    if (kb == "zb") {
+        // zb - redraw with current line at bottom
+        for (int i = 0; i < 10 && line < ed->GetTotalLines() - 1; i++) line++;
+        ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    if (kb == "zz") {
+        // zz - redraw with current line at center
+        ed->SetCursorPosition(TextEditor::Coordinates(line, col));
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_mode_ = VimMode::Normal;
+        return;
+    }
+    
+    // Text objects handling: iw, aw, iW, aW, is, ip, i(, a(, i), a), i[, a[, i], a], i{, a{, i}, a}, i<, a<, i>, a>, i", a", i', a', i`, a`
+    // Format: operator + text_object (like "diw", "ciw", "yaw")
+    if (vim_mode_ == VimMode::OperatorPending && kb.size() >= 2) {
+        char op = vim_operator_;
+        std::string to = kb;  // text object
+        
+        // Word text objects
+        if (to == "iw" || to == "aw" || to == "iW" || to == "aW") {
+            // Find word boundaries at current position
+            if (line < (int)lines.size()) {
+                std::string& text = lines[line];
+                int start = col;
+                int end = col;
+                
+                // Find word start
+                while (start > 0) {
+                    char c = text[start - 1];
+                    bool is_word = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                (c >= '0' && c <= '9') || c == '_';
+                    if (!is_word) break;
+                    start--;
+                }
+                // Find word end
+                while (end < (int)text.size()) {
+                    char c = text[end];
+                    bool is_word = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                (c >= '0' && c <= '9') || c == '_';
+                    if (!is_word) break;
+                    end++;
+                }
+                
+                // For 'a' include trailing whitespace
+                if (to[0] == 'a') {
+                    while (end < (int)text.size() && (text[end] == ' ' || text[end] == '\t')) {
+                        end++;
+                    }
+                }
+                
+                if (op == 'd') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(line, start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, end));
+                    ed->Delete();
+                } else if (op == 'y') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(line, start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, end));
+                    ed->Copy();
+                } else if (op == 'c') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(line, start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, end));
+                    ed->Delete();
+                    vim_mode_ = VimMode::Insert;
+                }
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+        
+        // Parenthesis text objects: i(, a(, i), a), i( can also be i)
+        if (to == "i(" || to == "i)" || to == "a(" || to == "a)") {
+            int depth = 0;
+            int start_line = line;
+            int start_col = col;
+            int open_pos = -1;
+            int close_pos = -1;
+            
+            // Search backward for opening parenthesis
+            for (int l = line; l >= 0 && open_pos < 0; l--) {
+                std::string& txt = lines[l];
+                for (int i = (l == line ? col : (int)txt.size() - 1); i >= 0; i--) {
+                    if (txt[i] == ')') depth++;
+                    else if (txt[i] == '(' && depth > 0) { depth--; }
+                    else if (txt[i] == '(' && depth == 0) {
+                        open_pos = i;
+                        start_line = l;
+                        start_col = i;
+                        break;
+                    }
+                }
+            }
+            
+            // Search forward for closing parenthesis
+            depth = 0;
+            for (int l = line; l < ed->GetTotalLines() && close_pos < 0; l++) {
+                std::string& txt = lines[l];
+                for (int i = (l == line ? col : 0); i < (int)txt.size(); i++) {
+                    if (txt[i] == '(') depth++;
+                    else if (txt[i] == ')' && depth > 0) { depth--; }
+                    else if (txt[i] == ')' && depth == 0) {
+                        close_pos = i;
+                        break;
+                    }
+                }
+            }
+            
+            if (open_pos >= 0 && close_pos >= 0) {
+                int sel_start = (to[0] == 'i') ? open_pos + 1 : open_pos;
+                int sel_end = (to[0] == 'i') ? close_pos : close_pos + 1;
+                
+                if (op == 'd') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(start_line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Delete();
+                } else if (op == 'y') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(start_line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Copy();
+                } else if (op == 'c') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(start_line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Delete();
+                    vim_mode_ = VimMode::Insert;
+                }
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+        
+        // Brace text objects: i{, a{, i}, a}
+        if (to == "i{" || to == "i}" || to == "a{" || to == "a}") {
+            int depth = 0;
+            int start_line = line;
+            int start_col = col;
+            int open_pos = -1;
+            int close_pos = -1;
+            
+            // Search backward for opening brace
+            for (int l = line; l >= 0 && open_pos < 0; l--) {
+                std::string& txt = lines[l];
+                for (int i = (l == line ? col : (int)txt.size() - 1); i >= 0; i--) {
+                    if (txt[i] == '}') depth++;
+                    else if (txt[i] == '{' && depth > 0) { depth--; }
+                    else if (txt[i] == '{' && depth == 0) {
+                        open_pos = i;
+                        start_line = l;
+                        start_col = i;
+                        break;
+                    }
+                }
+            }
+            
+            // Search forward for closing brace
+            depth = 0;
+            for (int l = line; l < ed->GetTotalLines() && close_pos < 0; l++) {
+                std::string& txt = lines[l];
+                for (int i = (l == line ? col : 0); i < (int)txt.size(); i++) {
+                    if (txt[i] == '{') depth++;
+                    else if (txt[i] == '}' && depth > 0) { depth--; }
+                    else if (txt[i] == '}' && depth == 0) {
+                        close_pos = i;
+                        break;
+                    }
+                }
+            }
+            
+            if (open_pos >= 0 && close_pos >= 0) {
+                int sel_start = (to[0] == 'i') ? open_pos + 1 : open_pos;
+                int sel_end = (to[0] == 'i') ? close_pos : close_pos + 1;
+                
+                if (op == 'd') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(start_line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Delete();
+                } else if (op == 'y') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(start_line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Copy();
+                } else if (op == 'c') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(start_line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Delete();
+                    vim_mode_ = VimMode::Insert;
+                }
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+        
+        // Bracket text objects: i[, a[, i], a]
+        if (to == "i[" || to == "i]" || to == "a[" || to == "a]") {
+            int depth = 0;
+            int start_line = line;
+            int open_pos = -1;
+            int close_pos = -1;
+            
+            // Search backward for opening bracket
+            for (int l = line; l >= 0 && open_pos < 0; l--) {
+                std::string& txt = lines[l];
+                for (int i = (l == line ? col : (int)txt.size() - 1); i >= 0; i--) {
+                    if (txt[i] == ']') depth++;
+                    else if (txt[i] == '[' && depth > 0) { depth--; }
+                    else if (txt[i] == '[' && depth == 0) {
+                        open_pos = i;
+                        start_line = l;
+                        break;
+                    }
+                }
+            }
+            
+            // Search forward for closing bracket
+            depth = 0;
+            for (int l = line; l < ed->GetTotalLines() && close_pos < 0; l++) {
+                std::string& txt = lines[l];
+                for (int i = (l == line ? col : 0); i < (int)txt.size(); i++) {
+                    if (txt[i] == '[') depth++;
+                    else if (txt[i] == ']' && depth > 0) { depth--; }
+                    else if (txt[i] == ']' && depth == 0) {
+                        close_pos = i;
+                        break;
+                    }
+                }
+            }
+            
+            if (open_pos >= 0 && close_pos >= 0) {
+                int sel_start = (to[0] == 'i') ? open_pos + 1 : open_pos;
+                int sel_end = (to[0] == 'i') ? close_pos : close_pos + 1;
+                
+                if (op == 'd') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(start_line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Delete();
+                } else if (op == 'y') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(start_line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Copy();
+                } else if (op == 'c') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(start_line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Delete();
+                    vim_mode_ = VimMode::Insert;
+                }
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+        
+        // Quote text objects: i", a", i', a'
+        if (to == "i\"" || to == "a\"" || to == "i'" || to == "a'") {
+            char quote_char = to[1];
+            int start_pos = -1;
+            int end_pos = -1;
+            
+            // Search forward for quote
+            for (int l = line; l < ed->GetTotalLines() && end_pos < 0; l++) {
+                std::string& txt = lines[l];
+                for (int i = (l == line ? col + 1 : 0); i < (int)txt.size(); i++) {
+                    if (txt[i] == quote_char && (i == 0 || txt[i-1] != '\\')) {
+                        end_pos = i;
+                        break;
+                    }
+                }
+            }
+            
+            // Search backward for opening quote
+            for (int l = line; l >= 0 && start_pos < 0; l--) {
+                std::string& txt = lines[l];
+                for (int i = (l == line ? col - 1 : (int)txt.size() - 1); i >= 0; i--) {
+                    if (txt[i] == quote_char && (i == 0 || txt[i-1] != '\\')) {
+                        start_pos = i;
+                        break;
+                    }
+                }
+            }
+            
+            if (start_pos >= 0 && end_pos >= 0) {
+                int sel_start = (to[0] == 'i') ? start_pos + 1 : start_pos;
+                int sel_end = (to[0] == 'i') ? end_pos : end_pos + 1;
+                
+                if (op == 'd') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Delete();
+                } else if (op == 'y') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Copy();
+                } else if (op == 'c') {
+                    ed->SetSelectionStart(TextEditor::Coordinates(line, sel_start));
+                    ed->SetSelectionEnd(TextEditor::Coordinates(line, sel_end));
+                    ed->Delete();
+                    vim_mode_ = VimMode::Insert;
+                }
+            }
+            vim_key_buffer_.clear();
+            vim_count_ = 0;
+            vim_operator_ = 0;
+            vim_mode_ = VimMode::Normal;
+            return;
+        }
+        
+        // Handle motion after operator (like dw, de, d$, etc.)
+        // For simple word/line motions
+        if (op == 'd' || op == 'y' || op == 'c') {
+            // These will be handled in the existing operator pending code
+        }
+    }
+    
+    // Handle g operator (g~, gU, gu)
+    if (vim_mode_ == VimMode::OperatorPending && vim_operator_ == 'g' && kb.size() >= 2) {
+        char second = kb[1];
+        if (second == '~') {
+            // g~ - toggle case
+            if (line < (int)lines.size() && col < (int)lines[line].size()) {
+                char ch = lines[line][col];
+                if (ch >= 'a' && ch <= 'z') ch = ch - 'a' + 'A';
+                else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 'a';
+                lines[line][col] = ch;
+                tabs_[active_tab_].dirty = true;
+            }
+        } else if (second == 'U') {
+            // gU - uppercase
+            if (line < (int)lines.size()) {
+                std::string& text = lines[line];
+                for (size_t i = 0; i < text.size(); i++) {
+                    if (text[i] >= 'a' && text[i] <= 'z') {
+                        text[i] = text[i] - 'a' + 'A';
+                    }
+                }
+                tabs_[active_tab_].dirty = true;
+            }
+        } else if (second == 'u') {
+            // gu - lowercase
+            if (line < (int)lines.size()) {
+                std::string& text = lines[line];
+                for (size_t i = 0; i < text.size(); i++) {
+                    if (text[i] >= 'A' && text[i] <= 'Z') {
+                        text[i] = text[i] - 'A' + 'a';
+                    }
+                }
+                tabs_[active_tab_].dirty = true;
+            }
+        } else if (second == 'e') {
+            // ge - word end backward (already handled in multi-key)
+        }
+        
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        vim_operator_ = 0;
+        vim_mode_ = VimMode::Normal;
         return;
     }
     
@@ -1919,17 +2912,48 @@ void EditorApp::render() {
     // Reset vim input skip flag at start of each frame
     skip_texteditor_input_ = false;
     
-    // Handle Vim mode keys first (skip when terminal input is active or editor not focused)
-    // Only handle vim keys when in Normal mode and editor is focused
-    if (vim_mode_ == VimMode::Normal && !terminal_input_active_) {
+    // Handle Escape - always return to Normal mode when pressed
+    // Also clears any pending input to prevent character insertion
+    if (!terminal_input_active_ && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        vim_mode_ = VimMode::Normal;
+        vim_key_buffer_.clear();
+        vim_count_ = 0;
+        // Clear any pending input
+        io.InputQueueCharacters.resize(0);
+        for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
+            io.AddKeyEvent((ImGuiKey)key, false);
+        }
+        for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
+            io.AddKeyEvent((ImGuiKey)key, false);
+        }
+    }
+    
+    // Only handle vim keys when vim mode is enabled AND in Normal mode
+    if (settings_.enable_vim_mode && vim_mode_ == VimMode::Normal && !terminal_input_active_) {
         bool vim_key_handled = false;
         
+        // Handle vim motion keys with IsKeyDown for continuous repeat when held
+        // This makes vim motions scroll/fly fast - keys repeat every frame when held
+        // First ensure editor has focus so cursor is visible
+        TextEditor* ed = get_active_editor();
+        if (ed && ImGui::IsKeyDown(ImGuiKey_J)) { ed->SetCursorPosition(ed->GetCursorPosition()); }  // Ensure cursor render
+        else if (ImGui::IsKeyDown(ImGuiKey_K)) { handle_vim_key(ImGuiKey_K, 0); vim_key_handled = true; }
+        else if (ImGui::IsKeyDown(ImGuiKey_H)) { handle_vim_key(ImGuiKey_H, 0); vim_key_handled = true; }
+        else if (ImGui::IsKeyDown(ImGuiKey_L)) { handle_vim_key(ImGuiKey_L, 0); vim_key_handled = true; }
+        else if (ImGui::IsKeyDown(ImGuiKey_W)) { handle_vim_key(ImGuiKey_W, 0); vim_key_handled = true; }
+        else if (ImGui::IsKeyDown(ImGuiKey_B)) { handle_vim_key(ImGuiKey_B, 0); vim_key_handled = true; }
+        else if (ImGui::IsKeyDown(ImGuiKey_E)) { handle_vim_key(ImGuiKey_E, 0); vim_key_handled = true; }
+        else if (ImGui::IsKeyDown(ImGuiKey_0)) { handle_vim_key(ImGuiKey_0, 0); vim_key_handled = true; }
+        
         // Block ALL letter keys (A-Z) in Normal mode - don't let them pass to TextEditor
-        for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
-            if (ImGui::IsKeyPressed((ImGuiKey)key)) { 
-                handle_vim_key(key, 0); 
-                vim_key_handled = true; 
-                break; 
+        // Only check on initial press (not repeat) to avoid double-processing
+        if (!vim_key_handled) {
+            for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
+                if (ImGui::IsKeyPressed((ImGuiKey)key)) { 
+                    handle_vim_key(key, 0); 
+                    vim_key_handled = true; 
+                    break; 
+                }
             }
         }
         
@@ -1965,6 +2989,23 @@ void EditorApp::render() {
             if (ImGui::IsKeyPressed(ImGuiKey_V)) { split_vertical(); ctrl_w_pressed = false; return; }
             // Clear ctrl_w if no second key was pressed
             if (!io.KeyCtrl) ctrl_w_pressed = false;
+        }
+        
+        // Handle Ctrl+v for Visual Block mode
+        if (ImGui::IsKeyPressed(ImGuiKey_V) && io.KeyCtrl) {
+            vim_mode_ = VimMode::VisualBlock;
+            return;
+        }
+        
+        // Handle Page Up/Down with Ctrl (Ctrl+B, Ctrl+F, Ctrl+U, Ctrl+D)
+        if (io.KeyCtrl) {
+            if (ImGui::IsKeyPressed(ImGuiKey_PageUp)) {  // Ctrl+B - page up
+                handle_vim_key(ImGuiKey_PageUp, 0);
+                vim_key_handled = true;
+            } else if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) {  // Ctrl+F - page down
+                handle_vim_key(ImGuiKey_PageDown, 0);
+                vim_key_handled = true;
+            }
         }
         
         // After vim key handling, clear ALL letter/number keys to prevent TextEditor from receiving them
@@ -2067,33 +3108,32 @@ void EditorApp::render() {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
-    bool editor_open = ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_MenuBar);
-if (editor_open) {
-        // Render menus using function-based approach (File, Edit, View, Split, Help)
-        render_menu_bar();
-         
-        // Right-click context menu
-        if (ImGui::BeginPopupContextWindow("##ContextMenu")) {
-            if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
-            if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
-            ImGui::Separator();
-            if (ImGui::MenuItem("Toggle Explorer", "Ctrl+B")) show_file_tree_ = !show_file_tree_;
-            if (ImGui::MenuItem("Toggle Terminal", "Ctrl+`")) show_terminal_ = !show_terminal_;
-            ImGui::Separator();
-            if (ImGui::MenuItem("Toggle Git")) show_git_changes_ = !show_git_changes_;
-            if (ImGui::MenuItem("Toggle Symbol")) show_symbol_outline_ = !show_symbol_outline_;
-            ImGui::Separator();
-            if (ImGui::MenuItem("Toggle Line Numbers", nullptr, (bool*)&settings_.show_line_numbers)) settings_.show_line_numbers = !settings_.show_line_numbers;
-            if (ImGui::MenuItem("Toggle Minimap", nullptr, (bool*)&settings_.show_minimap)) settings_.show_minimap = !settings_.show_minimap;
-            if (ImGui::MenuItem("Toggle Code Folding", nullptr, (bool*)&settings_.show_code_folding)) settings_.show_code_folding = !settings_.show_code_folding;
-            if (ImGui::MenuItem("Toggle Bookmark Margin", nullptr, (bool*)&settings_.show_bookmark_margin)) settings_.show_bookmark_margin = !settings_.show_bookmark_margin;
-            if (ImGui::MenuItem("Toggle Change History", nullptr, (bool*)&settings_.show_change_history)) settings_.show_change_history = !settings_.show_change_history;
-            ImGui::EndPopup();
-        }
-        
-        render_editor_area();
-        ImGui::End();
+    ImGui::SetNextWindowFocus();
+    ImGui::Begin("pCode Editor", nullptr, ImGuiWindowFlags_MenuBar);
+    // Always render menus - no conditional
+    render_menu_bar();
+    
+    // Right-click context menu
+    if (ImGui::BeginPopupContextWindow("##ContextMenu")) {
+        if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
+        if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
+        ImGui::Separator();
+        if (ImGui::MenuItem("Toggle Explorer", "Ctrl+B")) show_file_tree_ = !show_file_tree_;
+        if (ImGui::MenuItem("Toggle Terminal", "Ctrl+`")) show_terminal_ = !show_terminal_;
+        if (ImGui::MenuItem("Toggle Status Bar", nullptr)) toggle_status_bar();
+        ImGui::Separator();
+        if (ImGui::MenuItem("Toggle Git")) show_git_changes_ = !show_git_changes_;
+        if (ImGui::MenuItem("Toggle Symbol")) show_symbol_outline_ = !show_symbol_outline_;
+        ImGui::Separator();
+        if (ImGui::MenuItem("Toggle Line Numbers", nullptr)) toggle_line_numbers();
+        if (ImGui::MenuItem("Toggle Minimap", nullptr)) toggle_minimap();
+        if (ImGui::MenuItem("Toggle Code Folding", nullptr)) toggle_code_folding();
+        ImGui::EndPopup();
     }
+    
+    render_editor_area();
+    render_status_bar();
+    ImGui::End();
 
     // Dialogs
     if (show_find_) render_find_dialog();
@@ -2219,6 +3259,16 @@ void EditorApp::render_menu_edit() {
 
 void EditorApp::render_menu_view() {
     if (ImGui::BeginMenu("View")) {
+        // Vim mode toggle
+        bool vim = settings_.enable_vim_mode;
+        if (ImGui::MenuItem("Vim Mode", nullptr, &vim)) {
+            settings_.enable_vim_mode = !settings_.enable_vim_mode;
+            if (!settings_.enable_vim_mode) {
+                vim_mode_ = VimMode::Normal;  // Reset to normal when disabled
+            }
+        }
+        ImGui::Separator();
+        
         if (ImGui::BeginMenu("Zoom")) {
             if (ImGui::MenuItem("Zoom In", "Ctrl++")) zoom_in();
             if (ImGui::MenuItem("Zoom Out", "Ctrl+-")) zoom_out();
@@ -3190,7 +4240,7 @@ void EditorApp::render_status_bar() {
             }
         }
         
-        // Exact format: | MODE | filename | * | Ln,Col | Git:branch | encoding | CRLF | Tab:n | v0.2.96 |
+        // Exact format: | MODE | filename | * | Ln,Col | Git:branch | encoding | CRLF | Tab:n | v0.2.98 |
         ImGui::Text("%s", mode_str);
         ImGui::SameLine();
         ImGui::Text("%s", sep);
@@ -3422,7 +4472,7 @@ if (history_index_ > 0) {
         
         ImGui::SetItemDefaultFocus();
     }
-    
+
     ImGui::End();
     ImGui::PopStyleVar(3);
 }

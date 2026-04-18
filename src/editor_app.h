@@ -77,7 +77,8 @@ struct AppSettings {
     int window_w = 1280;
     int window_h = 800;
     bool dark_theme = true;
-    bool show_status_bar = false;
+    bool show_status_bar = true;
+    bool enable_vim_mode = true;  // Vim keybindings
     bool word_wrap = true;  // Default: word wrap enabled, no horizontal scrollbar
     bool show_line_numbers = false;
     bool show_bookmark_margin = false;
@@ -325,7 +326,7 @@ private:
     char cmd_buf_[256] = {0};
 
 // Vim mode state
-    enum class VimMode { Normal, Insert, Visual, VisualLine, OperatorPending, Command };
+    enum class VimMode { Normal, Insert, Visual, VisualLine, VisualBlock, OperatorPending, Command };
     VimMode vim_mode_ = VimMode::Normal;
     std::string vim_command_buffer_;
     char vim_cmd_input_[256] = {0};
@@ -339,6 +340,21 @@ private:
     char vim_command_input_[256] = "";
     bool execute_vim_command(const std::string& cmd);
     std::string vim_key_buffer_;
+    
+    // Vim character search state (f, F, t, T)
+    char vim_last_find_char_ = 0;
+    bool vim_last_find_reverse_ = false;
+    bool vim_find_pending_ = false;  // true when waiting for search char
+    
+    // Visual Block mode state
+    int visual_block_start_line_ = 0;
+    int visual_block_start_col_ = 0;
+    
+    // Vim motion helpers
+    void vim_move_to_line_start();
+    void vim_move_to_line_end();
+    int vim_count_words_forward(int line, int col);
+    int vim_count_words_backward(int line, int col);
     
     // Splits
     TextEditor* get_active_editor();
