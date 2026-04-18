@@ -78,7 +78,7 @@ struct AppSettings {
     int window_h = 800;
     bool dark_theme = true;
     bool show_status_bar = true;
-    bool enable_vim_mode = true;  // Vim keybindings
+    bool enable_vim_mode = false;  // Vim keybindings disabled until stable
     bool word_wrap = true;  // Default: word wrap enabled, no horizontal scrollbar
     bool show_line_numbers = false;
     bool show_bookmark_margin = false;

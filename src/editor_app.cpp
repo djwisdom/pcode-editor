@@ -3541,7 +3541,7 @@ void EditorApp::render_editor_area() {
     }
 
     float status_height = settings_.show_status_bar ? 24 : 0;
-    float scrollbar_size = ImGui::GetStyle().ScrollbarSize;
+    float h_scrollbar = ImGui::GetStyle().ScrollbarSize;
     // Use content region directly - this accounts for everything
     float editor_width = ImGui::GetContentRegionAvail().x;
     float editor_height = ImGui::GetContentRegionAvail().y;
@@ -3553,7 +3553,7 @@ void EditorApp::render_editor_area() {
     bool show_tabs = settings_.show_tabs && tabs_.size() > 1;
     float tab_height = show_tabs ? ImGui::GetFrameHeight() : 0.0f;
     float editor_area_width = editor_width;
-    float editor_area_height = editor_height - status_height - tab_height;
+    float editor_area_height = editor_height - status_height - tab_height - h_scrollbar;
     static int prev_active_tab = -1;
     
     if (prev_active_tab != active_tab_ && prev_active_tab >= 0 && prev_active_tab < (int)tabs_.size()) {
