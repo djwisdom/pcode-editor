@@ -175,7 +175,7 @@ std::string EditorApp::get_version() {
     } else {
         version = "BUG-merang!!!"; // fallback if VERSION file missing
     }
-    return "pCode Editor version " + version;
+    return "pCode Editor version 0.2.70 (6f291ac)" + version;
 }
 
 // ============================================================================
@@ -2127,6 +2127,14 @@ void EditorApp::render_menu_view() {
         if (ImGui::MenuItem("Status Bar", nullptr, &sb)) toggle_status_bar();
         bool exp = show_file_tree_;
         if (ImGui::MenuItem("Explorer", nullptr, &exp)) toggle_explorer();
+        if (show_file_tree_) {
+            ImGui::Indent();
+            bool exp_left = settings_.explorer_left;
+            if (ImGui::MenuItem("Explorer: Left", nullptr, &exp_left)) settings_.explorer_left = true;
+            bool exp_right = !settings_.explorer_left;
+            if (ImGui::MenuItem("Explorer: Right", nullptr, &exp_right)) settings_.explorer_left = false;
+            ImGui::Unindent();
+        }
         bool ww = settings_.word_wrap;
         if (ImGui::MenuItem("Word Wrap", nullptr, &ww)) toggle_word_wrap();
         bool tabs = settings_.show_tabs;
@@ -2357,6 +2365,15 @@ void EditorApp::render_editor_area() {
                 }
             }
             ImGui::EndTabBar();
+        }
+    }
+    
+    // Render explorer sidebar (left or right based on setting)
+    if (show_file_tree_) {
+        if (settings_.explorer_left) {
+            // Explorer on LEFT side - rendered BEFORE editor
+            render_sidebar();
+            ImGui::SameLine();
         }
     }
     

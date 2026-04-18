@@ -84,6 +84,7 @@ struct AppSettings {
     bool show_minimap = false;
     bool show_spaces = false;
     bool show_tabs = false;
+    bool explorer_left = true;  // Explorer position: true=left, false=right
     int tab_size = 4;
     int font_size = 18;
     int highlight_line = 1;  // 0=none, 1=background, 2=outline
@@ -277,7 +278,7 @@ private:
     bool show_about_ = false;
     
     // Sidebar panels
-    bool show_file_tree_ = false;
+    bool show_file_tree_ = true;
     bool show_git_changes_ = false;
     bool show_symbol_outline_ = false;
     std::string git_branch_ = "main";
