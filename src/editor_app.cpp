@@ -3198,8 +3198,8 @@ void EditorApp::render() {
     // Always render menus - no conditional
     render_menu_bar();
     
-    // Right-click context menu
-    if (ImGui::BeginPopupContextWindow("##ContextMenu")) {
+    // Left-click context menu
+    if (ImGui::BeginPopupContextWindow("##ContextMenu", ImGuiPopupFlags_MouseButtonLeft)) {
         if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
         if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
         ImGui::Separator();
