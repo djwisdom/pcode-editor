@@ -2989,9 +2989,8 @@ void EditorApp::render() {
     // Reset vim input skip flag at start of each frame
     skip_texteditor_input_ = false;
     
-    // Handle Escape - always return to Normal mode when pressed
-    // Also clears any pending input to prevent character insertion
-    if (!terminal_input_active_ && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    // Handle Escape - only when vim mode enabled
+    if (settings_.enable_vim_mode && !terminal_input_active_ && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         vim_mode_ = VimMode::Normal;
         vim_key_buffer_.clear();
         vim_count_ = 0;
