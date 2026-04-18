@@ -6,7 +6,7 @@ Built with **Dear ImGui** + **GLFW** + **ImGuiColorTextEdit** - one codebase, ru
 
 ## Version
 
-**pcode-editor v0.2.28** (2026-04-17)
+**pcode-editor v0.2.95** (2026-04-19)
 
 ---
 

@@ -1923,11 +1923,19 @@ void EditorApp::render() {
     // Only handle vim keys when in Normal mode and editor is focused
     if (vim_mode_ == VimMode::Normal && !terminal_input_active_) {
         bool vim_key_handled = false;
+        
+        // Block ALL letter keys (A-Z) in Normal mode - don't let them pass to TextEditor
         for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
-            if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); vim_key_handled = true; break; }
+            if (ImGui::IsKeyPressed((ImGuiKey)key)) { 
+                handle_vim_key(key, 0); 
+                vim_key_handled = true; 
+                break; 
+            }
         }
+        
+        // Block number keys in Normal mode (only allow count prefix 0-9)
         if (!vim_key_handled) {
-            for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
+            for (int key = ImGuiKey_1; key <= ImGuiKey_9; key++) {
                 if (ImGui::IsKeyPressed((ImGuiKey)key)) { handle_vim_key(key, 0); vim_key_handled = true; break; }
             }
         }
@@ -1959,23 +1967,26 @@ void EditorApp::render() {
             if (!io.KeyCtrl) ctrl_w_pressed = false;
         }
         
-        // After vim key handling, clear keys to prevent TextEditor from receiving them
-        if (vim_key_handled) {
-            // Clear the keys we just handled so TextEditor doesn't see them
-            io.AddKeyEvent(ImGuiKey_J, false);
-            io.AddKeyEvent(ImGuiKey_K, false);
-            io.AddKeyEvent(ImGuiKey_H, false);
-            io.AddKeyEvent(ImGuiKey_L, false);
-            for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
-                io.AddKeyEvent((ImGuiKey)key, false);
-            }
-            for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
-                io.AddKeyEvent((ImGuiKey)key, false);
-            }
-            io.AddKeyEvent(ImGuiKey_Space, false);
-            io.AddKeyEvent(ImGuiKey_Backspace, false);
-            io.AddKeyEvent(ImGuiKey_Tab, false);
+        // After vim key handling, clear ALL letter/number keys to prevent TextEditor from receiving them
+        // This ensures unmapped keys like 'x', 'q', 'z' don't insert text in Normal mode
+        for (int key = ImGuiKey_A; key <= ImGuiKey_Z; key++) {
+            io.AddKeyEvent((ImGuiKey)key, false);
         }
+        for (int key = ImGuiKey_0; key <= ImGuiKey_9; key++) {
+            io.AddKeyEvent((ImGuiKey)key, false);
+        }
+        io.AddKeyEvent(ImGuiKey_Space, false);
+        io.AddKeyEvent(ImGuiKey_Backspace, false);
+        io.AddKeyEvent(ImGuiKey_Tab, false);
+        
+        // Clear InputQueueCharacters to prevent any character input in Normal mode
+        io.InputQueueCharacters.resize(0);
+    }
+    
+    // Clear InputQueueCharacters to prevent any character input in Normal mode
+    if (vim_mode_ == VimMode::Normal && !terminal_input_active_) {
+        ImGuiIO& io = ImGui::GetIO();
+        io.InputQueueCharacters.resize(0);
     }
     
     // Command mode - don't process vim keys or shortcuts, let status bar handle input
@@ -3179,7 +3190,7 @@ void EditorApp::render_status_bar() {
             }
         }
         
-        // Exact format: | MODE | filename | * | Ln,Col | Git:branch | encoding | CRLF | Tab:n | v0.2.95 |
+        // Exact format: | MODE | filename | * | Ln,Col | Git:branch | encoding | CRLF | Tab:n | v0.2.96 |
         ImGui::Text("%s", mode_str);
         ImGui::SameLine();
         ImGui::Text("%s", sep);
