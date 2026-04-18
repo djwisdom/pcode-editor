@@ -2264,9 +2264,6 @@ void EditorApp::render_menu_split() {
 void EditorApp::render_about_dialog() {
     if (!show_about_) return;
     
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    
     if (ImGui::BeginPopupModal("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Personal Code Editor");
         ImGui::Separator();
@@ -2304,8 +2301,8 @@ void EditorApp::render_about_dialog() {
         
         ImGui::Separator();
         
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - ImGui::GetFrameHeight() - ImGui::GetStyle().WindowPadding.x);
-        if (ImGui::Button("OK")) {
+        ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - 50.0f);
+        if (ImGui::Button("OK", ImVec2(50, 0))) {
             show_about_ = false;
         }
         
