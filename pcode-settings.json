@@ -13,6 +13,6 @@
   "tab_size": 4,
   "font_size": 16,
   "font_name": "consola",
-  "last_open_dir": ".",
-  "recent_files": [".\\TESTS.md", ".\\README.md", ".\\src\\editor_app.cpp", ".\\src\\main.cpp", ".\\src\\editor_app.h", ".\\VERSION", ".\\IMPLEMENTATION_SUMMARY.md", ".\\BUILD_SYSTEM.md", ".\\vcpkg.json", ".\\test_vim_motions.obj"]
+  "last_open_dir": ".\\src",
+  "recent_files": [".\\src\\main.cpp", ".\\src\\editor_app.cpp", ".\\TESTS.md", ".\\README.md", ".\\src\\editor_app.h", ".\\VERSION", ".\\IMPLEMENTATION_SUMMARY.md", ".\\BUILD_SYSTEM.md", ".\\vcpkg.json", ".\\test_vim_motions.obj"]
 }

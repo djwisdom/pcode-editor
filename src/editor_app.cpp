@@ -4790,8 +4790,10 @@ void EditorApp::render_terminal() {
     // Terminal as split pane
     int pos = settings_.terminal_position;
     
+    // Solid dark background for terminal
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.05f, 0.05f, 1.0f));
+    
     if (pos == 0) {  // Bottom
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.05f, 0.05f, 1.0f));  // Solid dark background
         ImGui::BeginChild("##Terminal", ImVec2(-1, term_height), true);
         
         // Terminal header
@@ -4860,7 +4862,6 @@ void EditorApp::render_terminal() {
         } else dragging = false;
         
         ImGui::EndChild();
-        ImGui::PopStyleColor();
     } else if (pos == 1) {  // Left
         ImGui::BeginChild("##Terminal", ImVec2(term_width, -1), true);
         ImGui::Text("Terminal"); ImGui::SameLine(); if (ImGui::Button("X")) show_terminal_ = false;
@@ -4909,8 +4910,9 @@ void EditorApp::render_terminal() {
         if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
         if (ImGui::IsItemClicked(0)) dragging = true;
         if (dragging && ImGui::IsMouseDown(0)) { term_height -= ImGui::GetIO().MouseDelta.y; term_height = std::clamp(term_height, 100.0f, 400.0f); } else dragging = false;
-ImGui::EndChild();
+        ImGui::EndChild();
     }
+    ImGui::PopStyleColor();
 }
 
 // ============================================================================
