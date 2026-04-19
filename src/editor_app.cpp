@@ -3046,6 +3046,7 @@ void EditorApp::render() {
             if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab(active_tab_); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_tab(); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_tab(active_tab_); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_E)) { toggle_explorer(); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_F)) { show_find_ = true; return; }
             if (ImGui::IsKeyPressed(ImGuiKey_H)) { show_replace_ = true; return; }
             if (ImGui::IsKeyPressed(ImGuiKey_G)) { show_goto_ = true; return; }
@@ -3282,6 +3283,14 @@ void EditorApp::render_menu_view() {
         bool sp = settings_.show_spaces;
         if (ImGui::MenuItem("Show Spaces", nullptr, &sp)) toggle_spaces();
         ImGui::Separator();
+        bool explorer = (explorer_side_ != -1);
+        if (ImGui::MenuItem("Explorer", "Ctrl+E", &explorer)) {
+            if (!explorer) explorer_side_ = -1;
+            else if (explorer_side_ == -1) explorer_side_ = 0;
+            else explorer_side_ = (explorer_side_ == 0) ? 1 : 0;
+            show_file_tree_ = (explorer_side_ != -1);
+        }
+        ImGui::Separator();
         if (ImGui::MenuItem("Validate Layout", "Ctrl+Shift+L")) validate_layout();
         // Line Numbers always on (ImGui default), highlight, bookmarks, etc - not controllable
         ImGui::Separator();
@@ -3517,90 +3526,43 @@ void EditorApp::render_editor_area() {
         }
     }
     
-    // ===== EXPLORER (RADIO: LEFT/RIGHT/NONE) =====
-    static float explorer_w = 200;
-    static float explorer_ratio = 0.2f;  // Proportional to window
+    // Collapsible sidebar - always visible on left
+    static float sidebar_w = 200;
+    static bool sidebar_expanded = false;
     static bool dragging = false;
     
-    float avail_width = ImGui::GetContentRegionAvail().x;
+    if (ImGui::Button(sidebar_expanded ? "<" : ">")) {
+        sidebar_expanded = !sidebar_expanded;
+    }
+    ImGui::SameLine();
     
-    // Handle hidden state
-    if (explorer_side_ == -1) {
-        ImGui::BeginChild("##EditorOnly", ImVec2(avail_width, -1), false);
+    if (sidebar_expanded) {
+        ImGui::BeginChild("##Sidebar", ImVec2(sidebar_w, -1), true);
+        ImGui::Text("Files");
+        ImGui::Separator();
         if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            render_editor_with_margins();
+            render_symbol_outline();
         }
         ImGui::EndChild();
-        return;
-    }
-    
-    // Seamless proportional resize - maintain ratio when window changes
-    if (!dragging && avail_width > 0) {
-        explorer_w = avail_width * explorer_ratio;
-        if (explorer_w < 100) explorer_w = 100;
-        if (explorer_w > 500) explorer_w = 500;
-    }
-    
-    float edit_w = avail_width - explorer_w - 4;  // Account for splitter
-    if (edit_w < 100) edit_w = 100;
-    
-    if (explorer_side_ == 0) {
-        // Left explorer
-        ImGui::BeginChild("##ExplorerLeft", ImVec2(explorer_w, -1), true);
-        render_sidebar();
-        ImGui::EndChild();
         
-        // Splitter
+        // Resize handle
         ImGui::SameLine();
-        ImGui::InvisibleButton("##splitter", ImVec2(4, -1));
+        ImGui::InvisibleButton("##sidebarsplit", ImVec2(4, -1));
         if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         if (ImGui::IsItemClicked(0)) dragging = true;
         if (dragging && ImGui::IsMouseDown(0)) {
-            explorer_w += ImGui::GetIO().MouseDelta.x;
-            if (explorer_w < 100) explorer_w = 100;
-            if (explorer_w > 500) explorer_w = 500;
-            edit_w = avail_width - explorer_w;
-            if (avail_width > 0) explorer_ratio = explorer_w / avail_width;
-        } else if (!ImGui::IsMouseDown(0)) {
-            if (avail_width > 0) explorer_ratio = explorer_w / avail_width;
+            sidebar_w += ImGui::GetIO().MouseDelta.x;
+            sidebar_w = std::clamp(sidebar_w, 100.0f, 500.0f);
+        } else {
             dragging = false;
         }
         
-        // Editor
         ImGui::SameLine();
-        ImGui::BeginChild("##EditorWithLeftExplorer", ImVec2(edit_w, -1), false);
-        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            render_editor_with_margins();
-        }
-        ImGui::EndChild();
-    } else {
-        // Editor first (left side)
-        ImGui::BeginChild("##EditorWithRightExplorer", ImVec2(edit_w, -1), false);
-        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            render_editor_with_margins();
-        }
-        ImGui::EndChild();
-        
-        // Splitter
-        ImGui::SameLine();
-        ImGui::InvisibleButton("##splitter", ImVec2(4, -1));
-        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        if (ImGui::IsItemClicked(0)) dragging = true;
-        if (dragging && ImGui::IsMouseDown(0)) {
-            explorer_w -= ImGui::GetIO().MouseDelta.x;
-            if (explorer_w < 100) explorer_w = 100;
-            if (explorer_w > 500) explorer_w = 500;
-            if (avail_width > 0) explorer_ratio = explorer_w / avail_width;
-        } else if (!ImGui::IsMouseDown(0)) {
-            if (avail_width > 0) explorer_ratio = explorer_w / avail_width;
-            dragging = false;
-        }
-        
-        // Right explorer
-        ImGui::SameLine();
-        ImGui::BeginChild("##ExplorerRight", ImVec2(explorer_w, -1), true);
-        render_sidebar();
-        ImGui::EndChild();
+    }
+    
+    // Editor
+    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+        render_editor_with_margins();
     }
 }
 

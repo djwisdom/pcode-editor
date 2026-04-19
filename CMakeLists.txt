@@ -92,7 +92,12 @@ if(NOT TARGET nfd::nfd)
     FetchContent_MakeAvailable(nfd)
 endif()
 
-# ImGuiColorTextEdit — syntax highlighting (not in vcpkg, always FetchContent)
+# Zep — embeddable code editor with word wrap support
+# NOTE: Zep v0.1.12 requires significant API changes to integrate properly.
+# For now using ImGuiColorTextEdit (no word wrap).
+set(zep_SOURCE_DIR "build/_deps/zep-0.1.12" CACHE PATH "Zep source (not integrated)")
+
+# ImGuiColorTextEdit — syntax highlighting
 FetchContent_Declare(
     imgui_coloredit
     GIT_REPOSITORY https://github.com/BalazsJako/ImGuiColorTextEdit.git

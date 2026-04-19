@@ -1,29 +1,42 @@
 # pcode-editor
 
-A Vim-like code editor using Dear ImGui, GLFW, and ImGuiColorTextEdit.
+A code editor using Dear ImGui, GLFW, and ImGuiColorTextEdit.
 
 ## Current Capabilities
 
-- **Code editing** - Syntax highlighting via TextEditor (ImGuiColorTextEdit)
-- **Multi-tab editing** - Multiple files in tabs
+- **Code editing** - Syntax highlighting via TextEditor
+- **Multi-tab editing** - Multiple files in tabs with collapsible Poorman's tree-sitter
 - **File operations** - Open, save, new, recent files
 - **Basic edit operations** - Copy, cut, paste, undo, redo
 - **Find/Replace** - Search and replace text
-- **Status bar** - Shows file info, cursor position
+- **Status bar** - Shows mode, filename, cursor position, encoding, tab size
+- **Command bar** - Bottom input for commands
 - **Dark/Light theme** - Toggle via menu
 - **Font resizing** - Zoom in/out
-- **Multi-viewport** - ImGui viewports enabled
+
+## Current Layout
+
+```
+Menu [=] Tab[+] Tab[+] Tab[+]  (hamburger menu contains File/Edit/View/Help)
+[|< ][        editor area                            ]
+[ ..][                                            ]
+[file][        editor area                            ]
+[file][                                            ]
+[file][        editor area                            ]
+[ NORMAL untitled * Ln 1, Col 1 UTF-8 LF Tab:4 ]  (status bar)
+[:command_bar_____________________________________]  (command bar)
+```
 
 ## Removed Features (Not Working)
 
-- Terminal (removed)
-- Explorer/File tree (removed)
-- Vim mode (removed)
-- Bookmarks (removed)
-- Minimap (removed)
-- Code folding (removed)
-- Line highlight (removed)
-- Change history (removed)
+- Terminal - ImGui can't get raw keyboard input for interactive shells
+- Vim mode - Incompatible with ImGui's input model
+- Minimap - Not implemented
+- Code folding - Not implemented
+- Bookmarks - Not implemented
+- Multi-viewport - Disabled (windows stay in main window)
+
+## Building
 
 ## Building
 
@@ -46,4 +59,4 @@ A Vim-like code editor using Dear ImGui, GLFW, and ImGuiColorTextEdit.
 
 ## Version
 
-0.7.1
+0.8.0
