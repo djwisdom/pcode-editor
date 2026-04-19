@@ -4845,9 +4845,11 @@ void EditorApp::render_terminal() {
         std::string prompt = std::string(cwd) + "$ ";
 #endif
         
-        // Terminal input
+        // Terminal input - standard input field
         static char term_input[256] = "";
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        
+        // Send on Enter - basic terminal behavior
         if (ImGui::InputText("##term_input", term_input, sizeof(term_input), ImGuiInputTextFlags_EnterReturnsTrue)) {
             if (terminal_stdin_ && strlen(term_input) > 0) {
                 std::string cmd = term_input;
@@ -4859,6 +4861,45 @@ void EditorApp::render_terminal() {
                 write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
 #endif
                 memset(term_input, 0, sizeof(term_input));
+            }
+        }
+        
+        // Special keys for interactive programs - send when field is focused
+        bool focused = ImGui::IsItemFocused();
+        if (focused && terminal_stdin_) {
+            ImGuiIO& io = ImGui::GetIO();
+            // Ctrl+C to interrupt
+            if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C)) {
+                std::string cmd = "\x03";
+                DWORD written;
+                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), 1, &written, nullptr);
+            }
+            // Ctrl+D for EOF
+            if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D)) {
+                std::string cmd = "\x04";
+                DWORD written;
+                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), 1, &written, nullptr);
+            }
+            // Up/Down for history
+            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
+                std::string cmd = "\x1b[A";
+                DWORD written;
+                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), 3, &written, nullptr);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
+                std::string cmd = "\x1b[B";
+                DWORD written;
+                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), 3, &written, nullptr);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) {
+                std::string cmd = "\x1b[D";
+                DWORD written;
+                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), 3, &written, nullptr);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) {
+                std::string cmd = "\x1b[C";
+                DWORD written;
+                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), 3, &written, nullptr);
             }
         }
         
