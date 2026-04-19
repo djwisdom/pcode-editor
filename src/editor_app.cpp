@@ -527,16 +527,23 @@ void EditorApp::new_tab() {
 }
 
 void EditorApp::new_terminal_tab() {
+    // Count existing terminal tabs
+    int terminal_count = 0;
+    for (auto& tab : tabs_) {
+        if (tab.is_terminal) terminal_count++;
+    }
+    if (terminal_count >= 10) return;  // Max 10 terminals
+    
     EditorTab tab;
-    tab.display_name = "Terminal";
+    tab.display_name = "Terminal " + std::to_string(terminal_count + 1);
     tab.is_terminal = true;
     tab.editor = nullptr;
     
     tabs_.push_back(std::move(tab));
     active_tab_ = (int)tabs_.size() - 1;
     
-    // Start terminal process for this tab
-    if (!terminal_process_) start_terminal();
+    // Each terminal tab gets its own process
+    start_terminal();
 }
 
 void EditorApp::new_window() {
