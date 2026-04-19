@@ -3353,14 +3353,15 @@ void EditorApp::render_about_dialog() {
         ImGui::Separator();
         
         std::string version = get_version();
-        std::string commit_hash = version.substr(version.find("(") + 1);
-        commit_hash = commit_hash.substr(0, commit_hash.find(")"));
+        std::string full_hash = version.substr(version.find("(") + 1);
+        full_hash = full_hash.substr(0, full_hash.find(")"));
+        std::string short_hash = full_hash.substr(0, 7);
         
-        ImGui::Text("Version: %s", version.c_str());
-        ImGui::Text("Commit: %s", commit_hash.c_str());
+        ImGui::Text("Version: %s (%s)", version.substr(15, 5).c_str(), short_hash.c_str());
+        ImGui::Text("Commit: %s", full_hash.c_str());
         
         // Build date - use static compile time
-        ImGui::Text("Built: " __DATE__ " " __TIME__);
+        ImGui::Text("Built: " __DATE__);
         
         // Get version strings at runtime
         int glfw_major, glfw_minor, glfw_rev;
@@ -3370,7 +3371,7 @@ void EditorApp::render_about_dialog() {
         ImGui::Text("ImGuiColorTextEdit: 1.0");
         
 #if defined(_WIN32)
-        ImGui::Text("OS: Windows");
+        ImGui::Text("OS: Microsoft Windows");
 #elif defined(__APPLE__)
         ImGui::Text("OS: Apple");
 #elif defined(__linux__)
@@ -3378,6 +3379,13 @@ void EditorApp::render_about_dialog() {
 #else
         ImGui::Text("OS: Unknown");
 #endif
+        
+        ImGui::Separator();
+        
+        ImGui::Text("SPDX-License-Identifier: BSD-2-Clause");
+        ImGui::Text("Copyright (c) 2026 pCode Editor Development Team");
+        ImGui::Text("Author: Dennis O. Esternon <djwisdom@serenityos.org>");
+        ImGui::Text("Contributors: see CONTRIBUTORS or git history");
         
         ImGui::Separator();
         
