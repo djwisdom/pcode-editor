@@ -3355,12 +3355,16 @@ void EditorApp::render_about_dialog() {
         ImGui::Separator();
         ImGui::Dummy(ImVec2(0, 10));
         
+        // VERSION format: "0.6.3 (hash)"
         std::string version = get_version();
-        std::string full_hash = version.substr(version.find("(") + 1);
-        full_hash = full_hash.substr(0, full_hash.find(")"));
-        std::string short_hash = full_hash.substr(0, 7);
+        size_t start = version.find("0.");  // Find "0.x" start
+        size_t paren = version.find(" (");  // Find " ("
+        std::string ver_part = version.substr(start, paren - start);  // "0.6.3"
+        std::string full_hash = version.substr(paren + 2);  // after " ("
+        full_hash = full_hash.substr(0, full_hash.find(")"));  // hash
+        std::string short_hash = full_hash.substr(0, 7);  // short hash
         
-        ImGui::Text("Version: %s (%s)", version.substr(15, 5).c_str(), short_hash.c_str());
+        ImGui::Text("Version: %s (%s)", ver_part.c_str(), short_hash.c_str());
         ImGui::Text("Commit: %s", full_hash.c_str());
         ImGui::Text("Built: " __DATE__);
         
