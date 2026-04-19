@@ -1,78 +1,49 @@
-# pcode-editor Documentation
+# pcode-editor
 
-## Quick Links
+A Vim-like code editor using Dear ImGui, GLFW, and ImGuiColorTextEdit.
 
-| Document | Description |
-|----------|-------------|
-| [README](../README.md) | Project overview |
-| [User Guide](userguide.md) | End-user documentation |
-| [Developer's Guide](developer.md) | Contributing & architecture |
-| [API Reference](API.md) | Class & function reference |
-| [Architecture](ARCHITECTURE.md) | System design |
-| [Contributing](CONTRIBUTING.md) | How to contribute |
+## Current Capabilities
+
+- **Code editing** - Syntax highlighting via TextEditor (ImGuiColorTextEdit)
+- **Multi-tab editing** - Multiple files in tabs
+- **File operations** - Open, save, new, recent files
+- **Basic edit operations** - Copy, cut, paste, undo, redo
+- **Find/Replace** - Search and replace text
+- **Status bar** - Shows file info, cursor position
+- **Dark/Light theme** - Toggle via menu
+- **Font resizing** - Zoom in/out
+- **Multi-viewport** - ImGui viewports enabled
+
+## Removed Features (Not Working)
+
+- Terminal (removed)
+- Explorer/File tree (removed)
+- Vim mode (removed)
+- Bookmarks (removed)
+- Minimap (removed)
+- Code folding (removed)
+- Line highlight (removed)
+- Change history (removed)
 
 ## Building
 
-### Windows
 ```bash
-./scripts/build-windows.bat
+./scripts/build-windows.bat   # Windows
+./scripts/build-linux.sh  # Linux
 ```
 
-### Linux
-```bash
-./scripts/build-linux.sh  # or ./scripts/build-linux.sh Release vcpkg
-```
+## Keyboard Shortcuts
 
-### FreeBSD
-```bash
-./scripts/build-freebsd.sh
-```
-
-### With vcpkg
-```bash
-vcpkg install glfw3 imgui[core,opengl3-glad] native-file-dialog-extended
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake
-cmake --build build
-```
-
-## Project Structure
-
-```
-pcode-editor/
-├── src/
-│   ├── main.cpp          # Entry point
-│   ├── editor_app.h      # Class definitions
-│   └── editor_app.cpp    # Implementation (~4200 lines)
-├── tests/
-│   ├── test_vim_motions.cpp
-│   └── test_view_features.cpp
-├── scripts/
-│   ├── build-windows.bat
-│   ├── build-linux.sh
-│   └── build-freebsd.sh
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── API.md
-│   ├── developer.md
-│   ├── CONTRIBUTING.md
-│   └── userguide.md
-├── CMakeLists.txt
-├── vcpkg.json
-└── VERSION
-```
-
-## Key Features
-
-- Vim-like keybindings (toggle in View → Vim Mode)
-- Syntax highlighting (20+ languages)
-- Split views (horizontal/vertical)
-- File explorer sidebar
-- Terminal support
-- Tab system
-- Drag-and-drop file opening
+- `Ctrl+O` - Open file
+- `Ctrl+S` - Save
+- `Ctrl+N` - New file
+- `Ctrl+F` - Find
+- `Ctrl+H` - Replace
+- `Ctrl+W` - Close tab
+- `Ctrl++` - Zoom in
+- `Ctrl+-` - Zoom out
+- `Ctrl+0` - Reset zoom
 
 ## Version
 
-Current: 0.3.0
-
-See [VERSION](../VERSION) for full version and commit hash.
+0.7.1
