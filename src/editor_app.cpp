@@ -4845,49 +4845,20 @@ void EditorApp::render_terminal() {
         std::string prompt = std::string(cwd) + "$ ";
 #endif
         
-        // Terminal uses direct keyboard capture
-        // Show prompt
-        ImGui::Text("%s", prompt.c_str());
-        
-        // Direct keyboard capture when terminal focused
-        if (ImGui::IsWindowFocused()) {
-            ImGuiIO& io = ImGui::GetIO();
-            for (int c = 32; c < 127; c++) {
-                if (io.InputQueueCharacters.size() == 0 && ImGui::IsKeyPressed((ImGuiKey)c)) {
-                    char ch = (char)c;
-                    std::string cmd(1, ch);
-                    cmd += "\n";
-                    if (terminal_stdin_) {
+        // Terminal input
+        static char term_input[256] = "";
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::InputText("##term_input", term_input, sizeof(term_input), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            if (terminal_stdin_ && strlen(term_input) > 0) {
+                std::string cmd = term_input;
+                cmd += "\n";
 #ifdef _WIN32
-                        DWORD written;
-                        WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+                DWORD written;
+                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
 #else
-                        write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
+                write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
 #endif
-                    }
-                }
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-                std::string cmd = "\n";
-                if (terminal_stdin_) {
-#ifdef _WIN32
-                    DWORD written;
-                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
-#else
-                    write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
-#endif
-                }
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
-                std::string cmd = "\b";
-                if (terminal_stdin_) {
-#ifdef _WIN32
-                    DWORD written;
-                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
-#else
-                    write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
-#endif
-                }
+                memset(term_input, 0, sizeof(term_input));
             }
         }
         
