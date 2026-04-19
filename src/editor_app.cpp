@@ -3077,16 +3077,16 @@ void EditorApp::render() {
         if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
         if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
         ImGui::Separator();
-        if (ImGui::MenuItem("Toggle Explorer", "Ctrl+B")) show_file_tree_ = !show_file_tree_;
-        if (ImGui::MenuItem("Toggle Terminal", "Ctrl+`")) show_terminal_ = !show_terminal_;
-        if (ImGui::MenuItem("Toggle Status Bar", nullptr)) toggle_status_bar();
+        if (ImGui::MenuItem("Explorer", nullptr, &show_file_tree_)) {}
+        if (ImGui::MenuItem("Terminal", nullptr, &show_terminal_)) {}
+        if (ImGui::MenuItem("Status Bar", nullptr, &settings_.show_status_bar)) toggle_status_bar();
         ImGui::Separator();
-        if (ImGui::MenuItem("Toggle Git")) show_git_changes_ = !show_git_changes_;
-        if (ImGui::MenuItem("Toggle Symbol")) show_symbol_outline_ = !show_symbol_outline_;
+        if (ImGui::MenuItem("Git", nullptr, &show_git_changes_)) {}
+        if (ImGui::MenuItem("Symbol", nullptr, &show_symbol_outline_)) {}
         ImGui::Separator();
-        if (ImGui::MenuItem("Toggle Line Numbers", nullptr)) toggle_line_numbers();
-        if (ImGui::MenuItem("Toggle Minimap", nullptr)) toggle_minimap();
-        if (ImGui::MenuItem("Toggle Code Folding", nullptr)) toggle_code_folding();
+        if (ImGui::MenuItem("Line Numbers", nullptr, &settings_.show_line_numbers)) toggle_line_numbers();
+        if (ImGui::MenuItem("Minimap", nullptr, &settings_.show_minimap)) toggle_minimap();
+        if (ImGui::MenuItem("Code Folding", nullptr, &settings_.show_code_folding)) toggle_code_folding();
         ImGui::EndPopup();
     }
     
