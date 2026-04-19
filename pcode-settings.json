@@ -2,7 +2,7 @@
   "window_w": 984,
   "window_h": 731,
   "dark_theme": true,
-  "show_status_bar": false,
+  "show_status_bar": true,
   "enable_vim_mode": false,
   "word_wrap": true,
   "show_line_numbers": true,

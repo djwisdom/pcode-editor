@@ -4811,6 +4811,8 @@ void EditorApp::render_terminal() {
     // Solid dark background for terminal
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.05f, 0.05f, 1.0f));
     
+    // pos 0=bottom, 1=left, 2=top, 3=right
+    
     if (pos == 0) {  // Bottom
         ImGui::BeginChild("##Terminal", ImVec2(-1, term_height), true);
         
@@ -4843,11 +4845,9 @@ void EditorApp::render_terminal() {
         std::string prompt = std::string(cwd) + "$ ";
 #endif
         
-        // Terminal uses direct keyboard capture - no ImGui input field
+        // Terminal uses direct keyboard capture
         // Show prompt
         ImGui::Text("%s", prompt.c_str());
-        ImGui::SameLine();
-        ImGui::Text("[type directly - enter sends]");
         
         // Direct keyboard capture when terminal focused
         if (ImGui::IsWindowFocused()) {
