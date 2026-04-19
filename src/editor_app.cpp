@@ -206,9 +206,9 @@ std::string EditorApp::get_version() {
     
     // If file not found, use embedded default
     if (version.empty()) {
-        version = "0.7.1 (887481c38cbbb88e7d96fd4dddf5be8f4f6c8f1e)";
+        version = "0.8.0 (442ca2885e44d8cf8ee8f2a9a6ddb5eb6abf2de6)";
     }
-    return "pCode Editor version 0.7.1 (887481c38cbbb88e7d96fd4dddf5be8f4f6c8f1e)" + version;
+    return "pCode Editor version 0.8.0 (442ca2885e44d8cf8ee8f2a9a6ddb5eb6abf2de6)" + version;
 }
 
 // ============================================================================
@@ -3126,16 +3126,12 @@ void EditorApp::render() {
         if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
         if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
         ImGui::Separator();
-        if (ImGui::MenuItem("Terminal", nullptr, &show_terminal_)) {
-            if (show_terminal_ && !terminal_process_) start_terminal();
-        }
         if (ImGui::MenuItem("Status Bar", nullptr, &settings_.show_status_bar)) toggle_status_bar();
         ImGui::Separator();
         if (ImGui::MenuItem("Git", nullptr, &show_git_changes_)) {}
         if (ImGui::MenuItem("Symbol", nullptr, &show_symbol_outline_)) {}
         ImGui::Separator();
         if (ImGui::MenuItem("Line Numbers", nullptr, &settings_.show_line_numbers)) toggle_line_numbers();
-        // Minimap, Code Folding, Bookmarks, Change History - disabled (not working)
         ImGui::EndPopup();
     }
     
@@ -3277,17 +3273,6 @@ void EditorApp::render_menu_view() {
         ImGui::Separator();
         bool sb = settings_.show_status_bar;
         if (ImGui::MenuItem("Status Bar", nullptr, &sb)) toggle_status_bar();
-        bool exp = show_file_tree_;
-        if (ImGui::MenuItem("Explorer", nullptr, &exp)) toggle_explorer();
-        if (ImGui::BeginMenu("Explorer Side")) {
-            bool exp_left = (explorer_side_ == 0);
-            bool exp_right = (explorer_side_ == 1);
-            bool exp_none = (explorer_side_ == -1);
-            if (ImGui::MenuItem("Left", nullptr, &exp_left)) { explorer_side_ = 0; show_file_tree_ = true; }
-            if (ImGui::MenuItem("Right", nullptr, &exp_right)) { explorer_side_ = 1; show_file_tree_ = true; }
-            if (ImGui::MenuItem("None", nullptr, &exp_none)) { explorer_side_ = -1; show_file_tree_ = false; }
-            ImGui::EndMenu();
-        }
         bool ww = settings_.word_wrap;
         if (ImGui::MenuItem("Word Wrap", nullptr, &ww)) toggle_word_wrap();
         bool tabs = settings_.show_tabs;
@@ -3377,8 +3362,9 @@ void EditorApp::render_about_dialog() {
     if (!show_about_) return;
     
     // Center on main window
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * 0.5f, vp->Pos.y + vp->Size.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiCond_Always);
     
     ImGui::OpenPopup("About");
     if (ImGui::BeginPopupModal("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -3388,17 +3374,16 @@ void EditorApp::render_about_dialog() {
         ImGui::Separator();
         ImGui::Dummy(ImVec2(0, 10));
         
-        // VERSION format: "0.6.3 (hash)"
+        // VERSION format: "0.8.0 (hash)"
         std::string version = get_version();
-        size_t start = version.find("0.");  // Find "0.x" start
+        size_t start = version.find("0.");  // Find "0.8" start
         size_t paren = version.find(" (");  // Find " ("
-        std::string ver_part = version.substr(start, paren - start);  // "0.6.3"
+        std::string ver_part = version.substr(start, paren - start);  // "0.8.0"
         std::string full_hash = version.substr(paren + 2);  // after " ("
         full_hash = full_hash.substr(0, full_hash.find(")"));  // hash
         std::string short_hash = full_hash.substr(0, 7);  // short hash
         
         ImGui::Text("Version: %s (%s)", ver_part.c_str(), short_hash.c_str());
-        ImGui::Text("Commit: %s", full_hash.c_str());
         ImGui::Text("Built: " __DATE__);
         
         ImGui::Dummy(ImVec2(0, 10));
