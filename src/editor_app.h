@@ -298,6 +298,7 @@ private:
     
     // Sidebar panels
     bool show_file_tree_ = true;
+    int explorer_side_ = 0;  // 0=left, 1=right, -1=hidden (radio behavior)
     bool show_git_changes_ = false;
     bool show_symbol_outline_ = false;
     std::string git_branch_ = "main";

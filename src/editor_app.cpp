@@ -954,7 +954,11 @@ void EditorApp::toggle_status_bar() {
 }
 
 void EditorApp::toggle_explorer() {
-    show_file_tree_ = !show_file_tree_;
+    // Cycle: left -> right -> hidden -> left (radio behavior)
+    if (explorer_side_ == 0) explorer_side_ = 1;
+    else if (explorer_side_ == 1) explorer_side_ = -1;
+    else explorer_side_ = 0;
+    show_file_tree_ = (explorer_side_ != -1);
 }
 
 void EditorApp::toggle_word_wrap() {
@@ -3278,13 +3282,14 @@ void EditorApp::render_menu_view() {
         if (ImGui::MenuItem("Status Bar", nullptr, &sb)) toggle_status_bar();
         bool exp = show_file_tree_;
         if (ImGui::MenuItem("Explorer", nullptr, &exp)) toggle_explorer();
-        if (show_file_tree_) {
-            ImGui::Indent();
-            bool exp_left = settings_.explorer_left;
-            if (ImGui::MenuItem("Explorer: Left", nullptr, &exp_left)) settings_.explorer_left = true;
-            bool exp_right = !settings_.explorer_left;
-            if (ImGui::MenuItem("Explorer: Right", nullptr, &exp_right)) settings_.explorer_left = false;
-            ImGui::Unindent();
+        if (ImGui::BeginMenu("Explorer Side")) {
+            bool exp_left = (explorer_side_ == 0);
+            bool exp_right = (explorer_side_ == 1);
+            bool exp_none = (explorer_side_ == -1);
+            if (ImGui::MenuItem("Left", nullptr, &exp_left)) { explorer_side_ = 0; show_file_tree_ = true; }
+            if (ImGui::MenuItem("Right", nullptr, &exp_right)) { explorer_side_ = 1; show_file_tree_ = true; }
+            if (ImGui::MenuItem("None", nullptr, &exp_none)) { explorer_side_ = -1; show_file_tree_ = false; }
+            ImGui::EndMenu();
         }
         bool ww = settings_.word_wrap;
         if (ImGui::MenuItem("Word Wrap", nullptr, &ww)) toggle_word_wrap();
@@ -3542,76 +3547,84 @@ void EditorApp::render_editor_area() {
         }
     }
     
-    // ===== BOTH EXPLORERS VISIBLE WITH RESIZE =====
-    static float left_exp_w = 200;
-    static float right_exp_w = 200;
+    // ===== EXPLORER (RADIO: LEFT/RIGHT/NONE) =====
+    static float explorer_w = 200;
     static float last_avail_width = 0;
-    static bool dragging_left = false;
-    static bool dragging_right = false;
+    static bool dragging = false;
     
     float avail_width = ImGui::GetContentRegionAvail().x;
     
-    // Auto-adjust explorers when window resizes significantly (more than 50px change)
-    if (last_avail_width > 0 && fabsf(avail_width - last_avail_width) > 50 && !dragging_left && !dragging_right) {
-        float diff = avail_width - last_avail_width;
-        right_exp_w += diff;
-        if (right_exp_w < 100) right_exp_w = 100;
-        if (right_exp_w > 500) right_exp_w = 500;
+    // Handle hidden state
+    if (explorer_side_ == -1) {
+        ImGui::BeginChild("##EditorOnly", ImVec2(avail_width, -1), false);
+        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+            render_editor_with_margins();
+        }
+        ImGui::EndChild();
+        return;
+    }
+    
+    // Auto-adjust when window resizes
+    if (last_avail_width > 0 && fabsf(avail_width - last_avail_width) > 50 && !dragging) {
+        explorer_w = avail_width * 0.2f;
+        if (explorer_w < 100) explorer_w = 100;
+        if (explorer_w > 500) explorer_w = 500;
     }
     last_avail_width = avail_width;
     
-    // Recalculate editor width after any auto-adjustments
-    float edit_w = avail_width - left_exp_w - right_exp_w;
-    if (edit_w < 100) {
-        edit_w = 100;
-        if (avail_width < left_exp_w + right_exp_w + 100) {
-            left_exp_w = avail_width * 0.2f;
-            right_exp_w = avail_width * 0.2f;
-            if (left_exp_w < 100) left_exp_w = 100;
-            if (right_exp_w < 100) right_exp_w = 100;
-            edit_w = avail_width - left_exp_w - right_exp_w;
+    float edit_w = avail_width - explorer_w;
+    if (edit_w < 100) edit_w = 100;
+    
+    if (explorer_side_ == 0) {
+        // Left explorer
+        ImGui::BeginChild("##ExplorerLeft", ImVec2(explorer_w, -1), true);
+        render_sidebar();
+        ImGui::EndChild();
+        
+        // Splitter
+        ImGui::SameLine();
+        ImGui::InvisibleButton("##splitter", ImVec2(4, -1));
+        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        if (ImGui::IsItemClicked(0)) dragging = true;
+        if (dragging && ImGui::IsMouseDown(0)) {
+            explorer_w += ImGui::GetIO().MouseDelta.x;
+            if (explorer_w < 100) explorer_w = 100;
+            if (explorer_w > 500) explorer_w = 500;
+            edit_w = avail_width - explorer_w;
+        } else if (!ImGui::IsMouseDown(0)) dragging = false;
+        
+        // Editor
+        ImGui::SameLine();
+        ImGui::BeginChild("##EditorWithLeftExplorer", ImVec2(edit_w, -1), false);
+        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+            render_editor_with_margins();
         }
+        ImGui::EndChild();
+    } else {
+        // Editor first (left side)
+        ImGui::BeginChild("##EditorWithRightExplorer", ImVec2(edit_w, -1), false);
+        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+            render_editor_with_margins();
+        }
+        ImGui::EndChild();
+        
+        // Splitter
+        ImGui::SameLine();
+        ImGui::InvisibleButton("##splitter", ImVec2(4, -1));
+        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        if (ImGui::IsItemClicked(0)) dragging = true;
+        if (dragging && ImGui::IsMouseDown(0)) {
+            explorer_w -= ImGui::GetIO().MouseDelta.x;
+            if (explorer_w < 100) explorer_w = 100;
+            if (explorer_w > 500) explorer_w = 500;
+        } else if (!ImGui::IsMouseDown(0)) dragging = false;
+        
+        // Right explorer
+        ImGui::SameLine();
+        ImGui::BeginChild("##ExplorerRight", ImVec2(explorer_w, -1), true);
+        render_sidebar();
+        ImGui::EndChild();
     }
-    
-    // Left explorer
-    ImGui::BeginChild("##ExplorerLeft", ImVec2(left_exp_w, -1), true);
-    render_sidebar();
-    ImGui::EndChild();
-    
-    // Splitter: Left explorer <-> Editor
-    ImGui::SameLine();
-    ImGui::InvisibleButton("##splitter_left", ImVec2(4, -1));
-    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-    if (ImGui::IsItemClicked(0)) dragging_left = true;
-    if (dragging_left && ImGui::IsMouseDown(0)) {
-        left_exp_w += ImGui::GetIO().MouseDelta.x;
-        left_exp_w = std::clamp(left_exp_w, 100.0f, 400.0f);
-        edit_w = avail_width - left_exp_w - right_exp_w;
-    } else if (!ImGui::IsMouseDown(0)) dragging_left = false;
-    
-    // Editor in middle
-    ImGui::SameLine();
-    ImGui::BeginChild("##EditorWithBothExplorers", ImVec2(edit_w, -1), false);
-    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-        render_editor_with_margins();
-    }
-    ImGui::EndChild();
-    
-    // Splitter: Editor <-> Right explorer
-    ImGui::SameLine();
-    ImGui::InvisibleButton("##splitter_right", ImVec2(4, -1));
-    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-    if (ImGui::IsItemClicked(0)) dragging_right = true;
-    if (dragging_right && ImGui::IsMouseDown(0)) {
-        right_exp_w -= ImGui::GetIO().MouseDelta.x;
-        right_exp_w = std::clamp(right_exp_w, 100.0f, 400.0f);
-    } else if (!ImGui::IsMouseDown(0)) dragging_right = false;
-    
-    // Right explorer  
-    ImGui::SameLine();
-    ImGui::BeginChild("##ExplorerRight", ImVec2(right_exp_w, -1), true);
-    render_sidebar();
-    ImGui::EndChild();
 }
 
 void EditorApp::render_editor_with_margins() {
@@ -4778,6 +4791,7 @@ void EditorApp::render_terminal() {
     int pos = settings_.terminal_position;
     
     if (pos == 0) {  // Bottom
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.05f, 0.05f, 1.0f));  // Solid dark background
         ImGui::BeginChild("##Terminal", ImVec2(-1, term_height), true);
         
         // Terminal header
@@ -4817,15 +4831,21 @@ void EditorApp::render_terminal() {
         if (ImGui::InputText("##term", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
             if (terminal_stdin_ && strlen(input_buf) > 0) {
                 std::string cmd = input_buf;
-                cmd += "\n";
+                // Handle exit command to close terminal
+                if (cmd == "exit" || cmd == "quit" || cmd == "logout") {
+                    show_terminal_ = false;
+                    input_buf[0] = '\0';
+                } else {
+                    cmd += "\n";
 #ifdef _WIN32
-                DWORD written;
-                WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+                    DWORD written;
+                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
 #else
-                write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
+                    write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
 #endif
-                terminal_history_.push_back(input_buf);
-                input_buf[0] = '\0';
+                    terminal_history_.push_back(input_buf);
+                    input_buf[0] = '\0';
+                }
             }
         }
         
@@ -4840,6 +4860,7 @@ void EditorApp::render_terminal() {
         } else dragging = false;
         
         ImGui::EndChild();
+        ImGui::PopStyleColor();
     } else if (pos == 1) {  // Left
         ImGui::BeginChild("##Terminal", ImVec2(term_width, -1), true);
         ImGui::Text("Terminal"); ImGui::SameLine(); if (ImGui::Button("X")) show_terminal_ = false;
