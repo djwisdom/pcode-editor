@@ -208,7 +208,7 @@ std::string EditorApp::get_version() {
     if (version.empty()) {
         version = "0.8.0 (442ca2885e44d8cf8ee8f2a9a6ddb5eb6abf2de6)";
     }
-    return "pCode Editor version 0.8.0 (442ca2885e44d8cf8ee8f2a9a6ddb5eb6abf2de6)" + version;
+    return "pCode Editor " + version;
 }
 
 // ============================================================================
