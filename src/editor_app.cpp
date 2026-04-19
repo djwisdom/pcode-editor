@@ -4634,20 +4634,41 @@ void EditorApp::render_terminal() {
     
     if (pos == 0) {  // Bottom
         ImGui::BeginChild("##Terminal", ImVec2(-1, term_height), true);
+        
+        // Terminal header
         ImGui::Text("Terminal"); 
         ImGui::SameLine(ImGui::GetWindowWidth() - 30);
         if (ImGui::Button("X")) show_terminal_ = false;
         ImGui::Separator();
         
+        // Output area with dark background
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4));
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.05f, 0.05f, 0.05f, 1.0f));  // Dark
         ImGui::BeginChild("term_out", ImVec2(-1, -30), true);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.8f, 0.0f, 1.0f));  // Green
         ImGui::Text("%s", terminal_output_.c_str());
         ImGui::SetScrollHereY(1.0f);
+        ImGui::PopStyleColor();
         ImGui::EndChild();
         ImGui::PopStyleVar();
         
+        // Command prompt with input
+        char cwd[256] = "";
+#ifdef _WIN32
+        DWORD size = sizeof(cwd);
+        GetCurrentDirectoryA(size, cwd);
+        std::string prompt = std::string(cwd) + ">";
+#else
+        getcwd(cwd, sizeof(cwd));
+        std::string prompt = std::string(cwd) + "$ ";
+#endif
+        
         static char input_buf[256] = "";
-        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 50);
+        
+        // Show prompt before input
+        ImGui::Text("%s", prompt.c_str());
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 100);
         if (ImGui::InputText("##term", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
             if (terminal_stdin_ && strlen(input_buf) > 0) {
                 std::string cmd = input_buf;
