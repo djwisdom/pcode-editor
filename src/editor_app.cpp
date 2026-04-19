@@ -3341,8 +3341,11 @@ void EditorApp::render_menu_split() {
     if (ImGui::BeginMenu("Split")) {
         if (ImGui::MenuItem("Don't Split Tab", "Ctrl+Alt+W")) close_split();
         ImGui::Separator();
-        if (ImGui::MenuItem("Split Tab Horizontally", "Ctrl+Shift+H")) split_horizontal();
-        if (ImGui::MenuItem("Split Tab Vertically", "Ctrl+Shift+V")) split_vertical();
+        if (ImGui::MenuItem("Split Tab Horizontally", "Ctrl+Shift+H")) split_horizontal(false);
+        if (ImGui::MenuItem("Split Tab Vertically", "Ctrl+Shift+V")) split_vertical(false);
+        ImGui::Separator();
+        if (ImGui::MenuItem("Split Terminal Horizontally")) split_horizontal(true);
+        if (ImGui::MenuItem("Split Terminal Vertically")) split_vertical(true);
         ImGui::Separator();
         if (ImGui::MenuItem("Split and Open Horizontally")) open_file_split("");
         if (ImGui::MenuItem("Split and Open Vertically")) open_file_split_vertical("");
@@ -5049,27 +5052,98 @@ TextEditor* EditorApp::get_active_editor() {
     return tab.splits[tab.active_split]->editor;
 }
 
-void EditorApp::split_horizontal() {
+void EditorApp::split_horizontal(bool for_terminal) {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     auto& tab = tabs_[active_tab_];
-    TextEditor* active_editor = get_active_editor();
-    if (!active_editor) return;
-    
-    TextEditor* ed = new TextEditor();
-    ed->SetText(active_editor->GetText());
-    auto lang = active_editor->GetLanguageDefinition();
-    ed->SetLanguageDefinition(lang);
-    ed->SetPalette(active_editor->GetPalette());
-    ed->SetTabSize(active_editor->GetTabSize());
     
     Split* split = new Split();
-    split->editor = ed;
-    split->editor_owned = true;
+    
+    if (for_terminal) {
+        // Terminal-only split
+        split->has_terminal = true;
+        split->editor = nullptr;
+        split->editor_owned = false;
+        start_split_terminal(split);
+    } else {
+        TextEditor* active_editor = get_active_editor();
+        if (!active_editor) return;
+        
+        TextEditor* ed = new TextEditor();
+        ed->SetText(active_editor->GetText());
+        auto lang = active_editor->GetLanguageDefinition();
+        ed->SetLanguageDefinition(lang);
+        ed->SetPalette(active_editor->GetPalette());
+        ed->SetTabSize(active_editor->GetTabSize());
+        
+        split->editor = ed;
+        split->editor_owned = true;
+    }
+    
     split->is_horizontal = true;
     split->ratio = (float)(1.0 / (tab.splits.size() + 1));
     
     tab.splits.push_back(split);
     tab.active_split = (int)tab.splits.size() - 1;
+}
+
+void EditorApp::start_split_terminal(Split* split) {
+    if (!split) return;
+    
+#ifdef _WIN32
+    SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
+    HANDLE hStdInRd = NULL, hStdInWr = NULL;
+    HANDLE hStdOutRd = NULL, hStdOutWr = NULL;
+    
+    CreatePipe(&hStdInRd, &hStdInWr, &sa, 0);
+    CreatePipe(&hStdOutRd, &hStdOutWr, &sa, 0);
+    
+    SetHandleInformation(hStdInWr, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(hStdOutRd, HANDLE_FLAG_INHERIT, 0);
+    
+    STARTUPINFOA si = {sizeof(STARTUPINFOA)};
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.hStdInput = hStdInRd;
+    si.hStdOutput = hStdOutWr;
+    si.hStdError = hStdOutWr;
+    si.wShowWindow = SW_HIDE;
+    
+    PROCESS_INFORMATION pi = {};
+    const char* shell = getenv("COMSPEC") ? getenv("COMSPEC") : "cmd.exe";
+    
+    if (CreateProcessA(nullptr, (LPSTR)shell, nullptr, nullptr, TRUE, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
+        split->terminal_process = (void*)pi.hProcess;
+        split->terminal_stdin = (void*)hStdInWr;
+        split->terminal_stdout = (void*)hStdOutRd;
+        CloseHandle(pi.hThread);
+        CloseHandle(hStdInRd);
+        CloseHandle(hStdOutWr);
+        split->terminal_output = "Terminal started: ";
+        split->terminal_output += shell;
+        split->terminal_output += "\r\n";
+    } else {
+        CloseHandle(hStdInRd);
+        CloseHandle(hStdInWr);
+        CloseHandle(hStdOutRd);
+        CloseHandle(hStdOutWr);
+        split->terminal_output = "Failed to start terminal\r\n";
+    }
+#else
+    // Unix - fork pty
+    int master_fd;
+    pid_t pid = forkpty(&master_fd, nullptr, nullptr, nullptr);
+    
+    if (pid < 0) {
+        split->terminal_output = "Failed to fork terminal\r\n";
+    } else if (pid == 0) {
+        // Child - exec shell
+        execl("/bin/sh", "/bin/sh", nullptr);
+        exit(0);
+    } else {
+        split->terminal_process = (void*)(intptr_t)pid;
+        split->terminal_stdin = (void*)(intptr_t)master_fd;
+        split->terminal_stdout = (void*)(intptr_t)master_fd;
+    }
+#endif
 }
 
 void EditorApp::split_vertical() {

@@ -22,6 +22,14 @@ struct Split {
     bool editor_owned = true;        // Should we delete editor on split close
     bool is_active = true;         // Is this split focused
     
+    // Terminal instance for this split (independent terminals)
+    bool has_terminal = false;
+    void* terminal_process = nullptr;
+    void* terminal_stdin = nullptr;
+    void* terminal_stdout = nullptr;
+    std::string terminal_output;
+    std::vector<std::string> terminal_history;
+    
     // Split layout info
     bool is_horizontal = true;    // true = horizontal (top/bottom), false = vertical (left/right)
     float ratio = 0.5f;            // Size ratio relative to container (0.0-1.0)
