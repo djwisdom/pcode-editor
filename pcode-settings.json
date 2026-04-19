@@ -1,8 +1,8 @@
 {
-  "window_w": 884,
-  "window_h": 633,
+  "window_w": 984,
+  "window_h": 731,
   "dark_theme": true,
-  "show_status_bar": true,
+  "show_status_bar": false,
   "enable_vim_mode": false,
   "word_wrap": true,
   "show_line_numbers": true,
@@ -14,5 +14,5 @@
   "font_size": 16,
   "font_name": "consola",
   "last_open_dir": ".\\src",
-  "recent_files": [".\\src\\main.cpp", ".\\src\\editor_app.cpp", ".\\TESTS.md", ".\\README.md", ".\\src\\editor_app.h", ".\\VERSION", ".\\IMPLEMENTATION_SUMMARY.md", ".\\BUILD_SYSTEM.md", ".\\vcpkg.json", ".\\test_vim_motions.obj"]
+  "recent_files": [".\\src\\editor_app.cpp", ".\\src\\editor_app.h", ".\\src\\main.cpp", ".\\TESTS.md", ".\\README.md", ".\\VERSION", ".\\IMPLEMENTATION_SUMMARY.md", ".\\BUILD_SYSTEM.md", ".\\vcpkg.json", ".\\test_vim_motions.obj"]
 }

@@ -4838,32 +4838,11 @@ void EditorApp::render_terminal() {
         std::string prompt = std::string(cwd) + "$ ";
 #endif
         
-        static char input_buf[256] = "";
-        
-        // Show prompt before input
+        // Terminal uses direct keyboard capture - no ImGui input field
+        // Show prompt
         ImGui::Text("%s", prompt.c_str());
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 100);
-        if (ImGui::InputText("##term", input_buf, sizeof(input_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
-            if (terminal_stdin_ && strlen(input_buf) > 0) {
-                std::string cmd = input_buf;
-                // Handle exit command to close terminal
-                if (cmd == "exit" || cmd == "quit" || cmd == "logout") {
-                    show_terminal_ = false;
-                    input_buf[0] = '\0';
-                } else {
-                    cmd += "\n";
-#ifdef _WIN32
-                    DWORD written;
-                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
-#else
-                    write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
-#endif
-                    terminal_history_.push_back(input_buf);
-                    input_buf[0] = '\0';
-                }
-            }
-        }
+        ImGui::Text("[use keyboard directly]");
         
         // Horizontal resize handle
         float avail_w = ImGui::GetContentRegionAvail().x;
@@ -4883,8 +4862,6 @@ void EditorApp::render_terminal() {
         ImGui::BeginChild("term_out_l", ImVec2(-1, -30), true);
         ImGui::Text("%s", terminal_output_.c_str());
         ImGui::EndChild();
-        static char ibuf[256] = ""; ImGui::SetNextItemWidth(-50);
-        if (ImGui::InputText("##t", ibuf, sizeof(ibuf), ImGuiInputTextFlags_EnterReturnsTrue)) {}
         
         float avail_h = ImGui::GetContentRegionAvail().y;
         ImGui::InvisibleButton("##TSplL", ImVec2(4, avail_h));
@@ -4899,8 +4876,6 @@ void EditorApp::render_terminal() {
         ImGui::BeginChild("term_out_r", ImVec2(-1, -30), true);
         ImGui::Text("%s", terminal_output_.c_str());
         ImGui::EndChild();
-        static char ibuf2[256] = ""; ImGui::SetNextItemWidth(-50);
-        if (ImGui::InputText("##t2", ibuf2, sizeof(ibuf2), ImGuiInputTextFlags_EnterReturnsTrue)) {}
         
         float avail_h = ImGui::GetContentRegionAvail().y;
         ImGui::SameLine();
@@ -4916,8 +4891,6 @@ void EditorApp::render_terminal() {
         ImGui::BeginChild("term_out_t", ImVec2(-1, -30), true);
         ImGui::Text("%s", terminal_output_.c_str());
         ImGui::EndChild();
-        static char ibuf3[256] = ""; ImGui::SetNextItemWidth(-50);
-        if (ImGui::InputText("##t3", ibuf3, sizeof(ibuf3), ImGuiInputTextFlags_EnterReturnsTrue)) {}
         
         float avail_w = ImGui::GetContentRegionAvail().x;
         ImGui::InvisibleButton("##TSplT", ImVec2(avail_w, 4));
