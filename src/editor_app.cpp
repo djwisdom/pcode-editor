@@ -3549,7 +3549,7 @@ void EditorApp::render_editor_area() {
     
     // ===== EXPLORER (RADIO: LEFT/RIGHT/NONE) =====
     static float explorer_w = 200;
-    static float last_avail_width = 0;
+    static float explorer_ratio = 0.2f;  // Proportional to window
     static bool dragging = false;
     
     float avail_width = ImGui::GetContentRegionAvail().x;
@@ -3564,13 +3564,12 @@ void EditorApp::render_editor_area() {
         return;
     }
     
-    // Auto-adjust when window resizes
-    if (last_avail_width > 0 && fabsf(avail_width - last_avail_width) > 50 && !dragging) {
-        explorer_w = avail_width * 0.2f;
+    // Seamless proportional resize - maintain ratio when window changes
+    if (!dragging && avail_width > 0) {
+        explorer_w = avail_width * explorer_ratio;
         if (explorer_w < 100) explorer_w = 100;
         if (explorer_w > 500) explorer_w = 500;
     }
-    last_avail_width = avail_width;
     
     float edit_w = avail_width - explorer_w;
     if (edit_w < 100) edit_w = 100;
@@ -3591,7 +3590,11 @@ void EditorApp::render_editor_area() {
             if (explorer_w < 100) explorer_w = 100;
             if (explorer_w > 500) explorer_w = 500;
             edit_w = avail_width - explorer_w;
-        } else if (!ImGui::IsMouseDown(0)) dragging = false;
+            if (avail_width > 0) explorer_ratio = explorer_w / avail_width;
+        } else if (!ImGui::IsMouseDown(0)) {
+            if (avail_width > 0) explorer_ratio = explorer_w / avail_width;
+            dragging = false;
+        }
         
         // Editor
         ImGui::SameLine();
@@ -3617,7 +3620,11 @@ void EditorApp::render_editor_area() {
             explorer_w -= ImGui::GetIO().MouseDelta.x;
             if (explorer_w < 100) explorer_w = 100;
             if (explorer_w > 500) explorer_w = 500;
-        } else if (!ImGui::IsMouseDown(0)) dragging = false;
+            if (avail_width > 0) explorer_ratio = explorer_w / avail_width;
+        } else if (!ImGui::IsMouseDown(0)) {
+            if (avail_width > 0) explorer_ratio = explorer_w / avail_width;
+            dragging = false;
+        }
         
         // Right explorer
         ImGui::SameLine();
