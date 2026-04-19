@@ -3349,8 +3349,11 @@ void EditorApp::render_about_dialog() {
     
     ImGui::OpenPopup("About");
     if (ImGui::BeginPopupModal("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Dummy(ImVec2(4, 0));  // Left margin
+        
         ImGui::Text("Personal Code Editor");
         ImGui::Separator();
+        ImGui::Dummy(ImVec2(0, 10));
         
         std::string version = get_version();
         std::string full_hash = version.substr(version.find("(") + 1);
@@ -3359,11 +3362,10 @@ void EditorApp::render_about_dialog() {
         
         ImGui::Text("Version: %s (%s)", version.substr(15, 5).c_str(), short_hash.c_str());
         ImGui::Text("Commit: %s", full_hash.c_str());
-        
-        // Build date - use static compile time
         ImGui::Text("Built: " __DATE__);
         
-        // Get version strings at runtime
+        ImGui::Dummy(ImVec2(0, 10));
+        
         int glfw_major, glfw_minor, glfw_rev;
         glfwGetVersion(&glfw_major, &glfw_minor, &glfw_rev);
         ImGui::Text("GLFW: %d.%d.%d", glfw_major, glfw_minor, glfw_rev);
@@ -3380,14 +3382,18 @@ void EditorApp::render_about_dialog() {
         ImGui::Text("OS: Unknown");
 #endif
         
+        ImGui::Dummy(ImVec2(0, 10));
         ImGui::Separator();
+        ImGui::Dummy(ImVec2(0, 10));
         
         ImGui::Text("SPDX-License-Identifier: BSD-2-Clause");
         ImGui::Text("Copyright (c) 2026 pCode Editor Development Team");
         ImGui::Text("Author: Dennis O. Esternon <djwisdom@serenityos.org>");
         ImGui::Text("Contributors: see CONTRIBUTORS or git history");
         
+        ImGui::Dummy(ImVec2(0, 10));
         ImGui::Separator();
+        ImGui::Dummy(ImVec2(0, 10));
         
         ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - 50.0f);
         if (ImGui::Button("OK", ImVec2(50, 0))) {
