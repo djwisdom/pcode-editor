@@ -3135,8 +3135,7 @@ void EditorApp::render() {
         if (ImGui::MenuItem("Symbol", nullptr, &show_symbol_outline_)) {}
         ImGui::Separator();
         if (ImGui::MenuItem("Line Numbers", nullptr, &settings_.show_line_numbers)) toggle_line_numbers();
-        if (ImGui::MenuItem("Minimap", nullptr, &settings_.show_minimap)) toggle_minimap();
-        if (ImGui::MenuItem("Code Folding", nullptr, &settings_.show_code_folding)) toggle_code_folding();
+        // Minimap, Code Folding, Bookmarks, Change History - disabled (not working)
         ImGui::EndPopup();
     }
     
@@ -3268,16 +3267,7 @@ void EditorApp::render_menu_edit() {
 
 void EditorApp::render_menu_view() {
     if (ImGui::BeginMenu("View")) {
-        // Vim mode toggle
-        bool vim = settings_.enable_vim_mode;
-        if (ImGui::MenuItem("Vim Mode", nullptr, &vim)) {
-            settings_.enable_vim_mode = !settings_.enable_vim_mode;
-            if (!settings_.enable_vim_mode) {
-                vim_mode_ = VimMode::Normal;  // Reset to normal when disabled
-            }
-        }
-        ImGui::Separator();
-        
+        // Vim mode - removed
         if (ImGui::BeginMenu("Zoom")) {
             if (ImGui::MenuItem("Zoom In", "Ctrl++")) zoom_in();
             if (ImGui::MenuItem("Zoom Out", "Ctrl+-")) zoom_out();
@@ -3303,26 +3293,11 @@ void EditorApp::render_menu_view() {
         bool tabs = settings_.show_tabs;
         if (ImGui::MenuItem("Show Tabs", nullptr, &tabs)) settings_.show_tabs = tabs;
         bool ln = settings_.show_line_numbers;
-        if (ImGui::MenuItem("Line Numbers", nullptr, &ln)) toggle_line_numbers();
         bool sp = settings_.show_spaces;
         if (ImGui::MenuItem("Show Spaces", nullptr, &sp)) toggle_spaces();
-        bool mp = settings_.show_minimap;
-        if (ImGui::MenuItem("Minimap", nullptr, &mp)) toggle_minimap();
         ImGui::Separator();
         if (ImGui::MenuItem("Validate Layout", "Ctrl+Shift+L")) validate_layout();
-        ImGui::Separator();
-        if (ImGui::BeginMenu("Bookmarks")) {
-            if (ImGui::MenuItem("Toggle Bookmark", "F2")) {
-                if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                    auto pos = get_active_editor()->GetCursorPosition();
-                    toggle_bookmark(pos.mLine);
-                }
-            }
-            if (ImGui::MenuItem("Next Bookmark", "F4")) next_bookmark();
-            if (ImGui::MenuItem("Previous Bookmark", "F3")) prev_bookmark();
-            if (ImGui::MenuItem("Clear All Bookmarks")) clear_bookmarks();
-            ImGui::EndMenu();
-        }
+        // Line Numbers always on (ImGui default), highlight, bookmarks, etc - not controllable
         ImGui::Separator();
         if (ImGui::BeginMenu("Spaces")) {
             if (ImGui::MenuItem("2 Spaces", nullptr, settings_.tab_size == 2)) set_tab_size(2);
@@ -3470,10 +3445,8 @@ void EditorApp::render_about_dialog() {
 // Editor Area
 // ============================================================================
 void EditorApp::render_editor_area() {
-    // Render terminal panel if enabled (View > Terminal)
-    if (show_terminal_) {
-        render_terminal();
-    }
+    // Terminal disabled - remove entirely
+    // if (show_terminal_) { render_terminal(); }
     
     if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size() && tabs_[active_tab_].is_terminal) {
         return;
