@@ -4830,6 +4830,7 @@ void EditorApp::render_terminal() {
         ImGui::PopStyleColor();
         ImGui::EndChild();
         ImGui::PopStyleVar();
+        ImGui::PopStyleColor();  // Pop FrameBg
         
         // Command prompt with input
         char cwd[256] = "";
@@ -4846,7 +4847,49 @@ void EditorApp::render_terminal() {
         // Show prompt
         ImGui::Text("%s", prompt.c_str());
         ImGui::SameLine();
-        ImGui::Text("[use keyboard directly]");
+        ImGui::Text("[type directly - enter sends]");
+        
+        // Direct keyboard capture when terminal focused
+        if (ImGui::IsWindowFocused()) {
+            ImGuiIO& io = ImGui::GetIO();
+            for (int c = 32; c < 127; c++) {
+                if (io.InputQueueCharacters.size() == 0 && ImGui::IsKeyPressed((ImGuiKey)c)) {
+                    char ch = (char)c;
+                    std::string cmd(1, ch);
+                    cmd += "\n";
+                    if (terminal_stdin_) {
+#ifdef _WIN32
+                        DWORD written;
+                        WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+#else
+                        write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
+#endif
+                    }
+                }
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+                std::string cmd = "\n";
+                if (terminal_stdin_) {
+#ifdef _WIN32
+                    DWORD written;
+                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+#else
+                    write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
+#endif
+                }
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
+                std::string cmd = "\b";
+                if (terminal_stdin_) {
+#ifdef _WIN32
+                    DWORD written;
+                    WriteFile((HANDLE)terminal_stdin_, cmd.c_str(), (DWORD)cmd.size(), &written, nullptr);
+#else
+                    write((int)(intptr_t)terminal_stdin_, cmd.c_str(), cmd.size());
+#endif
+                }
+            }
+        }
         
         // Horizontal resize handle
         float avail_w = ImGui::GetContentRegionAvail().x;
