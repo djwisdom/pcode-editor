@@ -4916,6 +4916,8 @@ void EditorApp::render_terminal() {
         if (ImGui::IsItemClicked(0)) dragging = true;
         if (dragging && ImGui::IsMouseDown(0)) { term_width += ImGui::GetIO().MouseDelta.x; term_width = std::clamp(term_width, 150.0f, 400.0f); } else dragging = false;
         ImGui::EndChild();
+        ImGui::PopStyleColor();
+    } else if (pos == 3) {  // Right
     } else if (pos == 3) {  // Right
         ImGui::BeginChild("##Terminal", ImVec2(term_width, -1), true);
         ImGui::Text("Terminal"); ImGui::SameLine(); if (ImGui::Button("X")) show_terminal_ = false;
