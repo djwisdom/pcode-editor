@@ -170,12 +170,17 @@ static void settings_load(AppSettings& s, const std::string& path) {
 // Version
 // ============================================================================
 std::string EditorApp::get_version() {
+    // Try to read VERSION file first
     std::string version;
     std::ifstream ver_file("VERSION");
     if (ver_file.is_open()) {
         std::getline(ver_file, version);
-    } else {
-        version = "0.0.0 (unknown)"; // fallback if VERSION file missing
+        ver_file.close();
+    }
+    
+    // If file not found, use embedded default
+    if (version.empty()) {
+        version = "0.6.5 (7d8633a56d1fd83c3a88471df70eb94de2c5b7d0)";
     }
     return "pCode Editor " + version;
 }
