@@ -3401,6 +3401,10 @@ void EditorApp::render_menu_split() {
 void EditorApp::render_about_dialog() {
     if (!show_about_) return;
     
+    // Center on main window
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    
     ImGui::OpenPopup("About");
     if (ImGui::BeginPopupModal("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Dummy(ImVec2(4, 0));  // Left margin
