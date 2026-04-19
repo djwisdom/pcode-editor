@@ -284,9 +284,15 @@ int EditorApp::run() {
         } else {
             glClearColor(0.94f, 0.94f, 0.94f, 1.0f);
         }
-        glClear(GL_COLOR_BUFFER_BIT);
+glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
+        
+        // Multi-viewport support
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
+        
         glfwSwapBuffers(window_);
     }
 
@@ -354,6 +360,7 @@ void EditorApp::init() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     // Disabled docking - may cause menu issues
     
     // Load fonts
@@ -3571,7 +3578,7 @@ void EditorApp::render_editor_area() {
         if (explorer_w > 500) explorer_w = 500;
     }
     
-    float edit_w = avail_width - explorer_w;
+    float edit_w = avail_width - explorer_w - 4;  // Account for splitter
     if (edit_w < 100) edit_w = 100;
     
     if (explorer_side_ == 0) {
