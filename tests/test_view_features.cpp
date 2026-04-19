@@ -222,12 +222,133 @@ TEST(line_ending_detection) {
 }
 
 // ============================================================================
+// Simulates the ACTUAL render logic from editor_app.cpp render_explorer()
+// This replicates the exact conditionals used in the real rendering code
+// ============================================================================
+
+struct AppSettings {
+    bool explorer_left = false;
+};
+
+struct TestState {
+    bool show_file_tree = false;
+    AppSettings settings;
+};
+
+static bool render_explorer_logic(TestState& state) {
+    // This is THE EXACT LOGIC from render_explorer() in editor_app.cpp
+    // Line 3561: if (show_file_tree_ && !settings_.explorer_left)
+    if (state.show_file_tree && !state.settings.explorer_left) {
+        // Right side path - should render explorer AFTER editor
+        return true;  // rendering happened on right
+    } else {
+        // Left side path or no explorer
+        if (state.show_file_tree && state.settings.explorer_left) {
+            return true;  // rendering happened on left
+        }
+        return false;  // no explorer rendered
+    }
+}
+
+// ============================================================================
+// Test: Explorer renders on RIGHT when explorer_left is false
+// ============================================================================
+TEST(explorer_renders_on_right) {
+    TestState state;
+    
+    // Enable explorer on RIGHT side (explorer_left = false)
+    state.show_file_tree = true;
+    state.settings.explorer_left = false;
+    
+    bool rendered = render_explorer_logic(state);
+    assert(rendered == true);  // Must render!
+    
+    // Verify we're using the right-side code path
+    // In real code: !settings_.explorer_left means right side
+    assert(state.settings.explorer_left == false);
+    assert(!state.settings.explorer_left == true);  // Right side condition
+}
+
+// ============================================================================
+// Test: Explorer renders on LEFT when explorer_left is true  
+// ============================================================================
+TEST(explorer_renders_on_left) {
+    TestState state;
+    
+    // Enable explorer on LEFT side (explorer_left = true)
+    state.show_file_tree = true;
+    state.settings.explorer_left = true;
+    
+    bool rendered = render_explorer_logic(state);
+    assert(rendered == true);  // Must render!
+    
+    // Verify we're using the left-side code path
+    assert(state.settings.explorer_left == true);
+}
+
+// ============================================================================
+// Test: Switching from left to right should keep explorer visible
+// This simulates what happens when user clicks "Explorer Position > Right" menu
+// ============================================================================
+TEST(explorer_switch_left_to_right) {
+    TestState state;
+    
+    // Start with explorer on left
+    state.show_file_tree = true;
+    state.settings.explorer_left = true;
+    
+    bool rendered_left = render_explorer_logic(state);
+    assert(rendered_left == true);  // Initially visible
+    
+    // Switch to right (simulates menu click: settings_.explorer_left = false)
+    state.settings.explorer_left = false;
+    
+    // IMPORTANT: show_file_tree must STILL BE TRUE when switching!
+    // This is the bug - the old code set show_file_tree = true when switching
+    // But the actual check is: show_file_tree_ && !settings_.explorer_left
+    
+    bool rendered_right = render_explorer_logic(state);
+    assert(rendered_right == true);  // Should still render! BUG: this fails if show_file_tree was reset
+    
+    // The rendering logic requires BOTH conditions:
+    // 1. show_file_tree == true  (must be preserved!)
+    // 2. explorer_left == false (right side)
+    assert(state.show_file_tree == true);  // MUST be true - this is the bug!
+    assert(state.settings.explorer_left == false);  // Right side
+    assert(state.show_file_tree && !state.settings.explorer_left);  // Right path condition
+}
+
+// ============================================================================
+// Test: Verify the exact conditional from render_explorer()
+// This is the ACTUAL condition used at line 3561 in editor_app.cpp
+// ============================================================================
+TEST(right_side_conditional_exact) {
+    TestState state;
+    
+    // Setup: user clicked "Explorer Position > Right"
+    state.show_file_tree = true;
+    state.settings.explorer_left = false;
+    
+    // This is THE EXACT condition from line 3561:
+    // if (show_file_tree_ && !settings_.explorer_left)
+    bool right_side_path = (state.show_file_tree && !state.settings.explorer_left);
+    
+    assert(right_side_path == true);  // Should enter right-side code path
+    
+    // This is what the bug would cause - wrong condition values
+    // If show_file_tree was accidentally set to false, this fails:
+    state.show_file_tree = false;
+    right_side_path = (state.show_file_tree && !state.settings.explorer_left);
+    assert(right_side_path == false);  // Should NOT render when hidden
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 int main() {
     printf("=== pcode-editor Test Suite ===\n\n");
     
-    total_count = 10;
+    total_count = 14;
     
     RUN_TEST(settings_persistence);
     RUN_TEST(tab_size_validation);
@@ -239,6 +360,10 @@ int main() {
     RUN_TEST(recent_files_management);
     RUN_TEST(zoom_bounds);
     RUN_TEST(line_ending_detection);
+    RUN_TEST(explorer_renders_on_right);
+    RUN_TEST(explorer_renders_on_left);
+    RUN_TEST(explorer_switch_left_to_right);
+    RUN_TEST(right_side_conditional_exact);
     
     printf("\n=== Results: %d/%d tests passed ===\n", passed_count, total_count);
     

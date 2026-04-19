@@ -30,6 +30,11 @@ struct Split {
     std::string terminal_output;
     std::vector<std::string> terminal_history;
     
+#ifdef _WIN32
+    // ConPTY handles for Windows terminal
+    void* conpty_handle = nullptr;
+#endif
+    
     // Split layout info
     bool is_horizontal = true;    // true = horizontal (top/bottom), false = vertical (left/right)
     float ratio = 0.5f;            // Size ratio relative to container (0.0-1.0)
@@ -94,8 +99,8 @@ struct AppSettings {
     bool show_change_history = false;
     bool show_minimap = false;
     bool show_spaces = false;
-    bool show_tabs = false;
-    bool explorer_left = true;  // Explorer position: true=left, false=right
+    bool show_tabs = true;
+    bool explorer_left = false;  // Explorer position: true=left, false=right
     int terminal_position = 0;  // 0=bottom, 1=left, 2=top, 3=right
     int tab_size = 4;
     int font_size = 18;
@@ -321,12 +326,16 @@ private:
     bool show_new_file_dialog_ = false;
     bool show_new_folder_dialog_ = false;
     bool show_terminal_ = false;
+    bool terminal_focused_ = false;
     bool terminal_input_active_ = false;
     void* terminal_hwnd_ = nullptr;
     void* terminal_process_ = nullptr;
     void* terminal_stdin_ = nullptr;
     void* terminal_stdout_ = nullptr;
     std::string terminal_output_;
+#ifdef _WIN32
+    void* conpty_handle_ = nullptr;
+#endif
     int tab_size_temp_ = 4;
     int terminal_zoom_pct_ = 100;
 
@@ -368,6 +377,9 @@ private:
     TextEditor* get_active_editor();
     void split_horizontal();
     void split_vertical();
+    void split_horizontal(bool for_terminal);
+    void split_vertical(bool for_terminal);
+    void start_split_terminal(Split* split);
     void close_split();
     void next_split();
     void prev_split();

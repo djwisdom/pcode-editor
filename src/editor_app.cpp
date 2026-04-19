@@ -24,10 +24,36 @@
 #include <windows.h>
 #include <commctrl.h>
 #pragma comment(lib, "comctl32.lib")
+#include <handleapi.h>
+#include <processthreadsapi.h>
+#ifndef HPCON
+typedef void* HPCON;
 #endif
-
-#ifdef _WIN32
-#include <windows.h>
+#ifndef EXTENDED_STARTUPINFOPRESENT
+#define EXTENDED_STARTUPINFOPRESENT 0x00080000
+#endif
+#ifndef PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE
+#define PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE 22
+#endif
+typedef HRESULT(WINAPI *CreatePseudoConsole_t)(COORD, HANDLE, HANDLE, DWORD, HPCON*);
+typedef void(WINAPI *ClosePseudoConsole_t)(HPCON);
+typedef HRESULT(WINAPI *ResizePseudoConsole_t)(HPCON, COORD);
+static CreatePseudoConsole_t CreatePseudoConsole_ = nullptr;
+static ClosePseudoConsole_t ClosePseudoConsole_ = nullptr;
+static ResizePseudoConsole_t ResizePseudoConsole_ = nullptr;
+static bool conpty_available_ = false;
+static void init_conpty() {
+    static bool initialized = false;
+    if (initialized) return;
+    HMODULE hKernel = GetModuleHandleA("kernel32.dll");
+    if (hKernel) {
+        CreatePseudoConsole_ = (CreatePseudoConsole_t)GetProcAddress(hKernel, "CreatePseudoConsole");
+        ClosePseudoConsole_ = (ClosePseudoConsole_t)GetProcAddress(hKernel, "ClosePseudoConsole");
+        ResizePseudoConsole_ = (ResizePseudoConsole_t)GetProcAddress(hKernel, "ResizePseudoConsole");
+        conpty_available_ = (CreatePseudoConsole_ && ClosePseudoConsole_ && ResizePseudoConsole_);
+    }
+    initialized = true;
+}
 #endif
 
 #include <cstdio>
@@ -180,9 +206,9 @@ std::string EditorApp::get_version() {
     
     // If file not found, use embedded default
     if (version.empty()) {
-        version = "0.6.5 (7d8633a56d1fd83c3a88471df70eb94de2c5b7d0)";
+        version = "0.7.0 (354edd736ba802478e9aa65d16a16c0eaa45e37d)";
     }
-    return "pCode Editor " + version;
+    return "pCode Editor version 0.7.0 (354edd736ba802478e9aa65d16a16c0eaa45e37d)" + version;
 }
 
 // ============================================================================
@@ -3089,8 +3115,9 @@ void EditorApp::render() {
         if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
         if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
         ImGui::Separator();
-        if (ImGui::MenuItem("Explorer", nullptr, &show_file_tree_)) {}
-        if (ImGui::MenuItem("Terminal", nullptr, &show_terminal_)) {}
+        if (ImGui::MenuItem("Terminal", nullptr, &show_terminal_)) {
+            if (show_terminal_ && !terminal_process_) start_terminal();
+        }
         if (ImGui::MenuItem("Status Bar", nullptr, &settings_.show_status_bar)) toggle_status_bar();
         ImGui::Separator();
         if (ImGui::MenuItem("Git", nullptr, &show_git_changes_)) {}
@@ -3427,8 +3454,12 @@ void EditorApp::render_about_dialog() {
 // Editor Area
 // ============================================================================
 void EditorApp::render_editor_area() {
-    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size() && tabs_[active_tab_].is_terminal) {
+    // Render terminal panel if enabled (View > Terminal)
+    if (show_terminal_) {
         render_terminal();
+    }
+    
+    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size() && tabs_[active_tab_].is_terminal) {
         return;
     }
     
@@ -3456,7 +3487,7 @@ void EditorApp::render_editor_area() {
         new_tab();
     }
 
-    bool show_tabs = settings_.show_tabs && tabs_.size() > 1;
+    bool show_tabs = settings_.show_tabs;
     float tab_height = show_tabs ? ImGui::GetFrameHeight() : 0.0f;
     float status_h = settings_.show_status_bar ? 24.0f : 0.0f;
     float editor_area_width = editor_width;
@@ -3491,6 +3522,17 @@ void EditorApp::render_editor_area() {
                     break;
                 }
             }
+            // Add [+] button for new tab
+            if (tabs_.size() < 10) {
+                if (ImGui::TabItemButton("+", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoReorder)) {
+                    char tab_name[32];
+                    if (tabs_.size() == 0) snprintf(tab_name, sizeof(tab_name), "untitled");
+                    else snprintf(tab_name, sizeof(tab_name), "untitled%d", (int)tabs_.size());
+                    new_tab();
+                    tabs_[active_tab_].display_name = tab_name;
+                    tabs_[active_tab_].file_path = "";
+                }
+            }
             ImGui::EndTabBar();
         }
         
@@ -3500,22 +3542,75 @@ void EditorApp::render_editor_area() {
         }
     }
     
-    // Render explorer sidebar (left or right based on setting)
-    if (show_file_tree_) {
-        if (settings_.explorer_left) {
-            // Explorer on LEFT side - rendered BEFORE editor
-            render_sidebar();
-            ImGui::SameLine();
+    // ===== BOTH EXPLORERS VISIBLE WITH RESIZE =====
+    static float left_exp_w = 200;
+    static float right_exp_w = 200;
+    static float last_avail_width = 0;
+    static bool dragging_left = false;
+    static bool dragging_right = false;
+    
+    float avail_width = ImGui::GetContentRegionAvail().x;
+    
+    // Auto-adjust explorers when window resizes significantly (more than 50px change)
+    if (last_avail_width > 0 && fabsf(avail_width - last_avail_width) > 50 && !dragging_left && !dragging_right) {
+        float diff = avail_width - last_avail_width;
+        right_exp_w += diff;
+        if (right_exp_w < 100) right_exp_w = 100;
+        if (right_exp_w > 500) right_exp_w = 500;
+    }
+    last_avail_width = avail_width;
+    
+    // Recalculate editor width after any auto-adjustments
+    float edit_w = avail_width - left_exp_w - right_exp_w;
+    if (edit_w < 100) {
+        edit_w = 100;
+        if (avail_width < left_exp_w + right_exp_w + 100) {
+            left_exp_w = avail_width * 0.2f;
+            right_exp_w = avail_width * 0.2f;
+            if (left_exp_w < 100) left_exp_w = 100;
+            if (right_exp_w < 100) right_exp_w = 100;
+            edit_w = avail_width - left_exp_w - right_exp_w;
         }
     }
     
-    // Now scrollable editor content
-    ImGui::BeginChild("##EditorContent", ImVec2(-1, -1), false);
+    // Left explorer
+    ImGui::BeginChild("##ExplorerLeft", ImVec2(left_exp_w, -1), true);
+    render_sidebar();
+    ImGui::EndChild();
     
+    // Splitter: Left explorer <-> Editor
+    ImGui::SameLine();
+    ImGui::InvisibleButton("##splitter_left", ImVec2(4, -1));
+    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    if (ImGui::IsItemClicked(0)) dragging_left = true;
+    if (dragging_left && ImGui::IsMouseDown(0)) {
+        left_exp_w += ImGui::GetIO().MouseDelta.x;
+        left_exp_w = std::clamp(left_exp_w, 100.0f, 400.0f);
+        edit_w = avail_width - left_exp_w - right_exp_w;
+    } else if (!ImGui::IsMouseDown(0)) dragging_left = false;
+    
+    // Editor in middle
+    ImGui::SameLine();
+    ImGui::BeginChild("##EditorWithBothExplorers", ImVec2(edit_w, -1), false);
     if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
         render_editor_with_margins();
     }
+    ImGui::EndChild();
     
+    // Splitter: Editor <-> Right explorer
+    ImGui::SameLine();
+    ImGui::InvisibleButton("##splitter_right", ImVec2(4, -1));
+    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    if (ImGui::IsItemClicked(0)) dragging_right = true;
+    if (dragging_right && ImGui::IsMouseDown(0)) {
+        right_exp_w -= ImGui::GetIO().MouseDelta.x;
+        right_exp_w = std::clamp(right_exp_w, 100.0f, 400.0f);
+    } else if (!ImGui::IsMouseDown(0)) dragging_right = false;
+    
+    // Right explorer  
+    ImGui::SameLine();
+    ImGui::BeginChild("##ExplorerRight", ImVec2(right_exp_w, -1), true);
+    render_sidebar();
     ImGui::EndChild();
 }
 
@@ -4494,6 +4589,8 @@ void EditorApp::render_command_line() {
 void EditorApp::start_terminal() {
     if (terminal_process_) return;
     
+    init_conpty();
+    
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
     HANDLE hStdInRd = NULL, hStdInWr = NULL;
     HANDLE hStdOutRd = NULL, hStdOutWr = NULL;
@@ -4504,24 +4601,59 @@ void EditorApp::start_terminal() {
     SetHandleInformation(hStdInWr, HANDLE_FLAG_INHERIT, 0);
     SetHandleInformation(hStdOutRd, HANDLE_FLAG_INHERIT, 0);
     
-    STARTUPINFOA si = {sizeof(STARTUPINFOA)};
+    HPCON conpty = NULL;
+    if (conpty_available_) {
+        COORD conSize = {80, 24};
+        if (CreatePseudoConsole_(conSize, hStdOutRd, hStdInWr, 0, &conpty) == S_OK) {
+            conpty_handle_ = (void*)conpty;
+        }
+    }
+    
+    STARTUPINFOW si = {sizeof(STARTUPINFOW)};
     si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
     si.hStdInput = hStdInRd;
     si.hStdOutput = hStdOutWr;
     si.hStdError = hStdOutWr;
     si.wShowWindow = SW_HIDE;
     
+    STARTUPINFOEXW si_ex = {si};
+    si_ex.StartupInfo.cb = sizeof(STARTUPINFOEXW);
+    
+    if (conpty) {
+        size_t attrSize = 0;
+        InitializeProcThreadAttributeList(NULL, 1, 0, &attrSize);
+        si_ex.lpAttributeList = (LPPROC_THREAD_ATTRIBUTE_LIST)malloc(attrSize);
+        if (si_ex.lpAttributeList) {
+            InitializeProcThreadAttributeList(si_ex.lpAttributeList, 1, 0, &attrSize);
+            UpdateProcThreadAttribute(si_ex.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, conpty, sizeof(conpty), NULL, NULL);
+            si_ex.StartupInfo.dwFlags |= STARTF_USESHOWWINDOW;
+            si_ex.StartupInfo.wShowWindow = SW_HIDE;
+        }
+    }
+    
     PROCESS_INFORMATION pi = {};
     const char* shell = getenv("COMSPEC") ? getenv("COMSPEC") : "cmd.exe";
     
-    if (CreateProcessA(nullptr, (LPSTR)shell, nullptr, nullptr, TRUE, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
+    wchar_t* wshell = NULL;
+    if (shell) {
+        size_t len = strlen(shell) + 1;
+        wshell = (wchar_t*)malloc(len * sizeof(wchar_t));
+        mbstowcs(wshell, shell, len);
+    }
+    
+    if (CreateProcessW(NULL, wshell, NULL, NULL, TRUE, CREATE_NEW_CONSOLE | EXTENDED_STARTUPINFOPRESENT, NULL, NULL, (LPSTARTUPINFOW)&si_ex, &pi)) {
         terminal_process_ = (void*)pi.hProcess;
         terminal_stdin_ = (void*)hStdInWr;
         terminal_stdout_ = (void*)hStdOutRd;
         CloseHandle(pi.hThread);
         CloseHandle(hStdInRd);
         CloseHandle(hStdOutWr);
-        terminal_output_ = "Terminal started: ";
+        
+        if (conpty) {
+            terminal_output_ = "ConPTY Terminal started: ";
+        } else {
+            terminal_output_ = "Terminal started (pipe mode): ";
+        }
         terminal_output_ += shell;
         terminal_output_ += "\r\n";
     } else {
@@ -4529,6 +4661,16 @@ void EditorApp::start_terminal() {
         CloseHandle(hStdInWr);
         CloseHandle(hStdOutRd);
         CloseHandle(hStdOutWr);
+        if (conpty) {
+            ClosePseudoConsole_(conpty);
+            conpty_handle_ = NULL;
+        }
+        terminal_output_ = "Failed to start terminal\r\n";
+    }
+    
+    if (wshell) free(wshell);
+    if (si_ex.lpAttributeList) {
+        free(si_ex.lpAttributeList);
     }
 }
 #else
@@ -5052,6 +5194,10 @@ TextEditor* EditorApp::get_active_editor() {
     return tab.splits[tab.active_split]->editor;
 }
 
+void EditorApp::split_horizontal() {
+    split_horizontal(false);
+}
+
 void EditorApp::split_horizontal(bool for_terminal) {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
     auto& tab = tabs_[active_tab_];
@@ -5086,8 +5232,43 @@ void EditorApp::split_horizontal(bool for_terminal) {
     tab.active_split = (int)tab.splits.size() - 1;
 }
 
+void EditorApp::split_vertical(bool for_terminal) {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    
+    Split* split = new Split();
+    
+    if (for_terminal) {
+        split->has_terminal = true;
+        split->editor = nullptr;
+        split->editor_owned = false;
+        start_split_terminal(split);
+    } else {
+        TextEditor* active_editor = get_active_editor();
+        if (!active_editor) return;
+        
+        TextEditor* ed = new TextEditor();
+        ed->SetText(active_editor->GetText());
+        auto lang = active_editor->GetLanguageDefinition();
+        ed->SetLanguageDefinition(lang);
+        ed->SetPalette(active_editor->GetPalette());
+        ed->SetTabSize(active_editor->GetTabSize());
+        
+        split->editor = ed;
+        split->editor_owned = true;
+    }
+    
+    split->is_horizontal = false;
+    split->ratio = (float)(1.0 / (tab.splits.size() + 1));
+    
+    tab.splits.push_back(split);
+    tab.active_split = (int)tab.splits.size() - 1;
+}
+
 void EditorApp::start_split_terminal(Split* split) {
     if (!split) return;
+    
+    init_conpty();
     
 #ifdef _WIN32
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
@@ -5100,24 +5281,59 @@ void EditorApp::start_split_terminal(Split* split) {
     SetHandleInformation(hStdInWr, HANDLE_FLAG_INHERIT, 0);
     SetHandleInformation(hStdOutRd, HANDLE_FLAG_INHERIT, 0);
     
-    STARTUPINFOA si = {sizeof(STARTUPINFOA)};
+    HPCON conpty = NULL;
+    if (conpty_available_) {
+        COORD conSize = {80, 24};
+        if (CreatePseudoConsole_(conSize, hStdOutRd, hStdInWr, 0, &conpty) == S_OK) {
+            split->conpty_handle = (void*)conpty;
+        }
+    }
+    
+    STARTUPINFOW si = {sizeof(STARTUPINFOW)};
     si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
     si.hStdInput = hStdInRd;
     si.hStdOutput = hStdOutWr;
     si.hStdError = hStdOutWr;
     si.wShowWindow = SW_HIDE;
     
+    STARTUPINFOEXW si_ex = {si};
+    si_ex.StartupInfo.cb = sizeof(STARTUPINFOEXW);
+    
+    if (conpty) {
+        size_t attrSize = 0;
+        InitializeProcThreadAttributeList(NULL, 1, 0, &attrSize);
+        si_ex.lpAttributeList = (LPPROC_THREAD_ATTRIBUTE_LIST)malloc(attrSize);
+        if (si_ex.lpAttributeList) {
+            InitializeProcThreadAttributeList(si_ex.lpAttributeList, 1, 0, &attrSize);
+            UpdateProcThreadAttribute(si_ex.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, conpty, sizeof(conpty), NULL, NULL);
+            si_ex.StartupInfo.dwFlags |= STARTF_USESHOWWINDOW;
+            si_ex.StartupInfo.wShowWindow = SW_HIDE;
+        }
+    }
+    
     PROCESS_INFORMATION pi = {};
     const char* shell = getenv("COMSPEC") ? getenv("COMSPEC") : "cmd.exe";
     
-    if (CreateProcessA(nullptr, (LPSTR)shell, nullptr, nullptr, TRUE, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
+    wchar_t* wshell = NULL;
+    if (shell) {
+        size_t len = strlen(shell) + 1;
+        wshell = (wchar_t*)malloc(len * sizeof(wchar_t));
+        mbstowcs(wshell, shell, len);
+    }
+    
+    if (CreateProcessW(NULL, wshell, NULL, NULL, TRUE, CREATE_NEW_CONSOLE | EXTENDED_STARTUPINFOPRESENT, NULL, NULL, (LPSTARTUPINFOW)&si_ex, &pi)) {
         split->terminal_process = (void*)pi.hProcess;
         split->terminal_stdin = (void*)hStdInWr;
         split->terminal_stdout = (void*)hStdOutRd;
         CloseHandle(pi.hThread);
         CloseHandle(hStdInRd);
         CloseHandle(hStdOutWr);
-        split->terminal_output = "Terminal started: ";
+        
+        if (conpty) {
+            split->terminal_output = "ConPTY Terminal started: ";
+        } else {
+            split->terminal_output = "Terminal started (pipe mode): ";
+        }
         split->terminal_output += shell;
         split->terminal_output += "\r\n";
     } else {
@@ -5125,7 +5341,16 @@ void EditorApp::start_split_terminal(Split* split) {
         CloseHandle(hStdInWr);
         CloseHandle(hStdOutRd);
         CloseHandle(hStdOutWr);
+        if (conpty) {
+            ClosePseudoConsole_(conpty);
+            split->conpty_handle = NULL;
+        }
         split->terminal_output = "Failed to start terminal\r\n";
+    }
+    
+    if (wshell) free(wshell);
+    if (si_ex.lpAttributeList) {
+        free(si_ex.lpAttributeList);
     }
 #else
     // Unix - fork pty

@@ -1,0 +1,18 @@
+{
+  "window_w": 1280,
+  "window_h": 800,
+  "dark_theme": true,
+  "show_status_bar": true,
+  "enable_vim_mode": false,
+  "word_wrap": true,
+  "show_line_numbers": false,
+  "show_minimap": false,
+  "show_spaces": false,
+  "highlight_line": 1,
+  "show_tabs": false,
+  "tab_size": 4,
+  "font_size": 18,
+  "font_name": "",
+  "last_open_dir": "",
+  "recent_files": []
+}
