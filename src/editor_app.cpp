@@ -206,9 +206,9 @@ std::string EditorApp::get_version() {
     
     // If file not found, use embedded default
     if (version.empty()) {
-        version = "0.7.0 (354edd736ba802478e9aa65d16a16c0eaa45e37d)";
+        version = "0.7.1 (887481c38cbbb88e7d96fd4dddf5be8f4f6c8f1e)";
     }
-    return "pCode Editor version 0.7.0 (354edd736ba802478e9aa65d16a16c0eaa45e37d)" + version;
+    return "pCode Editor version 0.7.1 (887481c38cbbb88e7d96fd4dddf5be8f4f6c8f1e)" + version;
 }
 
 // ============================================================================
