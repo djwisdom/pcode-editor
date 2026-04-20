@@ -23,6 +23,7 @@ struct Split {
     TextEditor* editor = nullptr;       // The editor for this split (can be shared)
     bool editor_owned = true;        // Should we delete editor on split close
     bool is_active = true;         // Is this split focused
+    float ratio = 0.5f;           // Split ratio (0.0-1.0)
     
     // Terminal instance for this split (independent terminals)
     bool has_terminal = false;

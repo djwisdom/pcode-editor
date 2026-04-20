@@ -5867,7 +5867,9 @@ void EditorApp::render_splits(int tab_idx) {
         
         for (int i = 0; i < (int)tab.splits.size(); i++) {
             auto* split = tab.splits[i];
-            float width = avail.x / tab.splits.size();
+            // Use stored ratio for first split
+            float width = split->ratio * avail.x;
+            if (i == 0) width = (1.0f - split->ratio) * avail.x;
             
             ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0);
             ImGui::BeginChild(("vsplit_" + std::to_string(i)).c_str(), ImVec2(width, avail.y), true);
@@ -5878,16 +5880,33 @@ void EditorApp::render_splits(int tab_idx) {
             ImGui::EndChild();
             ImGui::PopStyleVar();
             
+            // Resizer between splits
             if (i < (int)tab.splits.size() - 1) {
+                ImGui::NextColumn();
+                // Drag to resize
+                ImVec2 cursor = ImGui::GetCursorPos();
+                ImGui::PushID(i);
+                if (ImGui::InvisibleButton("vsplitter", ImVec2(4, -1))) {}
+                if (ImGui::IsItemActive()) {
+                    ImGuiIO& io = ImGui::GetIO();
+                    float mouse_x = ImGui::GetMousePos().x - ImGui::GetWindowPos().x;
+                    split->ratio = mouse_x / avail.x;
+                    if (split->ratio < 0.1f) split->ratio = 0.1f;
+                    if (split->ratio > 0.9f) split->ratio = 0.9f;
+                    tab.dirty = true;
+                }
+                ImGui::PopID();
                 ImGui::NextColumn();
             }
         }
         ImGui::Columns(1);
     } else {
         // Horizontal splits - stack top to bottom
+        float y = 0;
         for (int i = 0; i < (int)tab.splits.size(); i++) {
             auto* split = tab.splits[i];
-            float height = avail.y / tab.splits.size();
+            float height = split->ratio * avail.y;
+            if (i == 0) height = (1.0f - split->ratio) * avail.y;
             
             ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0);
             ImGui::BeginChild(("hsplit_" + std::to_string(i)).c_str(), ImVec2(avail.x, height), true);
@@ -5897,6 +5916,21 @@ void EditorApp::render_splits(int tab_idx) {
             }
             ImGui::EndChild();
             ImGui::PopStyleVar();
+            
+            // Resizer between splits
+            if (i < (int)tab.splits.size() - 1) {
+                ImGui::PushID(i + 100);
+                if (ImGui::InvisibleButton("hsplitter", ImVec2(-1, 4))) {}
+                if (ImGui::IsItemActive()) {
+                    ImGuiIO& io = ImGui::GetIO();
+                    float mouse_y = ImGui::GetMousePos().y - ImGui::GetWindowPos().y;
+                    split->ratio = mouse_y / avail.y;
+                    if (split->ratio < 0.1f) split->ratio = 0.1f;
+                    if (split->ratio > 0.9f) split->ratio = 0.9f;
+                    tab.dirty = true;
+                }
+                ImGui::PopID();
+            }
         }
     }
 }
