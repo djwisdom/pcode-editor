@@ -184,15 +184,15 @@ void test_theme() {
 // Main Test Runner
 // ============================================================================
 int main() {
-    printf("╔══════════════════════════════════════════════════════════════════╗\n");
-    printf("║           pcode-editor Regression Test Suite                    ║\n");
-    printf("╠══════════════════════════════════════════════════════════════════╣\n");
-    printf("║  This suite verifies that previously vetted features don't      ║\n");
-    printf("║  regress when new changes are introduced.                       ║\n");
-    printf("║                                                                  ║\n");
-    printf("║  Tests check for presence of critical code patterns.           ║\n");
-    printf("║  If a test fails, the feature has regressed.                    ║\n");
-    printf("╚══════════════════════════════════════════════════════════════════╝\n");
+    printf("+----------------------------------------------------------+\n");
+    printf("|           pcode-editor Regression Test Suite                |\n");
+    printf("+----------------------------------------------------------+\n");
+    printf("|  This suite verifies that previously vetted features don't    |\n");
+    printf("|  regress when new changes are introduced.                 |\n");
+    printf("|                                                  |\n");
+    printf("|  Tests check for presence of critical code patterns.     |\n");
+    printf("|  If a test fails, the feature has regressed.               |\n");
+    printf("+----------------------------------------------------------+\n");
     
     // Run all test categories
     test_tab_bounds_checking();
@@ -206,13 +206,13 @@ int main() {
     test_theme();
     
     // Summary
-    printf("\n═══════════════════════════════════════════════════════════════════\n");
+    printf("\n+----------------------------------------------------------+\n");
     printf("TEST SUMMARY: %d passed, %d failed\n", tests_passed, tests_failed);
     
     if (tests_failed > 0) {
         printf("\nFAILED TESTS:\n");
         for (const auto& name : failed_tests) {
-            printf("  ✗ %s\n", name.c_str());
+            printf("  [FAIL] %s\n", name.c_str());
         }
         printf("\nThese features have regressed and need fixing!\n");
         return 1;
