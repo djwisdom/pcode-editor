@@ -1,7 +1,7 @@
 {
   "window_w": 958,
-  "window_h": 1000,
-  "dark_theme": true,
+  "window_h": 866,
+  "dark_theme": false,
   "enable_vim_mode": false,
   "word_wrap": true,
   "show_line_numbers": true,

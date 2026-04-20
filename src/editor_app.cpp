@@ -3725,38 +3725,23 @@ prev_active_tab = active_tab_;
             ImGui::CloseCurrentPopup();
         }
 ImGui::EndPopup();
-    }
 }
-        
-        ImGui::Separator();
-    }
-    
-    // Collapsible sidebar - hide in horizontal splits unless pinned
-    static float sidebar_w = 200;
-    static float sidebar_ratio = 0.2f;
-    static bool sidebar_expanded = true;  // Start expanded
-    static bool dragging = false;
-    
-    // Check for horizontal splits - if any exist and not pinned, don't show sidebar
-    bool has_horizontal_split = false;
-    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-        auto& tab = tabs_[active_tab_];
-        for (auto* split : tab.splits) {
-            if (split->is_horizontal) { has_horizontal_split = true; break; }
-        }
-    }
-    
-    // Just render editor
-    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-        render_editor_with_margins();
-    }
 }
 
 void EditorApp::render_editor_with_margins() {
-            // Files - recursive with expand/collapse
-            if (ImGui::BeginChild("##FileList", ImVec2(-1, -1), false)) {
-                std::function<void(std::string)> render_dir = [&](std::string dir) {
-                    try {
+    if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
+    auto& tab = tabs_[active_tab_];
+    TextEditor* editor = get_active_editor();
+    if (!editor) return;
+    
+    // Check if we have splits and render them
+    if (!tab.splits.empty()) {
+        render_splits(active_tab_);
+        return;
+    }
+    
+    // Single editor - render directly
+    editor->Render("Editor");
                         for (auto& entry : std::filesystem::directory_iterator(dir)) {
                             std::string name = entry.path().filename().string();
                             std::string full_path = entry.path().string();
@@ -3898,14 +3883,7 @@ void EditorApp::render_editor_with_margins() {
             dragging = false;
         }
         
-        ImGui::SameLine();
-    }
-    
-    // Editor
-    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-        render_editor_with_margins();
-    }
-}
+        }
 
 void EditorApp::render_editor_with_margins() {
     if (active_tab_ < 0 || active_tab_ >= (int)tabs_.size()) return;
