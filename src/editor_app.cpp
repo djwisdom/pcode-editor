@@ -65,6 +65,8 @@ static void init_conpty() {
 #include <algorithm>
 #include <ctime>
 #include <chrono>
+#include <functional>
+#include <cstdio>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -104,7 +106,7 @@ static void settings_save(const AppSettings& s, const std::string& path) {
     f << "  \"window_w\": " << s.window_w << ",\n";
     f << "  \"window_h\": " << s.window_h << ",\n";
     f << "  \"dark_theme\": " << (s.dark_theme ? "true" : "false") << ",\n";
-    f << "  \"show_status_bar\": " << (s.show_status_bar ? "true" : "false") << ",\n";
+    
     f << "  \"enable_vim_mode\": " << (s.enable_vim_mode ? "true" : "false") << ",\n";
     f << "  \"word_wrap\": " << (s.word_wrap ? "true" : "false") << ",\n";
     f << "  \"show_line_numbers\": " << (s.show_line_numbers ? "true" : "false") << ",\n";
@@ -159,7 +161,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.window_w = get_int("window_w", 1280);
     s.window_h = get_int("window_h", 800);
     s.dark_theme = get_bool("dark_theme", true);
-    s.show_status_bar = get_bool("show_status_bar", true);
+    
     s.enable_vim_mode = false;  // Force disabled - user can't edit with vim on
     s.word_wrap = get_bool("word_wrap", false);
     s.show_line_numbers = get_bool("show_line_numbers", true);
@@ -362,7 +364,6 @@ void EditorApp::init() {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-    // Disabled docking - may cause menu issues
     
     // Load fonts
     load_fonts();
@@ -533,13 +534,59 @@ void EditorApp::apply_theme(bool dark) {
     } else {
         ImGui::StyleColorsLight();
     }
-    // Tweak for editor feel
+    // Leverage default ImGui styles
     ImGuiStyle& style = ImGui::GetStyle();
+    
+    // Base styling
     style.WindowRounding = 4.0f;
     style.FrameRounding = 3.0f;
     style.GrabRounding = 3.0f;
     style.TabRounding = 4.0f;
     style.WindowBorderSize = 1.0f;
+    style.PopupBorderSize = 1.0f;
+    style.PopupRounding = 4.0f;
+    
+    // Colors - use ImGui defaults, enhance for editor
+    ImVec4* colors = style.Colors;
+    // Menu text, explorer, git, symbol text - muted like accelerator
+    colors[ImGuiCol_Text] = dark ? ImVec4(0.50f, 0.50f, 0.50f, 1.00f) : ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    colors[ImGuiCol_TextDisabled] = dark ? ImVec4(0.50f, 0.50f, 0.50f, 1.00f) : ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    // Match scrollbar background (#262626)
+    colors[ImGuiCol_WindowBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    colors[ImGuiCol_ChildBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    colors[ImGuiCol_PopupBg] = dark ? ImVec4(0.20f, 0.20f, 0.20f, 1.00f) : ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_Border] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+    colors[ImGuiCol_BorderShadow] = dark ? ImVec4(0.00f, 0.00f, 0.00f, 0.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    colors[ImGuiCol_FrameBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered] = dark ? ImVec4(0.30f, 0.30f, 0.30f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_FrameBgActive] = dark ? ImVec4(0.25f, 0.25f, 0.25f, 1.00f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_TitleBg] = dark ? ImVec4(0.15f, 0.15f, 0.15f, 1.00f) : ImVec4(0.92f, 0.92f, 0.92f, 1.00f);
+    colors[ImGuiCol_TitleBgActive] = dark ? ImVec4(0.20f, 0.20f, 0.20f, 1.00f) : ImVec4(0.88f, 0.88f, 0.88f, 1.00f);
+    colors[ImGuiCol_TitleBgCollapsed] = dark ? ImVec4(0.15f, 0.15f, 0.15f, 1.00f) : ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
+    
+    // Additional useful styles
+    colors[ImGuiCol_MenuBarBg] = dark ? ImVec4(0.15f, 0.15f, 0.15f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    // Scrollbar thumb - normal matches bg, hover stays different
+    colors[ImGuiCol_ScrollbarGrab] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = dark ? ImVec4(0.35f, 0.35f, 0.35f, 1.00f) : ImVec4(0.65f, 0.65f, 0.65f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive] = dark ? ImVec4(0.45f, 0.45f, 0.45f, 1.00f) : ImVec4(0.55f, 0.55f, 0.55f, 1.00f);
+    colors[ImGuiCol_Button] = dark ? ImVec4(0.25f, 0.25f, 0.25f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_ButtonHovered] = dark ? ImVec4(0.35f, 0.35f, 0.35f, 1.00f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_ButtonActive] = dark ? ImVec4(0.30f, 0.30f, 0.30f, 1.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    colors[ImGuiCol_Separator] = dark ? ImVec4(0.40f, 0.40f, 0.40f, 1.00f) : ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+    colors[ImGuiCol_Tab] = dark ? ImVec4(0.18f, 0.18f, 0.18f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_TabHovered] = dark ? ImVec4(0.28f, 0.28f, 0.28f, 1.00f) : ImVec4(0.82f, 0.82f, 0.82f, 1.00f);
+    colors[ImGuiCol_TabActive] = dark ? ImVec4(0.22f, 0.22f, 0.22f, 1.00f) : ImVec4(0.88f, 0.88f, 0.88f, 1.00f);
+    
+    // Sync editor background to theme
+    for (auto& tab : tabs_) {
+        if (tab.editor) {
+            auto palette = dark ? TextEditor::GetDarkPalette() : TextEditor::GetLightPalette();
+            palette[(int)TextEditor::PaletteIndex::Background] = dark ? 0xFF262626 : 0xFFF6F6F6;
+            tab.editor->SetPalette(palette);
+        }
+    }
 }
 
 // ============================================================================
@@ -551,6 +598,10 @@ void EditorApp::new_tab() {
     tab.editor = new TextEditor();
     tab.editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
     tab.editor->SetTabSize(settings_.tab_size);
+    // Set editor background to match theme scrollbar background
+    auto palette = settings_.dark_theme ? TextEditor::GetDarkPalette() : TextEditor::GetLightPalette();
+    palette[(int)TextEditor::PaletteIndex::Background] = settings_.dark_theme ? 0xFF262626 : 0xFFF6F6F6;
+    tab.editor->SetPalette(palette);
 
     tab.editor->SetText("");
     tabs_.push_back(std::move(tab));
@@ -958,7 +1009,7 @@ void EditorApp::terminal_zoom_reset() {
 }
 
 void EditorApp::toggle_status_bar() {
-    settings_.show_status_bar = !settings_.show_status_bar;
+    // status bar removed
 }
 
 void EditorApp::toggle_explorer() {
@@ -999,13 +1050,12 @@ void EditorApp::toggle_theme() {
     settings_.dark_theme = !settings_.dark_theme;
     apply_theme(settings_.dark_theme);
     
-    // Apply theme to all tabs immediately
+    // Apply theme and custom background to all tabs
+    uint32_t bg = settings_.dark_theme ? 0xFF262626 : 0xFFF6F6F6;
     for (auto& tab : tabs_) {
-        if (settings_.dark_theme) {
-            tab.editor->SetPalette(TextEditor::GetDarkPalette());
-        } else {
-            tab.editor->SetPalette(TextEditor::GetLightPalette());
-        }
+        auto palette = settings_.dark_theme ? TextEditor::GetDarkPalette() : TextEditor::GetLightPalette();
+        palette[(int)TextEditor::PaletteIndex::Background] = bg;
+        tab.editor->SetPalette(palette);
     }
 }
 
@@ -2857,7 +2907,7 @@ void EditorApp::validate_layout() {
     printf("[EDITOR] pos=(%d,%d) size=(%d,%d)\n", (int)ew_pos.x, (int)ew_pos.y, (int)ew_w, (int)ew_h);
     
     // Test 1: Status bar inside Editor at bottom
-    if (settings_.show_status_bar) {
+    if (true) {
         float status_y = ew_pos.y + ew_h - 24;
         ImVec2 status_pos = ImGui::GetWindowPos(); // Current window context
         // Check if status bar renders at bottom inside Editor
@@ -2866,7 +2916,7 @@ void EditorApp::validate_layout() {
         bool status_ok = cursor.y > 0 && cursor.y < ew_h;
         printf("[STATUS] %s (bottom, inside editor) - %s\n", 
             status_ok ? "OK" : "FAIL",
-            settings_.show_status_bar ? "enabled" : "disabled");
+            true ? "enabled" : "disabled");
     }
     
     // Test 2: Minimap at right side of editor
@@ -2895,14 +2945,14 @@ void EditorApp::validate_layout() {
     
     printf("======================================\n\n");
     
-    if (settings_.show_status_bar && settings_.show_minimap) {
+    if (true && settings_.show_minimap) {
         printf("NOTE: Enable components via View menu, then check:\n");
         printf("  - Status bar should be at bottom of Editor\n");
         printf("  - Minimap should be at right side\n");
         printf("  - Gutter should be at left of code\n");
     }
     
-    bool has_status = settings_.show_status_bar;
+    bool has_status = false;
     bool has_minimap = settings_.show_minimap;
     bool has_gutter = settings_.show_line_numbers || settings_.show_bookmark_margin;
     printf("[LAYOUT] StatusBar: %s | Minimap: %s | Gutter: %s | Explorer: %s\n",
@@ -3066,6 +3116,7 @@ void EditorApp::render() {
             }
         }
         if (io.KeyCtrl && io.KeyShift && !io.KeyAlt) {
+            if (ImGui::IsKeyPressed(ImGuiKey_F12)) { ImGui::ShowStyleEditor(); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_window(); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab_as(active_tab_); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_window(); return; }
@@ -3115,10 +3166,11 @@ void EditorApp::render() {
     }
 
 // Main window - Editor with menu, sidebar, editor area all inside
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
-    ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
-    ImGui::Begin("pCode Editor", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoScrollbar);
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->Pos, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(vp->Size, ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(vp->ID);
+    ImGui::Begin("pCode Editor", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBringToFrontOnFocus);
     // NOTE: SetWindowFocus removed - it was closing menus instantly
     // Always render menus - no conditional
     render_menu_bar();
@@ -3128,7 +3180,7 @@ void EditorApp::render() {
         if (ImGui::MenuItem("New File", "Ctrl+N")) new_tab();
         if (ImGui::MenuItem("Open...", "Ctrl+O")) open_file("");
         ImGui::Separator();
-        if (ImGui::MenuItem("Status Bar", nullptr, &settings_.show_status_bar)) toggle_status_bar();
+        
         ImGui::Separator();
         if (ImGui::MenuItem("Git", nullptr, &show_git_changes_)) {}
         if (ImGui::MenuItem("Symbol", nullptr, &show_symbol_outline_)) {}
@@ -3138,7 +3190,6 @@ void EditorApp::render() {
     }
     
     render_editor_area();
-    render_status_bar();
     ImGui::End();
 
     // Dialogs
@@ -3273,8 +3324,8 @@ void EditorApp::render_menu_view() {
             ImGui::EndMenu();
         }
         ImGui::Separator();
-        bool sb = settings_.show_status_bar;
-        if (ImGui::MenuItem("Status Bar", nullptr, &sb)) toggle_status_bar();
+        
+        
         bool ww = settings_.word_wrap;
         if (ImGui::MenuItem("Word Wrap", nullptr, &ww)) toggle_word_wrap();
         bool tabs = settings_.show_tabs;
@@ -3339,6 +3390,9 @@ ImGui::EndMenu();
 
 void EditorApp::render_menu_help() {
     if (ImGui::BeginMenu("Help")) {
+        if (ImGui::MenuItem("Style Editor", "Ctrl+Shift+F12")) {
+            ImGui::ShowStyleEditor();
+        }
         if (ImGui::MenuItem("About")) {
             show_about_ = true;
         }
@@ -3374,7 +3428,7 @@ void EditorApp::render_about_dialog() {
     // Center on main window
     ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * 0.5f, vp->Pos.y + vp->Size.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(440, 420), ImGuiCond_Always);  // +20px width, +40px height
     
     ImGui::OpenPopup("About");
     if (ImGui::BeginPopupModal("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -3462,7 +3516,7 @@ void EditorApp::render_editor_area() {
             ImColor(color));
     }
 
-    float status_height = settings_.show_status_bar ? 24 : 0;
+    float status_height = true ? 24 : 0;
     // Use content region directly - this accounts for everything
     float editor_width = ImGui::GetContentRegionAvail().x;
     float editor_height = ImGui::GetContentRegionAvail().y;
@@ -3473,7 +3527,7 @@ void EditorApp::render_editor_area() {
 
     bool show_tabs = settings_.show_tabs;
     float tab_height = show_tabs ? ImGui::GetFrameHeight() : 0.0f;
-    float status_h = settings_.show_status_bar ? 24.0f : 0.0f;
+    float status_h = true ? 24.0f : 0.0f;
     float editor_area_width = editor_width;
     float editor_area_height = editor_height - tab_height - status_h;
     static int prev_active_tab = -1;
@@ -3490,7 +3544,7 @@ void EditorApp::render_editor_area() {
         if (ImGui::BeginTabBar("##Tabs", tab_flags)) {
             for (int i = 0; i < (int)tabs_.size(); i++) {
                 auto& tab = tabs_[i];
-                std::string label = tab.display_name;
+                std::string label = tab.display_name + " ##" + std::to_string(i);
                 if (tab.dirty) label += " *";
 
                 bool open = true;
@@ -3508,7 +3562,7 @@ void EditorApp::render_editor_area() {
             }
             // Add [+] button for new tab
             if (tabs_.size() < 10) {
-                if (ImGui::TabItemButton("+", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoReorder)) {
+                if (ImGui::TabItemButton("+##newtab", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoReorder)) {
                     char tab_name[32];
                     if (tabs_.size() == 0) snprintf(tab_name, sizeof(tab_name), "untitled");
                     else snprintf(tab_name, sizeof(tab_name), "untitled%d", (int)tabs_.size());
@@ -3528,8 +3582,18 @@ void EditorApp::render_editor_area() {
     
     // Collapsible sidebar - always visible on left
     static float sidebar_w = 200;
+    static float sidebar_ratio = 0.2f;
     static bool sidebar_expanded = false;
     static bool dragging = false;
+    
+    // Auto-resize sidebar proportionally when window changes
+    if (!dragging) {
+        float avail = ImGui::GetContentRegionAvail().x;
+        if (avail > 100) {
+            float new_w = avail * sidebar_ratio;
+            if (new_w >= 100 && new_w <= 500) sidebar_w = new_w;
+        }
+    }
     
     if (ImGui::Button(sidebar_expanded ? "<" : ">")) {
         sidebar_expanded = !sidebar_expanded;
@@ -3537,22 +3601,161 @@ void EditorApp::render_editor_area() {
     ImGui::SameLine();
     
     if (sidebar_expanded) {
+        static int sidebar_view = 0;  // 0=Files, 1=Git, 2=Symbol
+        static std::string current_path = ".";
+        static std::vector<std::string> expanded_dirs;
+        static std::string git_output;
+        static bool git_cached = false;
+        
         ImGui::BeginChild("##Sidebar", ImVec2(sidebar_w, -1), true);
-        ImGui::Text("Files");
+        
+        // Tabs
+        if (ImGui::Button("F")) sidebar_view = 0;
+        ImGui::SameLine();
+        if (ImGui::Button("G")) sidebar_view = 1;
+        ImGui::SameLine();
+        if (ImGui::Button("S")) sidebar_view = 2;
         ImGui::Separator();
-        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            render_symbol_outline();
+        
+        if (sidebar_view == 0) {
+            // Files - recursive with expand/collapse
+            if (ImGui::BeginChild("##FileList", ImVec2(-1, -1), false)) {
+                std::function<void(std::string)> render_dir = [&](std::string dir) {
+                    try {
+                        for (auto& entry : std::filesystem::directory_iterator(dir)) {
+                            std::string name = entry.path().filename().string();
+                            std::string full_path = entry.path().string();
+                            bool is_dir = entry.is_directory();
+                            
+                            // Check if expanded
+                            bool expanded = false;
+                            for (auto& e : expanded_dirs) {
+                                if (e == full_path) { expanded = true; break; }
+                            }
+                            
+                            if (is_dir) {
+                                std::string icon = expanded ? "- " : "+ ";
+                                std::string id = icon + name + "##" + full_path;
+                                if (ImGui::Selectable(id.c_str(), false)) {
+                                    if (expanded) {
+                                        expanded_dirs.erase(std::remove(expanded_dirs.begin(), expanded_dirs.end(), full_path));
+                                    } else {
+                                        expanded_dirs.push_back(full_path);
+                                    }
+                                }
+                                // Render contents if expanded
+                                if (expanded) {
+                                    ImGui::Indent();
+                                    render_dir(full_path);
+                                    ImGui::Unindent();
+                                }
+                            } else {
+                                std::string icon = "f ";
+                                std::string id = icon + name + "##" + full_path;
+                                if (ImGui::Selectable(id.c_str(), false)) {
+                                    open_file(full_path);
+                                }
+                            }
+                        }
+                    } catch (std::exception& e) {
+                        ImGui::TextDisabled("Error: %s", e.what());
+                    }
+                };
+                render_dir(current_path);
+            }
+            ImGui::EndChild();
+        } else if (sidebar_view == 1) {
+            // Git - run git commands
+            if (!git_cached) {
+                git_output = "";
+                FILE* f = _popen("git status --short 2>nul", "r");
+                if (f) {
+                    char buf[512];
+                    while (fgets(buf, sizeof(buf), f)) {
+                        git_output += buf;
+                    }
+                    _pclose(f);
+                    git_cached = true;
+                }
+            }
+            if (ImGui::BeginChild("##GitList", ImVec2(-1, -1), false)) {
+                if (git_output.empty()) {
+                    ImGui::Text("No changes (or not a git repo)");
+                } else {
+                    std::istringstream iss(git_output);
+                    std::string line;
+                    while (std::getline(iss, line)) {
+                        if (!line.empty()) {
+                            ImGui::Text("%s", line.c_str());
+                        }
+                    }
+                }
+                if (ImGui::Button("Refresh")) git_cached = false;
+            }
+            ImGui::EndChild();
+        } else {
+            // Symbols - improved with line numbers
+            if (ImGui::BeginChild("##SymbolList", ImVec2(-1, -1), false)) {
+                if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                    TextEditor* ed = get_active_editor();
+                    if (ed) {
+                        std::string text = ed->GetText();
+                        std::istringstream iss(text);
+                        std::string line;
+                        int line_num = 0;
+                        while (std::getline(iss, line)) {
+                            line_num++;
+                            std::string trimmed = line;
+                            trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+                            if (trimmed.empty() || trimmed.substr(0, 2) == "//") continue;
+                            
+                            // Detect type
+                            std::string icon = "  ";
+                            if (trimmed.find("class ") == 0) icon = "C ";
+                            else if (trimmed.find("struct ") == 0) icon = "S ";
+                            else if (trimmed.find("enum ") == 0) icon = "E ";
+                            else if (trimmed.find("void ") != std::string::npos && trimmed.find('(') != std::string::npos) icon = "F ";
+                            else if (trimmed.find("int ") != std::string::npos && trimmed.find('(') != std::string::npos) icon = "F ";
+                            else if (trimmed.find("bool ") != std::string::npos && trimmed.find('(') != std::string::npos) icon = "F ";
+                            else if (trimmed.find("auto ") != std::string::npos && trimmed.find('(') != std::string::npos) icon = "F ";
+                            else if (trimmed.find("#define ") == 0) icon = "D ";
+                            else if (trimmed.find("const ") != std::string::npos && trimmed.find('=') != std::string::npos) icon = "V ";
+                            else continue;
+                            
+                            if (trimmed.length() > 28) trimmed = trimmed.substr(0, 28) + "...";
+                            std::string label = icon + " " + trimmed + "##" + std::to_string(line_num);
+                            if (ImGui::Selectable(label.c_str(), false, ImGuiSelectableFlags_DontClosePopups)) {
+                                ed->SetCursorPosition(TextEditor::Coordinates(line_num - 1, 0));
+                            }
+                        }
+                    }
+                } else {
+                    ImGui::TextDisabled("No file open");
+                }
+            }
+            ImGui::EndChild();
         }
         ImGui::EndChild();
         
-        // Resize handle
+        // Resize handle - wider visible bar
         ImGui::SameLine();
-        ImGui::InvisibleButton("##sidebarsplit", ImVec2(4, -1));
-        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        if (ImGui::IsItemClicked(0)) dragging = true;
+        ImVec4 splitterColor(0.149f, 0.149f, 0.149f, 1.0f);  // #262626
+        ImVec4 splitterHover(0.25f, 0.25f, 0.25f, 1.0f);   // slightly lighter for hover
+        ImGui::PushStyleColor(ImGuiCol_Button, splitterColor);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, splitterHover);
+        if (ImGui::Button("##sidebarsplit", ImVec2(8, -1))) {
+            // Toggle expand on click if not dragging
+        }
+        ImGui::PopStyleColor(2);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+            if (ImGui::IsMouseDown(0)) dragging = true;
+        }
         if (dragging && ImGui::IsMouseDown(0)) {
             sidebar_w += ImGui::GetIO().MouseDelta.x;
             sidebar_w = std::clamp(sidebar_w, 100.0f, 500.0f);
+            float avail = ImGui::GetContentRegionAvail().x + sidebar_w;
+            if (avail > 100) sidebar_ratio = sidebar_w / avail;
         } else {
             dragging = false;
         }
@@ -4198,7 +4401,7 @@ void EditorApp::render_symbol_outline() {
 // Status Bar
 // ============================================================================
 void EditorApp::render_status_bar() {
-    if (!settings_.show_status_bar) return;
+    if (!true) return;
     
     float status_height = 22.0f;
     float cmd_height = vim_mode_ == VimMode::Command ? 22.0f : 0.0f;

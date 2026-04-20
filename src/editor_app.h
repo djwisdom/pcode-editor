@@ -90,7 +90,6 @@ struct AppSettings {
     int window_w = 1280;
     int window_h = 800;
     bool dark_theme = true;
-    bool show_status_bar = true;
     bool enable_vim_mode = false;  // Vim keybindings disabled until stable
     bool word_wrap = false;  // Default: off (requires TextEditor library patch)
     bool show_line_numbers = false;
