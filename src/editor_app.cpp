@@ -3549,29 +3549,24 @@ void EditorApp::render_editor_area() {
     }
     prev_active_tab = active_tab_;
     
-    // Render tabs FIXED at top (not inside scrolling child)
+    // Default ImGui tabs - no flags
     if (show_tabs) {
-        ImGuiTabBarFlags tab_flags = ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs;
-        if (ImGui::BeginTabBar("##Tabs", tab_flags)) {
+        if (ImGui::BeginTabBar("##Tabs")) {
             for (int i = 0; i < (int)tabs_.size(); i++) {
                 auto& tab = tabs_[i];
-                std::string label = tab.display_name + " ##" + std::to_string(i);
-                if (tab.dirty) label += " *";
-
-                bool open = true;
-                if (ImGui::BeginTabItem(label.c_str(), &open)) {
-                    // This tab is selected - update active_tab
-                    if (active_tab_ != i) {
-                        active_tab_ = i;
-                    }
+                if (ImGui::BeginTabItem(tab.display_name.c_str())) {
+                    active_tab_ = i;
                     ImGui::EndTabItem();
                 }
-                if (!open) {
-                    close_tab(i);
-                    break;
-                }
             }
-            // Add [+] button for new tab
+            ImGui::EndTabBar();
+        }
+    }
+    
+    // Editor
+    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+        render_editor_with_margins();
+    }
             if (tabs_.size() < 10) {
                 if (ImGui::TabItemButton("+##newtab", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoReorder)) {
                     char tab_name[32];
@@ -3591,35 +3586,11 @@ void EditorApp::render_editor_area() {
         }
     }
     
-    // Collapsible sidebar - hide in horizontal splits unless pinned
-    static float sidebar_w = 200;
-    static float sidebar_ratio = 0.2f;
-    static bool sidebar_expanded = true;  // Start expanded
-    static bool dragging = false;
-    
-    // Check for horizontal splits - if any exist and not pinned, don't show sidebar
-    bool has_horizontal_split = false;
+    // Just render editor - no sidebar
     if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-        auto& tab = tabs_[active_tab_];
-        for (auto* split : tab.splits) {
-            if (split->is_horizontal) { has_horizontal_split = true; break; }
-        }
+        render_editor_with_margins();
     }
-    bool show_sidebar = !has_horizontal_split || explorer_pinned_;
-    
-    if (!show_sidebar) {
-        // Just render editor without sidebar
-        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            render_editor_with_margins();
-        }
-        return;
-    }
-    
-    // Auto-resize sidebar proportionally when window changes
-    if (!dragging) {
-        float avail = ImGui::GetContentRegionAvail().x;
-        if (avail > 100) {
-            float new_w = avail * sidebar_ratio;
+}
             if (new_w >= 100 && new_w <= 500) sidebar_w = new_w;
         }
     }
