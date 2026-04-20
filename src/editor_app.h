@@ -24,6 +24,7 @@ struct Split {
     bool editor_owned = true;        // Should we delete editor on split close
     bool is_active = true;         // Is this split focused
     float ratio = 0.5f;           // Split ratio (0.0-1.0)
+    bool is_horizontal = true;    // true = horizontal (top/bottom), false = vertical
     
     // Terminal instance for this split (independent terminals)
     bool has_terminal = false;
@@ -37,14 +38,6 @@ struct Split {
     // ConPTY handles for Windows terminal
     void* conpty_handle = nullptr;
 #endif
-    
-    // Split layout info
-    bool is_horizontal = true;    // true = horizontal (top/bottom), false = vertical (left/right)
-    float ratio = 0.5f;            // Size ratio relative to container (0.0-1.0)
-    
-    // For rendering (position and size in container)
-    float pos_x = 0, pos_y = 0;
-    float size_x = 0, size_y = 0;
 };
 
 // ============================================================================
