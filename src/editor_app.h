@@ -111,6 +111,11 @@ struct AppSettings {
     std::vector<std::string> recent_files;
     std::string last_open_dir;
     
+    // Notifications
+    bool notifications_enabled = true;        // Enable/disable all notifications
+    int notification_duration = 4000;         // Duration in ms (0=persistent)
+    bool notification_sound = true;          // Play sound on notification
+    
     // Robustness & Self-healing
     bool auto_save = true;                    // Auto-save drafts
     int auto_save_interval = 30;             // Seconds between auto-save
@@ -204,6 +209,7 @@ private:
     // Menu
     void render_menu_help();
     void render_menu_split();
+    void render_menu_options();
 
     // File operations
     void new_tab();

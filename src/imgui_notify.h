@@ -40,24 +40,42 @@ inline NotificationConfig& GetNotificationConfig() {
     return config;
 }
 
-// Notification colors (dark theme compatible)
+// Detect if currently in dark theme (based on WindowBg)
+inline bool IsDarkTheme() {
+    ImVec4 bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+    return bg.x < 0.5f;  // Dark if bg luminance < 50%
+}
+
+// Notification colors - adapt to dark/light theme
 inline ImVec4 GetNotificationBgColor(NotificationType type) {
+    bool dark = IsDarkTheme();
     switch (type) {
-        case NotificationType_Success: return ImVec4(0.12f, 0.35f, 0.17f, 0.95f);
-        case NotificationType_Warning:  return ImVec4(0.45f, 0.36f, 0.11f, 0.95f);
-        case NotificationType_Error:    return ImVec4(0.42f, 0.14f, 0.14f, 0.95f);
-        case NotificationType_Info:      return ImVec4(0.14f, 0.24f, 0.42f, 0.95f);  // #242F6B-ish
-        default: return ImVec4(0.20f, 0.20f, 0.22f, 0.95f);
+        case NotificationType_Success: 
+            return dark ? ImVec4(0.12f, 0.35f, 0.17f, 0.95f) : ImVec4(0.70f, 0.90f, 0.75f, 0.95f);
+        case NotificationType_Warning:  
+            return dark ? ImVec4(0.45f, 0.36f, 0.11f, 0.95f) : ImVec4(0.95f, 0.90f, 0.60f, 0.95f);
+        case NotificationType_Error:    
+            return dark ? ImVec4(0.42f, 0.14f, 0.14f, 0.95f) : ImVec4(0.95f, 0.75f, 0.75f, 0.95f);
+        case NotificationType_Info:      
+            return dark ? ImVec4(0.14f, 0.24f, 0.42f, 0.95f) : ImVec4(0.75f, 0.85f, 0.95f, 0.95f);
+        default: 
+            return dark ? ImVec4(0.20f, 0.20f, 0.22f, 0.95f) : ImVec4(0.85f, 0.85f, 0.88f, 0.95f);
     }
 }
 
 inline ImVec4 GetNotificationBorderColor(NotificationType type) {
+    bool dark = IsDarkTheme();
     switch (type) {
-        case NotificationType_Success: return ImVec4(0.25f, 0.65f, 0.30f, 0.60f);
-        case NotificationType_Warning:  return ImVec4(0.75f, 0.60f, 0.20f, 0.60f);
-        case NotificationType_Error:    return ImVec4(0.75f, 0.25f, 0.25f, 0.60f);
-        case NotificationType_Info:      return ImVec4(0.30f, 0.45f, 0.75f, 0.60f);
-        default: return ImVec4(0.40f, 0.40f, 0.45f, 0.60f);
+        case NotificationType_Success: 
+            return dark ? ImVec4(0.25f, 0.65f, 0.30f, 0.60f) : ImVec4(0.20f, 0.55f, 0.15f, 0.60f);
+        case NotificationType_Warning:  
+            return dark ? ImVec4(0.75f, 0.60f, 0.20f, 0.60f) : ImVec4(0.55f, 0.45f, 0.10f, 0.60f);
+        case NotificationType_Error:    
+            return dark ? ImVec4(0.75f, 0.25f, 0.25f, 0.60f) : ImVec4(0.55f, 0.15f, 0.15f, 0.60f);
+        case NotificationType_Info:      
+            return dark ? ImVec4(0.30f, 0.45f, 0.75f, 0.60f) : ImVec4(0.20f, 0.35f, 0.60f, 0.60f);
+        default: 
+            return dark ? ImVec4(0.40f, 0.40f, 0.45f, 0.60f) : ImVec4(0.30f, 0.30f, 0.35f, 0.60f);
     }
 }
 
@@ -219,10 +237,14 @@ inline void RenderNotifications() {
             ImGui::PopStyleVar(2);
             ImGui::PopStyleColor();
             ImGui::End();
+            
+            ImGui::PopStyleColor(2);
+            ImGui::PopStyleVar(3);
+        } else {
+            // Begin failed - only pop the outer style vars
+            ImGui::PopStyleColor(2);
+            ImGui::PopStyleVar(3);
         }
-
-        ImGui::PopStyleColor(2);
-        ImGui::PopStyleVar(3);
 
         current_y -= 65.0f;
     }
