@@ -2,7 +2,6 @@
   "window_w": 1280,
   "window_h": 800,
   "dark_theme": true,
-  "show_status_bar": true,
   "enable_vim_mode": false,
   "word_wrap": true,
   "show_line_numbers": false,
@@ -11,8 +10,8 @@
   "highlight_line": 1,
   "show_tabs": false,
   "tab_size": 4,
-  "font_size": 18,
-  "font_name": "",
-  "last_open_dir": "",
-  "recent_files": []
+  "font_size": 17,
+  "font_name": "consola",
+  "last_open_dir": "C:\\Users\\casse",
+  "recent_files": ["C:\\Users\\casse\\gwam6.c"]
 }

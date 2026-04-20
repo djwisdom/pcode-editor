@@ -172,3 +172,4 @@ Artifacts contain:
 - [ ] Add code signing for Windows/macOS
 - [ ] Implement auto-update mechanism
 - [ ] Add installer generation (NSIS, pkg, deb, rpm)
+

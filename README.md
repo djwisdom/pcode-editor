@@ -77,3 +77,4 @@ All dependencies fetched automatically via CMake FetchContent:
 ## License
 
 BSD 2-Clause License - see LICENSE file.
+

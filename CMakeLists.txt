@@ -121,6 +121,9 @@ add_executable(${PROJECT_NAME}
     ${APP_SOURCES}
 )
 
+# Link as Windows subsystem (no console)
+target_link_options(${PROJECT_NAME} PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+
 # Determine include directories based on dependency source (vcpkg or FetchContent)
 if(TARGET imgui::imgui)
     # vcpkg imgui - use imported targets
@@ -263,9 +266,25 @@ target_compile_options(test_view_features PRIVATE
 
 add_test(NAME ViewFeatures COMMAND test_view_features)
 
+# Regression test suite
+add_executable(test_regression tests/test_regression.cpp)
+target_compile_options(test_regression PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra>
+)
+
+add_test(NAME Regression COMMAND test_regression)
+
 # Custom target to run tests
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS test_view_features
+    DEPENDS test_view_features test_regression
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+# Custom target to run ONLY regression tests
+add_custom_target(test_regression_only
+    COMMAND test_regression
+    DEPENDS test_regression
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )

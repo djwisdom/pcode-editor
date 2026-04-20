@@ -13,6 +13,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include "imgui_notify.h"
+#include "editor_notifications.h"
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <GLFW/glfw3.h>
@@ -72,6 +73,8 @@ static void init_conpty() {
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
+using namespace EditorNotifications;
 
 // ============================================================================
 // Simple JSON helpers (no external dependency)
@@ -218,7 +221,7 @@ std::string EditorApp::get_version() {
 // Constructor / Destructor
 // ============================================================================
 EditorApp::EditorApp(int argc, char* argv[])
-    : argc_(argc), argv_(argv) {
+    : argc_(argc), argv_(argv), notification_manager_(&NotificationManager::get()) {
     new_tab();  // Start with one untitled tab
     font_size_temp_ = settings_.font_size;
     tab_size_temp_ = settings_.tab_size;
@@ -3437,6 +3440,9 @@ void EditorApp::render_menu_help() {
         if (ImGui::MenuItem("Style Editor", "Ctrl+Shift+F12")) {
             show_style_editor_ = true;
         }
+        if (ImGui::MenuItem("Test Notifications")) {
+            test_notifications();
+        }
         if (ImGui::MenuItem("About")) {
             show_about_ = true;
         }
@@ -3539,6 +3545,63 @@ void EditorApp::render_about_dialog() {
         ImGui::EndPopup();
         ImGui::PopStyleColor();
     }
+}
+
+// ============================================================================
+// Notification Testing
+// ============================================================================
+void EditorApp::test_notifications() {
+    // Trigger a variety of sample notifications to test the system
+    
+    // Build failure
+    notify_build_failure(
+        "MyProject", "all", "src/main.cpp", 42,
+        "undefined reference to 'foo'", "build#123", "logs/build.log"
+    );
+    
+    // Tests failing
+    notify_tests_failure(
+        "unit-tests", 3, "TestFoo", "expected equal", "tests/foo"
+    );
+    
+    // CI status change
+    notify_ci_status(
+        "PR-42", "pending", "failed", "compile",
+        "github-actions", "https://ci.example.com/pr/42"
+    );
+    
+    // Review request (draft)
+    notify_review_request(
+        "Add feature X", "alice", 5,
+        {"needs-review", "WIP"}, "123", "https://pr.example.com/123", true
+    );
+    
+    // Security alert
+    notify_security_alert(
+        "src/crypto.cpp", "HIGH", "1.2.3", "1.2.4",
+        "https://security.example.com/advisory/456"
+    );
+    
+    // Dependency vulnerability
+    notify_dependency_vuln(
+        "openssl", "CRITICAL", "<1.1.1t", "1.1.1t",
+        "CVE-2024-1234", "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
+    );
+    
+    // Task complete (success)
+    notify_task_complete(
+        "code generation", true, 45, "artifacts/gen.tar.gz", ""
+    );
+    
+    // Git event (force-push)
+    notify_git_event(
+        "main", "force-push", "src/", 0, "bob", ""
+    );
+    
+    // Performance regression
+    notify_perf_regression(
+        "startup_time", -15.0f, 100.0f, 85.0f, "initialization", ""
+    );
 }
 
 // ============================================================================

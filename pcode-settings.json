@@ -1,17 +1,17 @@
 {
-  "window_w": 937,
-  "window_h": 832,
+  "window_w": 958,
+  "window_h": 909,
   "dark_theme": true,
   "enable_vim_mode": false,
   "word_wrap": true,
   "show_line_numbers": true,
   "show_minimap": true,
   "show_spaces": true,
-  "highlight_line": 2,
+  "highlight_line": 0,
   "show_tabs": true,
   "tab_size": 4,
-  "font_size": 18,
+  "font_size": 17,
   "font_name": "GeistMono-Regular",
-  "last_open_dir": ".\\src",
-  "recent_files": [".\\src\\editor_app.cpp", "C:\\Users\\casse\\dots", ".\\TESTS.md", ".\\test_vim_motions.obj", ".\\vcpkg.json", ".\\VERSION", ".\\README.md", ".\\scripts\\build.sh", ".\\src\\main.cpp", ".\\src\\editor_app.h"]
+  "last_open_dir": ".",
+  "recent_files": [".\\BUILD_SYSTEM.md", ".\\README.md", ".\\IMPLEMENTATION_SUMMARY.md", ".\\imgui.ini", "C:\\Users\\casse\\t2.c", "C:\\Users\\casse\\gwam6.c", ".\\src\\editor_app.cpp", ".\\TESTS.md", ".\\docs\\VIM_MOTIONS_SPEC.md", ".\\docs\\PROJECT_RETROSPECTIVE.md"]
 }

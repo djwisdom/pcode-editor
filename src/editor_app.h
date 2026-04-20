@@ -11,6 +11,8 @@
 #include <array>
 #include <unordered_map>
 
+#include "editor_notifications.h"
+
 struct GLFWwindow;
 class TextEditor;
 
@@ -51,6 +53,7 @@ struct EditorTab {
     std::string file_path;       // Empty = untitled
     std::string display_name;    // "untitled" or filename
     bool dirty = false;          // Has unsaved changes
+    bool first_render = true;    // Hasn't been rendered yet
     TextEditor* editor = nullptr; // Owned by tab
     bool is_terminal = false;    // This tab is a terminal
     int zoom_pct = 100;          // Zoom percentage
@@ -164,6 +167,7 @@ private:
     void log_event(const std::string& event);
     void check_for_updates();
     std::string get_diagnostics();
+    void test_notifications();
 
     // Rendering
     void render();
@@ -280,6 +284,7 @@ private:
     void* native_status_bar = nullptr;  // Native Windows status bar HWND
     bool running_ = true;
     std::vector<std::string> activity_log_;  // Session activity audit trail (non-persistent)
+    EditorNotifications::NotificationManager* notification_manager_ = nullptr;
 
     std::vector<EditorTab> tabs_;
     int active_tab_ = 0;

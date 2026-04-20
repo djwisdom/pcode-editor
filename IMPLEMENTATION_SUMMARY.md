@@ -265,3 +265,4 @@ Supported platforms:
 - FreeBSD/OpenBSD/NetBSD (X11 + GTK3)
 - macOS (Cocoa + OpenGL) [manual build]
 ```
+
