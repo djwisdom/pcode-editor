@@ -1,6 +1,6 @@
 {
-  "window_w": 1920,
-  "window_h": 1009,
+  "window_w": 937,
+  "window_h": 832,
   "dark_theme": true,
   "enable_vim_mode": false,
   "word_wrap": true,
@@ -10,8 +10,8 @@
   "highlight_line": 2,
   "show_tabs": true,
   "tab_size": 4,
-  "font_size": 16,
-  "font_name": "consola",
+  "font_size": 18,
+  "font_name": "GeistMono-Regular",
   "last_open_dir": ".\\src",
   "recent_files": [".\\src\\editor_app.cpp", "C:\\Users\\casse\\dots", ".\\TESTS.md", ".\\test_vim_motions.obj", ".\\vcpkg.json", ".\\VERSION", ".\\README.md", ".\\scripts\\build.sh", ".\\src\\main.cpp", ".\\src\\editor_app.h"]
 }

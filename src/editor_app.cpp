@@ -565,7 +565,8 @@ void EditorApp::apply_theme(bool dark) {
     colors[ImGuiCol_TitleBgCollapsed] = dark ? ImVec4(0.15f, 0.15f, 0.15f, 1.00f) : ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
     
     // Additional useful styles
-    colors[ImGuiCol_MenuBarBg] = dark ? ImVec4(0.15f, 0.15f, 0.15f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+    // Menu background - matches scrollbar (#262626)
+    colors[ImGuiCol_MenuBarBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
     colors[ImGuiCol_ScrollbarBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
     // Scrollbar thumb - normal matches bg, hover stays different
     colors[ImGuiCol_ScrollbarGrab] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
@@ -578,6 +579,10 @@ void EditorApp::apply_theme(bool dark) {
     colors[ImGuiCol_Tab] = dark ? ImVec4(0.18f, 0.18f, 0.18f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
     colors[ImGuiCol_TabHovered] = dark ? ImVec4(0.28f, 0.28f, 0.28f, 1.00f) : ImVec4(0.82f, 0.82f, 0.82f, 1.00f);
     colors[ImGuiCol_TabActive] = dark ? ImVec4(0.22f, 0.22f, 0.22f, 1.00f) : ImVec4(0.88f, 0.88f, 0.88f, 1.00f);
+    // Menu highlight - matches editor selection
+    colors[ImGuiCol_Header] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    colors[ImGuiCol_HeaderHovered] = dark ? ImVec4(0.25f, 0.25f, 0.25f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_HeaderActive] = dark ? ImVec4(0.20f, 0.20f, 0.20f, 1.00f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
     
     // Sync editor background to theme
     for (auto& tab : tabs_) {
@@ -3116,7 +3121,7 @@ void EditorApp::render() {
             }
         }
         if (io.KeyCtrl && io.KeyShift && !io.KeyAlt) {
-            if (ImGui::IsKeyPressed(ImGuiKey_F12)) { ImGui::ShowStyleEditor(); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_F12)) { ImGui::ShowStyleEditor(nullptr); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_window(); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab_as(active_tab_); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_window(); return; }
@@ -3200,6 +3205,12 @@ void EditorApp::render() {
     if (show_spaces_dialog_) render_spaces_dialog();
     if (show_cmd_palette_) render_command_palette();
     if (show_about_) render_about_dialog();
+    if (show_style_editor_) {
+        ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_Always);
+        ImGui::Begin("Style Editor", &show_style_editor_);
+        ImGui::ShowStyleEditor(nullptr);
+        ImGui::End();
+    }
     
     // Native Windows status bar
     update_native_status_bar();
@@ -3391,7 +3402,7 @@ ImGui::EndMenu();
 void EditorApp::render_menu_help() {
     if (ImGui::BeginMenu("Help")) {
         if (ImGui::MenuItem("Style Editor", "Ctrl+Shift+F12")) {
-            ImGui::ShowStyleEditor();
+            show_style_editor_ = true;
         }
         if (ImGui::MenuItem("About")) {
             show_about_ = true;
@@ -3580,11 +3591,29 @@ void EditorApp::render_editor_area() {
         }
     }
     
-    // Collapsible sidebar - always visible on left
+    // Collapsible sidebar - hide in horizontal splits unless pinned
     static float sidebar_w = 200;
     static float sidebar_ratio = 0.2f;
-    static bool sidebar_expanded = false;
+    static bool sidebar_expanded = true;  // Start expanded
     static bool dragging = false;
+    
+    // Check for horizontal splits - if any exist and not pinned, don't show sidebar
+    bool has_horizontal_split = false;
+    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+        auto& tab = tabs_[active_tab_];
+        for (auto* split : tab.splits) {
+            if (split->is_horizontal) { has_horizontal_split = true; break; }
+        }
+    }
+    bool show_sidebar = !has_horizontal_split || explorer_pinned_;
+    
+    if (!show_sidebar) {
+        // Just render editor without sidebar
+        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+            render_editor_with_margins();
+        }
+        return;
+    }
     
     // Auto-resize sidebar proportionally when window changes
     if (!dragging) {
@@ -3615,6 +3644,8 @@ void EditorApp::render_editor_area() {
         if (ImGui::Button("G")) sidebar_view = 1;
         ImGui::SameLine();
         if (ImGui::Button("S")) sidebar_view = 2;
+        ImGui::SameLine();
+        if (ImGui::Button(explorer_pinned_ ? "[@]" : "[?]")) explorer_pinned_ = !explorer_pinned_;
         ImGui::Separator();
         
         if (sidebar_view == 0) {

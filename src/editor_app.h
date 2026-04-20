@@ -294,9 +294,11 @@ private:
     bool show_cmd_palette_ = false;
     bool show_spaces_ = false;
     bool show_about_ = false;
+    bool show_style_editor_ = false;
     
     // Sidebar panels
     bool show_file_tree_ = true;
+    bool explorer_pinned_ = false;  // true = always visible, false = hide in horizontal splits
     int explorer_side_ = 0;  // 0=left, 1=right, -1=hidden
     bool show_git_changes_ = false;
     bool show_symbol_outline_ = false;
