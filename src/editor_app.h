@@ -330,6 +330,7 @@ private:
 
     // Spaces submenu state
     bool show_spaces_dialog_ = false;
+    int pending_close_tab_idx_ = -1;  // Tab waiting for close confirmation
     bool show_new_file_dialog_ = false;
     bool show_new_folder_dialog_ = false;
     bool show_terminal_ = false;

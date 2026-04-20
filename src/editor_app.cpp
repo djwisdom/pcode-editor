@@ -3684,12 +3684,53 @@ void EditorApp::render_editor_area() {
         // Handle close after the loop
         if (close_idx >= 0) {
             auto& tab = tabs_[close_idx];
-            delete tab.editor;
-            tabs_.erase(tabs_.begin() + close_idx);
-            if (active_tab_ >= (int)tabs_.size()) {
-                active_tab_ = (int)tabs_.size() - 1;
+            if (tab.dirty) {
+                // Show confirmation dialog instead of closing
+                pending_close_tab_idx_ = close_idx;
+                ImGui::OpenPopup("Discard Changes?");
+            } else {
+                // Safe to close immediately
+                delete tab.editor;
+                tabs_.erase(tabs_.begin() + close_idx);
+                if (active_tab_ >= (int)tabs_.size()) {
+                    active_tab_ = (int)tabs_.size() - 1;
+                }
+                if (active_tab_ > close_idx) active_tab_--;
             }
-            if (active_tab_ > close_idx) active_tab_--;
+        }
+        
+        // Render discard confirmation modal
+        if (ImGui::BeginPopupModal("Discard Changes?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Save changes to '%s'?", tabs_[pending_close_tab_idx_].display_name.c_str());
+            ImGui::Separator();
+            if (ImGui::Button("Save")) {
+                // TODO: Implement save before close
+                delete tabs_[pending_close_tab_idx_].editor;
+                tabs_.erase(tabs_.begin() + pending_close_tab_idx_);
+                if (active_tab_ >= (int)tabs_.size()) {
+                    active_tab_ = (int)tabs_.size() - 1;
+                }
+                if (active_tab_ > pending_close_tab_idx_) active_tab_--;
+                pending_close_tab_idx_ = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Don't Save")) {
+                delete tabs_[pending_close_tab_idx_].editor;
+                tabs_.erase(tabs_.begin() + pending_close_tab_idx_);
+                if (active_tab_ >= (int)tabs_.size()) {
+                    active_tab_ = (int)tabs_.size() - 1;
+                }
+                if (active_tab_ > pending_close_tab_idx_) active_tab_--;
+                pending_close_tab_idx_ = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel")) {
+                pending_close_tab_idx_ = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
         }
         
         // [+] for new tab
