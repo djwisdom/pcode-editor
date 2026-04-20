@@ -3668,9 +3668,9 @@ void EditorApp::render_editor_area() {
     }
     prev_active_tab = active_tab_;
     
-    // Use ImGui native tab bar with close buttons - forced horizontal
+    // Use native ImGui horizontal tab bar
     if (show_tabs) {
-        if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_Reorder | ImGuiTabBarFlags_No.CloseToExistingOrder)) {
+        if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_Reorder)) {
             for (int i = 0; i < (int)tabs_.size(); i++) {
                 auto& tab = tabs_[i];
                 // ImGuiTabItemFlags_UnsavedDocument shows the x close button
