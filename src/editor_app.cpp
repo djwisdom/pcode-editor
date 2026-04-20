@@ -3674,23 +3674,73 @@ void EditorApp::render_editor_area() {
     }
 prev_active_tab = active_tab_;
     
-    // Default ImGui tabs
+// ImGui tabs with close buttons
     if (show_tabs) {
         if (ImGui::BeginTabBar("##Tabs")) {
             for (int i = 0; i < (int)tabs_.size(); i++) {
                 auto& tab = tabs_[i];
-                if (ImGui::BeginTabItem(tab.display_name.c_str())) {
+                bool open = true;
+                if (ImGui::BeginTabItem(tab.display_name.c_str(), &open, ImGuiTabItemFlags_None)) {
                     active_tab_ = i;
                     ImGui::EndTabItem();
+                }
+                if (!open) {
+                    close_tab(i);
+                    break;
                 }
             }
             ImGui::EndTabBar();
         }
-}
+        // [+] for new tab
+        ImGui::SameLine();
+        if (ImGui::Button("+")) {
+            new_tab();
+        }
+    }
     
-    // Editor
+// Editor
     if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
         render_editor_with_margins();
+    }
+    
+    // Simple file explorer
+    if (show_file_tree_) {
+        ImGui::SameLine();
+        if (ImGui::BeginChild("##Explorer", ImVec2(200, 0), true)) {
+            static std::vector<std::string> expanded_dirs;
+            std::string dir = settings_.last_open_dir.empty() ? "." : settings_.last_open_dir;
+            
+            try {
+                for (auto& entry : std::filesystem::directory_iterator(dir)) {
+                    std::string name = entry.path().filename().string();
+                    bool is_dir = entry.is_directory();
+                    std::string full_path = entry.path().string();
+                    
+                    // Check if expanded
+                    bool expanded = false;
+                    for (auto& e : expanded_dirs) {
+                        if (e == full_path) { expanded = true; break; }
+                    }
+                    
+                    // Icon: >/v for dirs, · for files
+                    std::string icon = is_dir ? (expanded ? "v " : "> ") : "· ";
+                    std::string id = icon + name + "##" + full_path;
+                    
+                    if (ImGui::Selectable(id.c_str(), false)) {
+                        if (is_dir) {
+                            if (expanded) {
+                                expanded_dirs.erase(std::remove(expanded_dirs.begin(), expanded_dirs.end(), full_path));
+                            } else {
+                                expanded_dirs.push_back(full_path);
+                            }
+                        } else {
+                            open_file(full_path);
+                        }
+                    }
+                }
+            } catch (...) {}
+            ImGui::EndChild();
+        }
     }
     
     // Render discard confirmation modal
