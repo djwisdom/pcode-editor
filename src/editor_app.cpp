@@ -1031,8 +1031,6 @@ void EditorApp::toggle_explorer() {
     else if (explorer_side_ == 1) explorer_side_ = -1;
     else explorer_side_ = 0;
     show_file_tree_ = (explorer_side_ != -1);
-    // When toggling to show, also pin it
-    if (explorer_side_ != -1) explorer_pinned_ = true;
 }
 
 void EditorApp::toggle_word_wrap() {
@@ -3747,50 +3745,14 @@ ImGui::EndPopup();
             if (split->is_horizontal) { has_horizontal_split = true; break; }
         }
     }
-    bool show_sidebar = !has_horizontal_split || explorer_pinned_;
     
-    if (!show_sidebar) {
-        // Just render editor without sidebar
-        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            render_editor_with_margins();
-        }
-        return;
+    // Just render editor
+    if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+        render_editor_with_margins();
     }
-    
-    // Auto-resize sidebar proportionally when window changes
-    if (!dragging) {
-        float avail = ImGui::GetContentRegionAvail().x;
-        if (avail > 100) {
-            float new_w = avail * sidebar_ratio;
-            if (new_w >= 100 && new_w <= 500) sidebar_w = new_w;
-        }
-    }
-    
-    if (ImGui::Button(sidebar_expanded ? "<" : ">")) {
-        sidebar_expanded = !sidebar_expanded;
-    }
-    ImGui::SameLine();
-    
-    if (sidebar_expanded) {
-        static int sidebar_view = 0;  // 0=Files, 1=Git, 2=Symbol
-        static std::string current_path = ".";
-        static std::vector<std::string> expanded_dirs;
-        static std::string git_output;
-        static bool git_cached = false;
-        
-        ImGui::BeginChild("##Sidebar", ImVec2(sidebar_w, -1), true);
-        
-        // Tabs
-        if (ImGui::Button("F")) sidebar_view = 0;
-        ImGui::SameLine();
-        if (ImGui::Button("G")) sidebar_view = 1;
-        ImGui::SameLine();
-        if (ImGui::Button("S")) sidebar_view = 2;
-        ImGui::SameLine();
-        if (ImGui::Button(explorer_pinned_ ? "[x]" : "[ ]")) explorer_pinned_ = !explorer_pinned_;
-        ImGui::Separator();
-        
-        if (sidebar_view == 0) {
+}
+
+void EditorApp::render_editor_with_margins() {
             // Files - recursive with expand/collapse
             if (ImGui::BeginChild("##FileList", ImVec2(-1, -1), false)) {
                 std::function<void(std::string)> render_dir = [&](std::string dir) {
