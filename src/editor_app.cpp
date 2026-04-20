@@ -118,7 +118,6 @@ static void settings_save(const AppSettings& s, const std::string& path) {
     f << "  \"show_spaces\": " << (s.show_spaces ? "true" : "false") << ",\n";
     f << "  \"highlight_line\": " << s.highlight_line << ",\n";
     f << "  \"show_tabs\": " << (s.show_tabs ? "true" : "false") << ",\n";
-    f << "  \"notifications_enabled\": " << (s.notifications_enabled ? "true" : "false") << ",\n";
     f << "  \"tab_size\": " << s.tab_size << ",\n";
     f << "  \"font_size\": " << s.font_size << ",\n";
     f << "  \"font_name\": \"" << json_escape(s.font_name) << "\",\n";
@@ -176,7 +175,6 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.show_spaces = get_bool("show_spaces", false);
     s.highlight_line = get_int("highlight_line", 1);
     s.show_tabs = get_bool("show_tabs", false);
-    s.notifications_enabled = get_bool("notifications_enabled", true);
     s.tab_size = get_int("tab_size", 4);
     s.font_size = get_int("font_size", 18);
     s.font_name = get_str("font_name");
@@ -3298,7 +3296,6 @@ void EditorApp::render_menu_bar() {
         render_menu_edit();
         render_menu_view();
         render_menu_split();
-        render_menu_options();
         render_menu_help();
         ImGui::EndMenuBar();
     }
@@ -3389,6 +3386,7 @@ void EditorApp::render_menu_edit() {
             }
         }
         ImGui::Separator();
+        if (ImGui::MenuItem("Font...")) show_font_ = true;
         ImGui::EndMenu();
     }
 }
@@ -3407,6 +3405,10 @@ void EditorApp::render_menu_view() {
         // Show Tabs (default: false)
         bool tabs = settings_.show_tabs;
         if (ImGui::MenuItem("Show Tabs", nullptr, &tabs)) settings_.show_tabs = tabs;
+        
+        // Show Spaces (default: false) 
+        bool sp = settings_.show_spaces;
+        if (ImGui::MenuItem("Show Spaces", nullptr, &sp)) toggle_spaces();
         
         // Explorer (default: true)
         bool explorer = (explorer_side_ != -1);
@@ -3463,22 +3465,6 @@ void EditorApp::render_menu_split() {
         ImGui::Separator();
         if (ImGui::MenuItem("Rotate Splits", "Ctrl+Alt+K")) rotate_splits();
         if (ImGui::MenuItem("Equal Size", "Ctrl+Alt+E")) equalize_splits();
-        ImGui::EndMenu();
-    }
-}
-
-void EditorApp::render_menu_options() {
-    if (ImGui::BeginMenu("Options")) {
-        bool notif = settings_.notifications_enabled;
-        if (ImGui::MenuItem("Notifications", nullptr, &notif)) {
-            settings_.notifications_enabled = notif;
-        }
-        if (ImGui::MenuItem("Font")) {
-            show_font_ = true;
-        }
-        if (ImGui::MenuItem("Spaces")) {
-            show_spaces_dialog_ = true;
-        }
         ImGui::EndMenu();
     }
 }
@@ -3565,8 +3551,6 @@ void EditorApp::render_about_dialog() {
 // Notification Testing
 // ============================================================================
 void EditorApp::test_notifications() {
-    if (!settings_.notifications_enabled) return;
-    
     // Trigger a variety of sample notifications to test the system
     
     // Build failure
@@ -3668,9 +3652,9 @@ void EditorApp::render_editor_area() {
     }
     prev_active_tab = active_tab_;
     
-    // Use native ImGui horizontal tab bar
+    // Use ImGui native tab bar with close buttons
     if (show_tabs) {
-        if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_Reorder)) {
+        if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_AutoSelectNewTab)) {
             for (int i = 0; i < (int)tabs_.size(); i++) {
                 auto& tab = tabs_[i];
                 // ImGuiTabItemFlags_UnsavedDocument shows the x close button
