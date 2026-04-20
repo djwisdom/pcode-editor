@@ -1,6 +1,6 @@
 {
   "window_w": 958,
-  "window_h": 909,
+  "window_h": 484,
   "dark_theme": true,
   "enable_vim_mode": false,
   "word_wrap": true,
@@ -12,6 +12,6 @@
   "tab_size": 4,
   "font_size": 17,
   "font_name": "GeistMono-Regular",
-  "last_open_dir": ".",
-  "recent_files": [".\\BUILD_SYSTEM.md", ".\\README.md", ".\\IMPLEMENTATION_SUMMARY.md", ".\\imgui.ini", "C:\\Users\\casse\\t2.c", "C:\\Users\\casse\\gwam6.c", ".\\src\\editor_app.cpp", ".\\TESTS.md", ".\\docs\\VIM_MOTIONS_SPEC.md", ".\\docs\\PROJECT_RETROSPECTIVE.md"]
+  "last_open_dir": "C:\\Users\\casse",
+  "recent_files": ["C:\\Users\\casse\\t2.c", ".\\BUILD_SYSTEM.md", ".\\README.md", ".\\IMPLEMENTATION_SUMMARY.md", ".\\imgui.ini", "C:\\Users\\casse\\gwam6.c", ".\\src\\editor_app.cpp", ".\\TESTS.md", ".\\docs\\VIM_MOTIONS_SPEC.md", ".\\docs\\PROJECT_RETROSPECTIVE.md"]
 }

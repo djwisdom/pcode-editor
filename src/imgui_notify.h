@@ -46,20 +46,24 @@ inline bool IsDarkTheme() {
     return bg.x < 0.5f;  // Dark if bg luminance < 50%
 }
 
-// Notification colors - adapt to dark/light theme
+// Notification colors - Dark Pro Palette
 inline ImVec4 GetNotificationBgColor(NotificationType type) {
     bool dark = IsDarkTheme();
     switch (type) {
         case NotificationType_Success: 
-            return dark ? ImVec4(0.12f, 0.35f, 0.17f, 0.95f) : ImVec4(0.70f, 0.90f, 0.75f, 0.95f);
+            // #4CD97B Success green
+            return dark ? ImVec4(0.298f, 0.851f, 0.482f, 0.95f) : ImVec4(0.70f, 0.90f, 0.75f, 0.95f);
         case NotificationType_Warning:  
-            return dark ? ImVec4(0.45f, 0.36f, 0.11f, 0.95f) : ImVec4(0.95f, 0.90f, 0.60f, 0.95f);
+            // #FFB86B Warning orange
+            return dark ? ImVec4(1.0f, 0.722f, 0.420f, 0.95f) : ImVec4(0.95f, 0.90f, 0.60f, 0.95f);
         case NotificationType_Error:    
-            return dark ? ImVec4(0.42f, 0.14f, 0.14f, 0.95f) : ImVec4(0.95f, 0.75f, 0.75f, 0.95f);
+            // #FF6B7A Error red
+            return dark ? ImVec4(1.0f, 0.420f, 0.478f, 0.95f) : ImVec4(0.95f, 0.75f, 0.75f, 0.95f);
         case NotificationType_Info:      
-            return dark ? ImVec4(0.14f, 0.24f, 0.42f, 0.95f) : ImVec4(0.75f, 0.85f, 0.95f, 0.95f);
+            // #5CE1E6 Accent cyan
+            return dark ? ImVec4(0.361f, 0.882f, 0.902f, 0.95f) : ImVec4(0.75f, 0.85f, 0.95f, 0.95f);
         default: 
-            return dark ? ImVec4(0.20f, 0.20f, 0.22f, 0.95f) : ImVec4(0.85f, 0.85f, 0.88f, 0.95f);
+            return dark ? ImVec4(0.067f, 0.078f, 0.125f, 0.95f) : ImVec4(0.85f, 0.85f, 0.88f, 0.95f);
     }
 }
 

@@ -540,36 +540,41 @@ void EditorApp::apply_theme(bool dark) {
     
     // Colors - use ImGui defaults, enhance for editor
     ImVec4* colors = style.Colors;
-    // Menu text, explorer, git, symbol text - muted like accelerator
-    colors[ImGuiCol_Text] = dark ? ImVec4(0.60f, 0.65f, 0.70f, 1.00f) : ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
-    colors[ImGuiCol_TextDisabled] = dark ? ImVec4(0.40f, 0.45f, 0.50f, 1.00f) : ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-    // Background #0B1020
+    // Dark Pro Palette
+    // Text high contrast: #E6EEF6
+    colors[ImGuiCol_Text] = dark ? ImVec4(0.902f, 0.933f, 0.965f, 1.00f) : ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    // Text muted: #9AA6B2
+    colors[ImGuiCol_TextDisabled] = dark ? ImVec4(0.604f, 0.651f, 0.698f, 1.00f) : ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    // Background: #0B1020
     colors[ImGuiCol_WindowBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
-    colors[ImGuiCol_ChildBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
-    // Surface #111420 for popups
+    colors[ImGuiCol_ChildBg] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    // Surface: #111420 for popups
     colors[ImGuiCol_PopupBg] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    // Border matches background
-    colors[ImGuiCol_Border] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    // Border: #1F2632
+    colors[ImGuiCol_Border] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
     colors[ImGuiCol_BorderShadow] = dark ? ImVec4(0.00f, 0.00f, 0.00f, 0.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
     // Surface for frames
     colors[ImGuiCol_FrameBg] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
-    colors[ImGuiCol_FrameBgHovered] = dark ? ImVec4(0.15f, 0.18f, 0.22f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-    colors[ImGuiCol_FrameBgActive] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
-    colors[ImGuiCol_TitleBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.92f, 0.92f, 0.92f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered] = dark ? ImVec4(0.361f, 0.882f, 0.902f, 0.30f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_FrameBgActive] = dark ? ImVec4(0.361f, 0.882f, 0.902f, 0.50f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_TitleBg] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.92f, 0.92f, 0.92f, 1.00f);
     colors[ImGuiCol_TitleBgActive] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.88f, 0.88f, 0.88f, 1.00f);
-    colors[ImGuiCol_TitleBgCollapsed] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
+    colors[ImGuiCol_TitleBgCollapsed] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
     
-    // Additional useful styles - consistent palette
-    colors[ImGuiCol_MenuBarBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
-    colors[ImGuiCol_ScrollbarBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrab] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabHovered] = dark ? ImVec4(0.20f, 0.25f, 0.30f, 1.00f) : ImVec4(0.65f, 0.65f, 0.65f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabActive] = dark ? ImVec4(0.25f, 0.30f, 0.35f, 1.00f) : ImVec4(0.55f, 0.55f, 0.55f, 1.00f);
-    colors[ImGuiCol_Button] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-    colors[ImGuiCol_ButtonHovered] = dark ? ImVec4(0.20f, 0.25f, 0.30f, 1.00f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
-    colors[ImGuiCol_ButtonActive] = dark ? ImVec4(0.15f, 0.18f, 0.22f, 1.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    // Additional styles
+    colors[ImGuiCol_MenuBarBg] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrab] = dark ? ImVec4(0.478f, 0.424f, 1.0f, 0.50f) : ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = dark ? ImVec4(0.478f, 0.424f, 1.0f, 0.70f) : ImVec4(0.65f, 0.65f, 0.65f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive] = dark ? ImVec4(0.478f, 0.424f, 1.0f, 1.00f) : ImVec4(0.55f, 0.55f, 0.55f, 1.00f);
+    // Button with accent
+    colors[ImGuiCol_Button] = dark ? ImVec4(0.361f, 0.882f, 0.902f, 0.30f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_ButtonHovered] = dark ? ImVec4(0.361f, 0.882f, 0.902f, 0.50f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_ButtonActive] = dark ? ImVec4(0.361f, 0.882f, 0.902f, 0.70f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    // Separator: #1F2632
     colors[ImGuiCol_Separator] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
-    colors[ImGuiCol_Tab] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    // Tab: surface
+    colors[ImGuiCol_Tab] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
     colors[ImGuiCol_TabHovered] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
     colors[ImGuiCol_TabActive] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
     // Menu highlight - matches editor selection
