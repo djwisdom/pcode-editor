@@ -12,6 +12,7 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include "imgui_notify.h"
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <GLFW/glfw3.h>
@@ -170,7 +171,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
     s.show_minimap = get_bool("show_minimap", true);
     s.show_spaces = get_bool("show_spaces", false);
     s.highlight_line = get_int("highlight_line", 1);
-    s.show_tabs = get_bool("show_tabs", true);
+    s.show_tabs = get_bool("show_tabs", false);
     s.tab_size = get_int("tab_size", 4);
     s.font_size = get_int("font_size", 18);
     s.font_name = get_str("font_name");
@@ -195,7 +196,7 @@ static void settings_load(AppSettings& s, const std::string& path) {
 }
 
 // ============================================================================
-// Version
+// Version: 0.9.11
 // ============================================================================
 std::string EditorApp::get_version() {
     // Try to read VERSION file first
@@ -337,27 +338,13 @@ void EditorApp::init() {
     glfwSetDropCallback(window_, [](GLFWwindow* window, int count, const char** paths) {
         EditorApp* app = (EditorApp*)glfwGetWindowUserPointer(window);
         if (app && count > 0) {
-            fprintf(stderr, "DEBUG GLFW DROP: %d files\n", count);
             for (int i = 0; i < count; i++) {
-                fprintf(stderr, "DEBUG: %s\n", paths[i]);
                 app->open_file(paths[i]);
             }
         }
     });
     glfwMakeContextCurrent(window_);
     glfwSwapInterval(1);
-    
-    // Enable file drop via GLFW callback
-    glfwSetDropCallback(window_, [](GLFWwindow* window, int count, const char** paths) {
-        EditorApp* app = (EditorApp*)glfwGetWindowUserPointer(window);
-        if (app && count > 0) {
-            fprintf(stderr, "DEBUG: Drop received %d files\n", count);
-            for (int i = 0; i < count; i++) {
-                fprintf(stderr, "DEBUG: Drop file %d: %s\n", i, paths[i]);
-                app->open_file(paths[i]);
-            }
-        }
-    });
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -549,36 +536,37 @@ void EditorApp::apply_theme(bool dark) {
     // Colors - use ImGui defaults, enhance for editor
     ImVec4* colors = style.Colors;
     // Menu text, explorer, git, symbol text - muted like accelerator
-    colors[ImGuiCol_Text] = dark ? ImVec4(0.50f, 0.50f, 0.50f, 1.00f) : ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
-    colors[ImGuiCol_TextDisabled] = dark ? ImVec4(0.50f, 0.50f, 0.50f, 1.00f) : ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-    // Match scrollbar background (#262626)
-    colors[ImGuiCol_WindowBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
-    colors[ImGuiCol_ChildBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
-    colors[ImGuiCol_PopupBg] = dark ? ImVec4(0.20f, 0.20f, 0.20f, 1.00f) : ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_Border] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+    colors[ImGuiCol_Text] = dark ? ImVec4(0.60f, 0.65f, 0.70f, 1.00f) : ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    colors[ImGuiCol_TextDisabled] = dark ? ImVec4(0.40f, 0.45f, 0.50f, 1.00f) : ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    // Background #0B1020
+    colors[ImGuiCol_WindowBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    colors[ImGuiCol_ChildBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    // Surface #111420 for popups
+    colors[ImGuiCol_PopupBg] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    // Border matches background
+    colors[ImGuiCol_Border] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
     colors[ImGuiCol_BorderShadow] = dark ? ImVec4(0.00f, 0.00f, 0.00f, 0.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
-    colors[ImGuiCol_FrameBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
-    colors[ImGuiCol_FrameBgHovered] = dark ? ImVec4(0.30f, 0.30f, 0.30f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-    colors[ImGuiCol_FrameBgActive] = dark ? ImVec4(0.25f, 0.25f, 0.25f, 1.00f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
-    colors[ImGuiCol_TitleBg] = dark ? ImVec4(0.15f, 0.15f, 0.15f, 1.00f) : ImVec4(0.92f, 0.92f, 0.92f, 1.00f);
-    colors[ImGuiCol_TitleBgActive] = dark ? ImVec4(0.20f, 0.20f, 0.20f, 1.00f) : ImVec4(0.88f, 0.88f, 0.88f, 1.00f);
-    colors[ImGuiCol_TitleBgCollapsed] = dark ? ImVec4(0.15f, 0.15f, 0.15f, 1.00f) : ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
+    // Surface for frames
+    colors[ImGuiCol_FrameBg] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered] = dark ? ImVec4(0.15f, 0.18f, 0.22f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_FrameBgActive] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_TitleBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.92f, 0.92f, 0.92f, 1.00f);
+    colors[ImGuiCol_TitleBgActive] = dark ? ImVec4(0.067f, 0.078f, 0.125f, 1.00f) : ImVec4(0.88f, 0.88f, 0.88f, 1.00f);
+    colors[ImGuiCol_TitleBgCollapsed] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
     
-    // Additional useful styles
-    // Menu background - matches scrollbar (#262626)
-    colors[ImGuiCol_MenuBarBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
-    colors[ImGuiCol_ScrollbarBg] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
-    // Scrollbar thumb - normal matches bg, hover stays different
-    colors[ImGuiCol_ScrollbarGrab] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabHovered] = dark ? ImVec4(0.35f, 0.35f, 0.35f, 1.00f) : ImVec4(0.65f, 0.65f, 0.65f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabActive] = dark ? ImVec4(0.45f, 0.45f, 0.45f, 1.00f) : ImVec4(0.55f, 0.55f, 0.55f, 1.00f);
-    colors[ImGuiCol_Button] = dark ? ImVec4(0.25f, 0.25f, 0.25f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-    colors[ImGuiCol_ButtonHovered] = dark ? ImVec4(0.35f, 0.35f, 0.35f, 1.00f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
-    colors[ImGuiCol_ButtonActive] = dark ? ImVec4(0.30f, 0.30f, 0.30f, 1.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
-    colors[ImGuiCol_Separator] = dark ? ImVec4(0.40f, 0.40f, 0.40f, 1.00f) : ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
-    colors[ImGuiCol_Tab] = dark ? ImVec4(0.18f, 0.18f, 0.18f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-    colors[ImGuiCol_TabHovered] = dark ? ImVec4(0.28f, 0.28f, 0.28f, 1.00f) : ImVec4(0.82f, 0.82f, 0.82f, 1.00f);
-    colors[ImGuiCol_TabActive] = dark ? ImVec4(0.22f, 0.22f, 0.22f, 1.00f) : ImVec4(0.88f, 0.88f, 0.88f, 1.00f);
+    // Additional useful styles - consistent palette
+    colors[ImGuiCol_MenuBarBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrab] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = dark ? ImVec4(0.20f, 0.25f, 0.30f, 1.00f) : ImVec4(0.65f, 0.65f, 0.65f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive] = dark ? ImVec4(0.25f, 0.30f, 0.35f, 1.00f) : ImVec4(0.55f, 0.55f, 0.55f, 1.00f);
+    colors[ImGuiCol_Button] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_ButtonHovered] = dark ? ImVec4(0.20f, 0.25f, 0.30f, 1.00f) : ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_ButtonActive] = dark ? ImVec4(0.15f, 0.18f, 0.22f, 1.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    colors[ImGuiCol_Separator] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+    colors[ImGuiCol_Tab] = dark ? ImVec4(0.043f, 0.063f, 0.125f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_TabHovered] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    colors[ImGuiCol_TabActive] = dark ? ImVec4(0.122f, 0.149f, 0.196f, 1.00f) : ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
     // Menu highlight - matches editor selection
     colors[ImGuiCol_Header] = dark ? ImVec4(0.149f, 0.149f, 0.149f, 1.00f) : ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
     colors[ImGuiCol_HeaderHovered] = dark ? ImVec4(0.25f, 0.25f, 0.25f, 1.00f) : ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
@@ -588,8 +576,13 @@ void EditorApp::apply_theme(bool dark) {
     for (auto& tab : tabs_) {
         if (tab.editor) {
             auto palette = dark ? TextEditor::GetDarkPalette() : TextEditor::GetLightPalette();
-            palette[(int)TextEditor::PaletteIndex::Background] = dark ? 0xFF262626 : 0xFFF6F6F6;
+            palette[(int)TextEditor::PaletteIndex::Background] = dark ? 0xFF20100B : 0xFFF6F6F6;
             tab.editor->SetPalette(palette);
+            for (auto* split : tab.splits) {
+                if (split->editor) {
+                    split->editor->SetPalette(palette);
+                }
+            }
         }
     }
 }
@@ -597,15 +590,18 @@ void EditorApp::apply_theme(bool dark) {
 // ============================================================================
 // Tab management
 // ============================================================================
+static int untitled_count = 0;
+
 void EditorApp::new_tab() {
     EditorTab tab;
-    tab.display_name = "untitled";
+    untitled_count++;
+    tab.display_name = "untitled" + std::to_string(untitled_count);
     tab.editor = new TextEditor();
     tab.editor->SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
     tab.editor->SetTabSize(settings_.tab_size);
     // Set editor background to match theme scrollbar background
     auto palette = settings_.dark_theme ? TextEditor::GetDarkPalette() : TextEditor::GetLightPalette();
-    palette[(int)TextEditor::PaletteIndex::Background] = settings_.dark_theme ? 0xFF262626 : 0xFFF6F6F6;
+    palette[(int)TextEditor::PaletteIndex::Background] = settings_.dark_theme ? 0xFF20100B : 0xFFF6F6F6;
     tab.editor->SetPalette(palette);
 
     tab.editor->SetText("");
@@ -661,12 +657,10 @@ void EditorApp::open_file(const std::string& path) {
 
     if (path.empty()) {
         nfdchar_t* out_path = nullptr;
-        // Pass null for defaultPath to let OS decide (avoids ShellItem error)
         nfdresult_t result = NFD_OpenDialog(&out_path, nullptr, 0, nullptr);
 
         if (result == NFD_OKAY && out_path) {
             selected_path = out_path;
-            // Save the directory for next time
             settings_.last_open_dir = std::filesystem::path(out_path).parent_path().string();
             NFD_FreePath(out_path);
         } else if (result == NFD_CANCEL) {
@@ -754,6 +748,7 @@ bool EditorApp::save_tab(int idx) {
     std::ofstream file(tab.file_path, std::ios::binary);
     if (!file.is_open()) {
         fprintf(stderr, "Failed to save: %s\n", tab.file_path.c_str());
+        ImGui::AddErrorNotification("Failed to save file");
         return false;
     }
     file << editor->GetText();
@@ -762,6 +757,7 @@ bool EditorApp::save_tab(int idx) {
     tab.file_size = editor->GetText().size();
     tab.line_ending = get_line_ending(editor->GetText());
     add_recent_file(tab.file_path);
+    ImGui::AddSuccessNotification("File saved successfully");
     return true;
 }
 
@@ -808,9 +804,8 @@ void EditorApp::close_tab(int idx) {
     }
     delete tabs_[idx].editor;
     tabs_.erase(tabs_.begin() + idx);
-    if (tabs_.empty()) {
-        new_tab();
-    } else if (active_tab_ >= (int)tabs_.size()) {
+    // Don't auto-create new tab - only via [+] button
+    if (active_tab_ >= (int)tabs_.size()) {
         active_tab_ = (int)tabs_.size() - 1;
     }
 }
@@ -1023,6 +1018,8 @@ void EditorApp::toggle_explorer() {
     else if (explorer_side_ == 1) explorer_side_ = -1;
     else explorer_side_ = 0;
     show_file_tree_ = (explorer_side_ != -1);
+    // When toggling to show, also pin it
+    if (explorer_side_ != -1) explorer_pinned_ = true;
 }
 
 void EditorApp::toggle_word_wrap() {
@@ -1055,12 +1052,15 @@ void EditorApp::toggle_theme() {
     settings_.dark_theme = !settings_.dark_theme;
     apply_theme(settings_.dark_theme);
     
-    // Apply theme and custom background to all tabs
-    uint32_t bg = settings_.dark_theme ? 0xFF262626 : 0xFFF6F6F6;
+    // Apply theme to all tabs + splits
+    uint32_t bg = settings_.dark_theme ? 0xFF20100B : 0xFFF6F6F6;
     for (auto& tab : tabs_) {
         auto palette = settings_.dark_theme ? TextEditor::GetDarkPalette() : TextEditor::GetLightPalette();
         palette[(int)TextEditor::PaletteIndex::Background] = bg;
         tab.editor->SetPalette(palette);
+        for (auto* split : tab.splits) {
+            if (split->editor) split->editor->SetPalette(palette);
+        }
     }
 }
 
@@ -3088,6 +3088,62 @@ void EditorApp::render() {
         }
     }
     
+    if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
+        if (ImGui::IsKeyPressed(ImGuiKey_O)) { open_file(""); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_tab(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_tab(active_tab_); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_E)) { toggle_explorer(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_F)) { show_find_ = true; return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_H)) { show_replace_ = true; return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_G)) { show_goto_ = true; return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_A)) { 
+            if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
+                get_active_editor()->SelectAll(); 
+            }
+            return; 
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Tab)) { 
+            if (tabs_.size() > 1) {
+                active_tab_ = (active_tab_ + 1) % tabs_.size();
+                ImGui::SetWindowFocus("Editor");
+            }
+            return; 
+        }
+    }
+    if (io.KeyCtrl && io.KeyShift && !io.KeyAlt) {
+        if (ImGui::IsKeyPressed(ImGuiKey_F12)) { show_style_editor_ = true; return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_window(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab_as(active_tab_); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_P)) { show_cmd_palette_ = true; return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_H)) { split_horizontal(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_V)) { split_vertical(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_Tab)) { 
+            if (tabs_.size() > 1) {
+                active_tab_ = (active_tab_ > 0) ? active_tab_ - 1 : (int)tabs_.size() - 1;
+                ImGui::SetWindowFocus("Editor");
+            }
+            return; 
+        }
+    }
+    if (io.KeyCtrl && io.KeyAlt && !io.KeyShift) {
+        if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_all(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_window(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_H)) { prev_split(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_L)) { next_split(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_K)) { rotate_splits(); return; }
+        if (ImGui::IsKeyPressed(ImGuiKey_E)) { equalize_splits(); return; }
+    }
+    if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            if (show_find_) { show_find_ = false; return; }
+            if (show_replace_) { show_replace_ = false; return; }
+            if (show_goto_) { show_goto_ = false; return; }
+        }
+    }
+    if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
+        // Removed spacebar command palette - was blocking normal typing
+    }
+    
     // Clear InputQueueCharacters ONLY when vim mode is enabled and in Normal mode
     if (settings_.enable_vim_mode && vim_mode_ == VimMode::Normal && !terminal_input_active_) {
         ImGuiIO& io = ImGui::GetIO();
@@ -3097,6 +3153,7 @@ void EditorApp::render() {
     // Command mode - don't process vim keys or shortcuts, let status bar handle input
     if (vim_mode_ != VimMode::Command) {
         if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt) {
+            if (ImGui::IsKeyPressed(ImGuiKey_Space)) { show_cmd_palette_ = true; return; }
             if (ImGui::IsKeyPressed(ImGuiKey_O)) { open_file(""); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab(active_tab_); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_tab(); return; }
@@ -3121,7 +3178,7 @@ void EditorApp::render() {
             }
         }
         if (io.KeyCtrl && io.KeyShift && !io.KeyAlt) {
-            if (ImGui::IsKeyPressed(ImGuiKey_F12)) { ImGui::ShowStyleEditor(nullptr); return; }
+            if (ImGui::IsKeyPressed(ImGuiKey_F12)) { show_style_editor_ = true; return; }
             if (ImGui::IsKeyPressed(ImGuiKey_N)) { new_window(); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_S)) { save_tab_as(active_tab_); return; }
             if (ImGui::IsKeyPressed(ImGuiKey_W)) { close_window(); return; }
@@ -3204,16 +3261,27 @@ void EditorApp::render() {
     if (show_font_) render_font_dialog();
     if (show_spaces_dialog_) render_spaces_dialog();
     if (show_cmd_palette_) render_command_palette();
-    if (show_about_) render_about_dialog();
+    if (show_about_) {
+        // Guard: ensure about dialog doesn't hang
+        if (!ImGui::IsPopupOpen("About")) {
+            ImGui::OpenPopup("About");
+        }
+        render_about_dialog();
+    }
     if (show_style_editor_) {
-        ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_Always);
-        ImGui::Begin("Style Editor", &show_style_editor_);
-        ImGui::ShowStyleEditor(nullptr);
-        ImGui::End();
+        // Guard: prevent hanging style editor
+        ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_Once);
+        if (ImGui::Begin("Style Editor", &show_style_editor_)) {
+            ImGui::ShowStyleEditor(nullptr);
+            ImGui::End();
+        }
     }
     
     // Native Windows status bar
     update_native_status_bar();
+    
+    // Render notifications (toasts)
+    ImGui::RenderNotifications();
 }
 
 // ============================================================================
@@ -3233,7 +3301,6 @@ void EditorApp::render_menu_bar() {
 void EditorApp::render_menu_file() {
     if (ImGui::BeginMenu("File")) {
         if (ImGui::MenuItem("New Tab", "Ctrl+N")) new_tab();
-        if (ImGui::MenuItem("New Terminal", "Ctrl+Shift+T")) new_terminal_tab();
         if (ImGui::MenuItem("New Window", "Ctrl+Shift+N")) new_window();
         if (ImGui::BeginMenu("Open...")) {
             if (ImGui::MenuItem("In New Tab", "Ctrl+O")) open_file("");
@@ -3257,10 +3324,6 @@ void EditorApp::render_menu_file() {
         if (ImGui::MenuItem("Save", "Ctrl+S")) save_tab(active_tab_);
         if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) save_tab_as(active_tab_);
         if (ImGui::MenuItem("Save All", "Ctrl+Alt+S")) save_all();
-        ImGui::Separator();
-        // Page Setup — placeholder (requires native print dialog)
-        if (ImGui::MenuItem("Page Setup...")) { /* TODO: native dialog */ }
-        if (ImGui::MenuItem("Print...", "Ctrl+P")) { /* TODO: native print */ }
         ImGui::Separator();
         if (ImGui::MenuItem("Close Tab", "Ctrl+W")) close_tab(active_tab_);
         if (ImGui::MenuItem("Close Window", "Ctrl+Shift+W")) close_window();
@@ -3336,15 +3399,15 @@ void EditorApp::render_menu_view() {
         }
         ImGui::Separator();
         
-        
-        bool ww = settings_.word_wrap;
-        if (ImGui::MenuItem("Word Wrap", nullptr, &ww)) toggle_word_wrap();
+        // Show Tabs (default: false)
         bool tabs = settings_.show_tabs;
         if (ImGui::MenuItem("Show Tabs", nullptr, &tabs)) settings_.show_tabs = tabs;
-        bool ln = settings_.show_line_numbers;
+        
+        // Show Spaces (default: false) 
         bool sp = settings_.show_spaces;
         if (ImGui::MenuItem("Show Spaces", nullptr, &sp)) toggle_spaces();
-        ImGui::Separator();
+        
+        // Explorer (default: true)
         bool explorer = (explorer_side_ != -1);
         if (ImGui::MenuItem("Explorer", "Ctrl+E", &explorer)) {
             if (!explorer) explorer_side_ = -1;
@@ -3352,50 +3415,20 @@ void EditorApp::render_menu_view() {
             else explorer_side_ = (explorer_side_ == 0) ? 1 : 0;
             show_file_tree_ = (explorer_side_ != -1);
         }
+        
         ImGui::Separator();
         if (ImGui::MenuItem("Validate Layout", "Ctrl+Shift+L")) validate_layout();
-        // Line Numbers always on (ImGui default), highlight, bookmarks, etc - not controllable
+        
         ImGui::Separator();
         if (ImGui::BeginMenu("Spaces")) {
             if (ImGui::MenuItem("2 Spaces", nullptr, settings_.tab_size == 2)) set_tab_size(2);
             if (ImGui::MenuItem("4 Spaces", nullptr, settings_.tab_size == 4)) set_tab_size(4);
             if (ImGui::MenuItem("8 Spaces", nullptr, settings_.tab_size == 8)) set_tab_size(8);
-            if (ImGui::MenuItem("Custom...")) { show_spaces_dialog_ = true; tab_size_temp_ = settings_.tab_size; }
+if (ImGui::MenuItem("Custom...")) { show_spaces_dialog_ = true; tab_size_temp_ = settings_.tab_size; }
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Highlight Current Line")) {
-            if (ImGui::MenuItem("No highlight", nullptr, settings_.highlight_line == 0)) settings_.highlight_line = 0;
-            if (ImGui::MenuItem("Background color", nullptr, settings_.highlight_line == 1)) settings_.highlight_line = 1;
-            if (ImGui::MenuItem("Outline frame", nullptr, settings_.highlight_line == 2)) settings_.highlight_line = 2;
-            ImGui::EndMenu();
-        }
-        ImGui::Separator();
-        if (ImGui::BeginMenu("Code Folding")) {
-            if (ImGui::MenuItem("Fold All", "Ctrl+Shift+[")) fold_all();
-            if (ImGui::MenuItem("Unfold All", "Ctrl+Shift+]")) unfold_all();
-            if (ImGui::MenuItem("Toggle Fold", "Ctrl+[")) {
-                if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-                    auto pos = get_active_editor()->GetCursorPosition();
-                    toggle_fold(pos.mLine);
-                }
-            }
-            ImGui::EndMenu();
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Terminal", "Ctrl+`", &show_terminal_)) {
-            if (show_terminal_ && !terminal_process_) start_terminal();
-        }
-        if (show_terminal_) {
-            ImGui::Indent();
-            if (ImGui::MenuItem("Bottom", nullptr, settings_.terminal_position == 0)) settings_.terminal_position = 0;
-            if (ImGui::MenuItem("Left", nullptr, settings_.terminal_position == 1)) settings_.terminal_position = 1;
-            if (ImGui::MenuItem("Top", nullptr, settings_.terminal_position == 2)) settings_.terminal_position = 2;
-            if (ImGui::MenuItem("Right", nullptr, settings_.terminal_position == 3)) settings_.terminal_position = 3;
-            ImGui::Unindent();
-        }
-        ImGui::Separator();
         if (ImGui::MenuItem(settings_.dark_theme ? "Light Theme" : "Dark Theme")) toggle_theme();
-ImGui::EndMenu();
+        ImGui::EndMenu();
     }
 }
 
@@ -3418,9 +3451,6 @@ void EditorApp::render_menu_split() {
         if (ImGui::MenuItem("Split Tab Horizontally", "Ctrl+Shift+H")) split_horizontal(false);
         if (ImGui::MenuItem("Split Tab Vertically", "Ctrl+Shift+V")) split_vertical(false);
         ImGui::Separator();
-        if (ImGui::MenuItem("Split Terminal Horizontally")) split_horizontal(true);
-        if (ImGui::MenuItem("Split Terminal Vertically")) split_vertical(true);
-        ImGui::Separator();
         if (ImGui::MenuItem("Split and Open Horizontally")) open_file_split("");
         if (ImGui::MenuItem("Split and Open Vertically")) open_file_split_vertical("");
         ImGui::Separator();
@@ -3436,12 +3466,19 @@ void EditorApp::render_menu_split() {
 void EditorApp::render_about_dialog() {
     if (!show_about_) return;
     
-    // Center on main window
-    ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * 0.5f, vp->Pos.y + vp->Size.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(440, 420), ImGuiCond_Always);  // +20px width, +40px height
+    // Guard: prevent transparent/hanging dialog - only open once
+    if (!ImGui::IsPopupOpen("About")) {
+        ImGuiViewport* vp = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * 0.5f, vp->Pos.y + vp->Size.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(440, 420), ImGuiCond_Always);
+        ImGui::OpenPopup("About");
+    }
     
-    ImGui::OpenPopup("About");
+    // Push opaque background color (not transparent)
+    ImVec4 bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+    bg.w = 1.0f;  // Force full alpha
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, bg);
+    
     if (ImGui::BeginPopupModal("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Dummy(ImVec2(4, 0));  // Left margin
         
@@ -3449,16 +3486,18 @@ void EditorApp::render_about_dialog() {
         ImGui::Separator();
         ImGui::Dummy(ImVec2(0, 10));
         
-        // VERSION format: "0.8.0 (hash)"
+        // VERSION format: "0.9.10 (hash)" - show short version
         std::string version = get_version();
-        size_t start = version.find("0.");  // Find "0.8" start
-        size_t paren = version.find(" (");  // Find " ("
-        std::string ver_part = version.substr(start, paren - start);  // "0.8.0"
-        std::string full_hash = version.substr(paren + 2);  // after " ("
-        full_hash = full_hash.substr(0, full_hash.find(")"));  // hash
-        std::string short_hash = full_hash.substr(0, 7);  // short hash
-        
-        ImGui::Text("Version: %s (%s)", ver_part.c_str(), short_hash.c_str());
+        size_t paren = version.find(" (");
+        std::string short_ver = version.substr(0, paren);
+        if (paren != std::string::npos) {
+            std::string hash = version.substr(paren + 2);
+            size_t close_paren = hash.find(")");
+            if (close_paren != std::string::npos) {
+                short_ver += " (" + hash.substr(0, close_paren) + ")";
+            }
+        }
+        ImGui::Text("Version: %s", short_ver.c_str());
         ImGui::Text("Built: " __DATE__);
         
         ImGui::Dummy(ImVec2(0, 10));
@@ -3498,6 +3537,7 @@ void EditorApp::render_about_dialog() {
         }
         
         ImGui::EndPopup();
+        ImGui::PopStyleColor();
     }
 }
 
@@ -3549,46 +3589,53 @@ void EditorApp::render_editor_area() {
     }
     prev_active_tab = active_tab_;
     
-    // Render tabs FIXED at top (not inside scrolling child)
+    // Render tabs as regular buttons (skip ImGui tab bar to avoid selection issues)
     if (show_tabs) {
-        ImGuiTabBarFlags tab_flags = ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs;
-        if (ImGui::BeginTabBar("##Tabs", tab_flags)) {
-            for (int i = 0; i < (int)tabs_.size(); i++) {
-                auto& tab = tabs_[i];
-                std::string label = tab.display_name + " ##" + std::to_string(i);
-                if (tab.dirty) label += " *";
-
-                bool open = true;
-                if (ImGui::BeginTabItem(label.c_str(), &open)) {
-                    // This tab is selected - update active_tab
-                    if (active_tab_ != i) {
-                        active_tab_ = i;
-                    }
-                    ImGui::EndTabItem();
-                }
-                if (!open) {
-                    close_tab(i);
-                    break;
-                }
+        float tab_height = ImGui::GetFrameHeight();
+        ImVec2 cursor = ImGui::GetCursorPos();
+        
+        // Render tab headers horizontally (each tab: [name][x])
+        int close_idx = -1;
+        for (int i = 0; i < (int)tabs_.size(); i++) {
+            auto& tab = tabs_[i];
+            std::string label = tab.display_name;
+            if (tab.dirty) label = "*" + tab.display_name;
+            
+            // Highlight active tab
+            bool is_active = (i == active_tab_);
+            ImVec4 btn_color = is_active ? ImVec4(0.3f, 0.3f, 0.35f, 1.0f) : ImVec4(0.2f, 0.2f, 0.25f, 1.0f);
+            ImGui::PushStyleColor(ImGuiCol_Button, btn_color);
+            
+            if (ImGui::Button(label.c_str())) {
+                active_tab_ = i;
             }
-            // Add [+] button for new tab
-            if (tabs_.size() < 10) {
-                if (ImGui::TabItemButton("+##newtab", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoReorder)) {
-                    char tab_name[32];
-                    if (tabs_.size() == 0) snprintf(tab_name, sizeof(tab_name), "untitled");
-                    else snprintf(tab_name, sizeof(tab_name), "untitled%d", (int)tabs_.size());
-                    new_tab();
-                    tabs_[active_tab_].display_name = tab_name;
-                    tabs_[active_tab_].file_path = "";
-                }
+            ImGui::PopStyleColor();
+            
+            // Close button (x) - renders right next to tab button (no SameLine!)
+            if (ImGui::Button("x")) {
+                close_idx = i;
             }
-            ImGui::EndTabBar();
+            // No SameLine here - next tab button renders to the right automatically
         }
         
-        // Set focus after tab bar (after we know which is active)
-        if (active_tab_ >= 0 && active_tab_ < (int)tabs_.size()) {
-            ImGui::SetWindowFocus("Editor");
+        // Handle close after the loop
+        if (close_idx >= 0) {
+            auto& tab = tabs_[close_idx];
+            delete tab.editor;
+            tabs_.erase(tabs_.begin() + close_idx);
+            if (active_tab_ >= (int)tabs_.size()) {
+                active_tab_ = (int)tabs_.size() - 1;
+            }
+            if (active_tab_ > close_idx) active_tab_--;
         }
+        
+        // [+] for new tab
+        ImGui::SameLine();
+        if (ImGui::Button("+")) {
+            new_tab();
+        }
+        
+        ImGui::Separator();
     }
     
     // Collapsible sidebar - hide in horizontal splits unless pinned
@@ -3645,7 +3692,7 @@ void EditorApp::render_editor_area() {
         ImGui::SameLine();
         if (ImGui::Button("S")) sidebar_view = 2;
         ImGui::SameLine();
-        if (ImGui::Button(explorer_pinned_ ? "[@]" : "[?]")) explorer_pinned_ = !explorer_pinned_;
+        if (ImGui::Button(explorer_pinned_ ? "[x]" : "[ ]")) explorer_pinned_ = !explorer_pinned_;
         ImGui::Separator();
         
         if (sidebar_view == 0) {
@@ -3665,7 +3712,7 @@ void EditorApp::render_editor_area() {
                             }
                             
                             if (is_dir) {
-                                std::string icon = expanded ? "- " : "+ ";
+                                std::string icon = expanded ? "v " : "> ";
                                 std::string id = icon + name + "##" + full_path;
                                 if (ImGui::Selectable(id.c_str(), false)) {
                                     if (expanded) {
@@ -3681,7 +3728,7 @@ void EditorApp::render_editor_area() {
                                     ImGui::Unindent();
                                 }
                             } else {
-                                std::string icon = "f ";
+                                std::string icon = "· ";
                                 std::string id = icon + name + "##" + full_path;
                                 if (ImGui::Selectable(id.c_str(), false)) {
                                     open_file(full_path);
@@ -3770,23 +3817,26 @@ void EditorApp::render_editor_area() {
         
         // Resize handle - wider visible bar
         ImGui::SameLine();
-        ImVec4 splitterColor(0.149f, 0.149f, 0.149f, 1.0f);  // #262626
-        ImVec4 splitterHover(0.25f, 0.25f, 0.25f, 1.0f);   // slightly lighter for hover
+        ImVec4 splitterColor = settings_.dark_theme 
+            ? ImVec4(0.067f, 0.078f, 0.125f, 1.0f) 
+            : ImVec4(0.96f, 0.96f, 0.96f, 1.0f);
+        ImVec4 splitterHover = settings_.dark_theme 
+            ? ImVec4(0.122f, 0.149f, 0.196f, 1.0f) 
+            : ImVec4(0.90f, 0.90f, 0.90f, 1.0f);
         ImGui::PushStyleColor(ImGuiCol_Button, splitterColor);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, splitterHover);
-        if (ImGui::Button("##sidebarsplit", ImVec2(8, -1))) {
-            // Toggle expand on click if not dragging
-        }
+        if (ImGui::Button("##sidebarsplit", ImVec2(8, -1))) {}
         ImGui::PopStyleColor(2);
         if (ImGui::IsItemHovered()) {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
             if (ImGui::IsMouseDown(0)) dragging = true;
         }
         if (dragging && ImGui::IsMouseDown(0)) {
-            sidebar_w += ImGui::GetIO().MouseDelta.x;
-            sidebar_w = std::clamp(sidebar_w, 100.0f, 500.0f);
-            float avail = ImGui::GetContentRegionAvail().x + sidebar_w;
-            if (avail > 100) sidebar_ratio = sidebar_w / avail;
+            float delta = ImGui::GetIO().MouseDelta.x;
+            if (delta != 0) {
+                sidebar_w += delta;
+                sidebar_w = std::clamp(sidebar_w, 100.0f, 500.0f);
+            }
         } else {
             dragging = false;
         }
@@ -4015,7 +4065,7 @@ static const char* get_file_icon(const std::string& path, bool is_dir) {
     if (ext == ".exe" || ext == ".dll" || ext == ".so" || ext == ".dylib") return "BIN";
     if (ext == ".gitignore" || ext == ".clang-format" || ext == ".editorconfig") return "CFG";
     
-    return "F ";
+    return "· ";
 }
 
 static const char* get_git_status(const std::string& path) {
@@ -4192,7 +4242,7 @@ void EditorApp::render_dir_tree(const std::string& dir_path, std::unordered_map<
             ImGui::PushID(e.path.c_str());
             bool is_expanded = expanded_dirs[e.path];
             
-            const char* arrow = is_expanded ? "[-]" : "[+]";
+            const char* arrow = is_expanded ? "[v]" : "[>]";
             if (ImGui::Selectable(arrow, false)) {
                 expanded_dirs[e.path] = !is_expanded;
             }
@@ -4377,13 +4427,13 @@ void EditorApp::render_symbol_outline() {
             size_t paren = trimmed.find('(');
             size_t name_start = trimmed.find_first_of(" \t*&");
             if (paren != std::string::npos && name_start != std::string::npos && name_start < paren) {
-                icon = "[F] ";
+                icon = "[f]";
                 color = ImVec4(1.0f, 0.8f, 0.4f, 1.0f);  // yellow
             } else {
                 continue;  // Skip variable declarations
             }
         } else if (trimmed.find("def ") == 0 || trimmed.find("fn ") == 0 || trimmed.find("func ") == 0) {
-            icon = "[F] ";
+            icon = "[f]";
             color = ImVec4(1.0f, 0.8f, 0.4f, 1.0f);
         } else if (trimmed.find("#define ") == 0) {
             icon = "[D] ";
@@ -5728,13 +5778,19 @@ void EditorApp::render_splits(int tab_idx) {
     float old_scale = ImGui::GetIO().FontGlobalScale;
     ImGui::GetIO().FontGlobalScale = old_scale * scale;
     
+    // Clear first_render flag after first render call
+    if (tab.first_render) tab.first_render = false;
+    
     if (tab.splits.empty()) {
+        if (!tab.first_render && tab.editor->IsTextChanged()) tab.dirty = true;
         tab.editor->Render("TextEditor");
         ImGui::GetIO().FontGlobalScale = old_scale;
         return;
     }
     
     if (tab.splits.size() == 1) {
+        if (!tab.first_render && tab.splits[0]->editor->IsTextChanged()) tab.dirty = true;
+        tab.first_render = false;
         tab.splits[0]->editor->Render("TextEditor");
         ImGui::GetIO().FontGlobalScale = old_scale;
         return;
@@ -5759,6 +5815,7 @@ void EditorApp::render_splits(int tab_idx) {
             ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0);
             ImGui::BeginChild(("vsplit_" + std::to_string(i)).c_str(), ImVec2(width, avail.y), true);
             if (split->editor) {
+                if (split->editor->IsTextChanged()) tab.dirty = true;
                 split->editor->Render(("Editor_v" + std::to_string(i)).c_str());
             }
             ImGui::EndChild();
@@ -5778,6 +5835,7 @@ void EditorApp::render_splits(int tab_idx) {
             ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0);
             ImGui::BeginChild(("hsplit_" + std::to_string(i)).c_str(), ImVec2(avail.x, height), true);
             if (split->editor) {
+                if (split->editor->IsTextChanged()) tab.dirty = true;
                 split->editor->Render(("Editor_h" + std::to_string(i)).c_str());
             }
             ImGui::EndChild();
