@@ -3652,51 +3652,33 @@ void EditorApp::render_editor_area() {
     }
     prev_active_tab = active_tab_;
     
-    // Render tabs as regular buttons (skip ImGui tab bar to avoid selection issues)
+    // Use ImGui native tab bar with close buttons
     if (show_tabs) {
-        float tab_height = ImGui::GetFrameHeight();
-        ImVec2 cursor = ImGui::GetCursorPos();
-        
-        // Render tab headers horizontally (each tab: [name][x])
-        int close_idx = -1;
-        for (int i = 0; i < (int)tabs_.size(); i++) {
-            auto& tab = tabs_[i];
-            std::string label = tab.display_name;
-            if (tab.dirty) label = "*" + tab.display_name;
-            
-            // Highlight active tab
-            bool is_active = (i == active_tab_);
-            ImVec4 btn_color = is_active ? ImVec4(0.3f, 0.3f, 0.35f, 1.0f) : ImVec4(0.2f, 0.2f, 0.25f, 1.0f);
-            ImGui::PushStyleColor(ImGuiCol_Button, btn_color);
-            
-            if (ImGui::Button(label.c_str())) {
-                active_tab_ = i;
-            }
-            ImGui::PopStyleColor();
-            
-            // Close button (x) - renders right next to tab button (no SameLine!)
-            if (ImGui::Button("x")) {
-                close_idx = i;
-            }
-            // No SameLine here - next tab button renders to the right automatically
-        }
-        
-        // Handle close after the loop
-        if (close_idx >= 0) {
-            auto& tab = tabs_[close_idx];
-            if (tab.dirty) {
-                // Show confirmation dialog instead of closing
-                pending_close_tab_idx_ = close_idx;
-                ImGui::OpenPopup("Discard Changes?");
-            } else {
-                // Safe to close immediately
-                delete tab.editor;
-                tabs_.erase(tabs_.begin() + close_idx);
-                if (active_tab_ >= (int)tabs_.size()) {
-                    active_tab_ = (int)tabs_.size() - 1;
+        if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_AutoSelectNewTab)) {
+            for (int i = 0; i < (int)tabs_.size(); i++) {
+                auto& tab = tabs_[i];
+                // ImGuiTabItemFlags_UnsavedDocument shows the x close button
+                bool open = true;
+                if (ImGui::BeginTabItem(tab.display_name.c_str(), &open, ImGuiTabItemFlags_UnsavedDocument)) {
+                    active_tab_ = i;
+                    ImGui::EndTabItem();
                 }
-                if (active_tab_ > close_idx) active_tab_--;
+                // Handle close via x button (open = false)
+                if (!open) {
+                    if (tab.dirty) {
+                        pending_close_tab_idx_ = i;
+                        ImGui::OpenPopup("Discard Changes?");
+                    } else {
+                        delete tab.editor;
+                        tabs_.erase(tabs_.begin() + i);
+                        if (active_tab_ >= (int)tabs_.size()) {
+                            active_tab_ = (int)tabs_.size() - 1;
+                        }
+                        if (active_tab_ > i) active_tab_--;
+                    }
+                }
             }
+            ImGui::EndTabBar();
         }
         
         // Render discard confirmation modal
@@ -3704,7 +3686,7 @@ void EditorApp::render_editor_area() {
             ImGui::Text("Save changes to '%s'?", tabs_[pending_close_tab_idx_].display_name.c_str());
             ImGui::Separator();
             if (ImGui::Button("Save")) {
-                // TODO: Implement save before close
+                save_tab(pending_close_tab_idx_);
                 delete tabs_[pending_close_tab_idx_].editor;
                 tabs_.erase(tabs_.begin() + pending_close_tab_idx_);
                 if (active_tab_ >= (int)tabs_.size()) {
@@ -3732,6 +3714,15 @@ void EditorApp::render_editor_area() {
             }
             ImGui::EndPopup();
         }
+        
+        // [+] for new tab
+        ImGui::SameLine();
+        if (ImGui::Button("+")) {
+            new_tab();
+        }
+        
+        ImGui::Separator();
+    }
         
         // [+] for new tab
         ImGui::SameLine();
